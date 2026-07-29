@@ -55,10 +55,11 @@
       <div class="grid grid-cols-2 gap-2">
         <div>
           <label class="block text-xs font-mono text-slate-400 mb-1">Model</label>
-          <select id="modelSelect" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-xs text-slate-200 focus:border-indigo-500 focus:outline-none font-mono">
-            <option value="gemini-2.5-flash">Gemini 2.5 Flash (Fast)</option>
-            <option value="gemini-2.5-pro">Gemini 2.5 Pro (Precise)</option>
-          </select>
+		<select id="modelSelect" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-xs text-slate-200 focus:border-indigo-500 focus:outline-none font-mono">
+			<option value="gemini-flash">Gemini Flash (Auto-Latest)</option>
+			<option value="gemini-pro">Gemini Pro (Auto-Latest)</option>
+			<option value="gemini-2.0-flash-exp">Gemini 2.0 Flash (Experimental)</option>
+		</select>
         </div>
         <div class="flex items-end">
           <button id="processBtn" onclick="processImage()" 
