@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="h-full bg-slate-950 text-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rotcev - AI Vector Semantic Reconstruction</title>
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* 自訂滾動條 */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+  </style>
+</head>
+<body class="flex h-full flex-col font-sans antialiased">
+
+  <!-- Header 標題區 -->
+  <header class="border-b border-slate-800 bg-slate-900/80 px-6 py-4 backdrop-blur">
+    <div class="flex flex-col gap-1 md:flex-row md:items-baseline md:space-x-3">
+      <h1 class="font-mono text-2xl font-black tracking-widest text-indigo-400">
+        ROTCEV
+      </h1>
+      <span class="hidden text-slate-600 md:inline">|</span>
+      <p class="font-mono text-xs font-medium text-slate-300">
+        Unflatten flattened vectors back into vector.
+      </p>
+      <span class="text-[10px] font-mono text-slate-500 md:ml-auto">
+        AI-assisted Vector Semantic Reconstruction
+      </span>
+    </div>
+  </header>
+
+  <!-- 主工作區 -->
+  <main class="flex flex-1 overflow-hidden p-4 gap-4">
+    
+    <!-- 左側：控制面板與日誌 (Control & Logs) -->
+    <section class="flex w-1/3 flex-col gap-4 rounded-xl border border-slate-800 bg-slate-900/50 p-4 backdrop-blur">
+      
+      <!-- API Key 輸入區 (含 Get Key 連結) -->
+      <div>
+        <div class="flex items-center justify-between mb-1">
+          <label class="block text-xs font-mono text-slate-400">Gemini API Key</label>
+          <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" 
+             class="text-[10px] font-mono text-indigo-400 hover:text-indigo-300 underline underline-offset-2">
+            Get Key ↗
+          </a>
+        </div>
+        <input type="password" id="apiKey" placeholder="AIzaSy..." 
+               class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200 focus:border-indigo-500 focus:outline-none font-mono">
+      </div>
+
+      <!-- 模型選擇與操作按鈕 -->
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="block text-xs font-mono text-slate-400 mb-1">Model</label>
+			<select id="modelSelect" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-2 text-xs text-slate-200 focus:border-indigo-500 focus:outline-none font-mono">
+				<option value="gemini-1.5-flash">Gemini 1.5 Flash (Fast)</option>
+				<option value="gemini-1.5-pro">Gemini 1.5 Pro (Precise)</option>
+				<option value="gemini-2.0-flash">Gemini 2.0 Flash (Latest)</option>
+			</select>
+        </div>
+        <div class="flex items-end">
+          <button id="processBtn" onclick="processImage()" 
+                  class="w-full rounded-lg bg-indigo-600 px-4 py-2 text-xs font-bold text-white hover:bg-indigo-500 disabled:opacity-50 transition-colors">
+            Reconstruct SVG
+          </button>
+        </div>
+      </div>
+
+      <!-- 圖片拖曳上傳區 -->
+      <div id="dropZone" class="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-700 bg-slate-950/50 p-6 text-center hover:border-indigo-500 cursor-pointer transition-colors"
+           onclick="document.getElementById('fileInput').click()"
+           ondragover="event.preventDefault()" 
+           ondrop="handleDrop(event)">
+        <svg class="w-8 h-8 text-slate-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+        <p class="text-xs text-slate-400 font-mono">Drop image here or click to upload</p>
+        <span id="fileName" class="mt-2 text-[10px] text-indigo-400 font-mono truncate max-w-full"></span>
+        <input type="file" id="fileInput" accept="image/*" class="hidden" onchange="handleFileSelect(event)">
+      </div>
+
+      <!-- Log 紀錄區域 (帶一鍵複製按鈕) -->
+      <div class="flex flex-1 flex-col overflow-hidden rounded-lg border border-slate-800 bg-slate-950 p-3">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-[10px] font-mono uppercase tracking-wider text-slate-500">Execution Logs</span>
+          <button onclick="copyLogs()" class="text-[10px] font-mono text-indigo-400 hover:text-indigo-300">Copy Log</button>
+        </div>
+        <textarea id="logArea" readonly class="flex-1 w-full resize-none bg-transparent font-mono text-[11px] text-slate-400 focus:outline-none" placeholder="System ready..."></textarea>
+      </div>
+
+    </section>
+
+    <!-- 右側：SVG 預覽與 Code 輸出 (Preview & Code Output) -->
+    <section class="flex flex-1 flex-col gap-4 rounded-xl border border-slate-800 bg-slate-900/50 p-4 backdrop-blur">
+      
+      <!-- 頁籤控制 -->
+      <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+        <div class="flex space-x-2">
+          <button id="tabPreviewBtn" onclick="switchTab('preview')" class="rounded bg-indigo-600 px-3 py-1 text-xs font-mono font-bold text-white">Preview</button>
+          <button id="tabCodeBtn" onclick="switchTab('code')" class="rounded bg-slate-800 px-3 py-1 text-xs font-mono text-slate-400 hover:bg-slate-700">SVG Code</button>
+        </div>
+        <button onclick="downloadSVG()" class="rounded border border-slate-700 px-3 py-1 text-xs font-mono text-slate-300 hover:bg-slate-800">Download SVG</button>
+      </div>
+
+      <!-- 預覽 Viewport (固定 1000x1000 比例) -->
+      <div id="previewTab" class="flex flex-1 items-center justify-center overflow-auto rounded-lg bg-slate-950 p-4">
+        <div id="svgContainer" class="w-full h-full max-w-[600px] max-h-[600px] flex items-center justify-center border border-slate-800/50 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:16px_16px]">
+          <span class="text-xs font-mono text-slate-600">Generated SVG will render here</span>
+        </div>
+      </div>
+
+      <!-- Code 檢視區 -->
+      <div id="codeTab" class="hidden flex-1 overflow-hidden rounded-lg bg-slate-950 p-3">
+        <textarea id="svgCodeOutput" readonly class="h-full w-full resize-none bg-transparent font-mono text-xs text-indigo-300 focus:outline-none" placeholder="SVG XML source code..."></textarea>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- 前端邏輯 JS -->
+  <script>
+    let base64Image = null;
+
+    function log(msg) {
+      const area = document.getElementById('logArea');
+      const time = new Date().toLocaleTimeString();
+      area.value += `[${time}] ${msg}\n`;
+      area.scrollTop = area.scrollHeight;
+    }
+
+    function copyLogs() {
+      const area = document.getElementById('logArea');
+      navigator.clipboard.writeText(area.value);
+      alert('Logs copied to clipboard!');
+    }
+
+    function switchTab(tab) {
+      const preview = document.getElementById('previewTab');
+      const code = document.getElementById('codeTab');
+      const previewBtn = document.getElementById('tabPreviewBtn');
+      const codeBtn = document.getElementById('tabCodeBtn');
+
+      if (tab === 'preview') {
+        preview.classList.remove('hidden');
+        code.classList.add('hidden');
+        previewBtn.className = "rounded bg-indigo-600 px-3 py-1 text-xs font-mono font-bold text-white";
+        codeBtn.className = "rounded bg-slate-800 px-3 py-1 text-xs font-mono text-slate-400 hover:bg-slate-700";
+      } else {
+        preview.classList.add('hidden');
+        code.classList.remove('hidden');
+        codeBtn.className = "rounded bg-indigo-600 px-3 py-1 text-xs font-mono font-bold text-white";
+        previewBtn.className = "rounded bg-slate-800 px-3 py-1 text-xs font-mono text-slate-400 hover:bg-slate-700";
+      }
+    }
+
+    function handleFileSelect(e) {
+      const file = e.target.files[0];
+      if (file) processFile(file);
+    }
+
+    function handleDrop(e) {
+      e.preventDefault();
+      const file = e.dataTransfer.files[0];
+      if (file) processFile(file);
+    }
+
+    function processFile(file) {
+      document.getElementById('fileName').innerText = file.name;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        base64Image = e.target.result.split(',')[1];
+        log(`Image loaded: ${file.name} (${Math.round(file.size/1024)} KB)`);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    async function processImage() {
+      const apiKey = document.getElementById('apiKey').value.trim();
+      const model = document.getElementById('modelSelect').value;
+
+      if (!apiKey) { alert('Please enter your Gemini API Key'); return; }
+      if (!base64Image) { alert('Please upload an image first'); return; }
+
+      const btn = document.getElementById('processBtn');
+      btn.disabled = true;
+      log(`Initiating Rotcev semantic reconstruction using ${model}...`);
+
+      const systemPrompt = `You are Rotcev, a high-precision Vector Semantic Reconstruction AI.
+Your mission is to reverse a flattened/rasterized vector image back into clean, modular SVG code.
+
+CRITICAL RULES:
+1. Output ONLY valid XML/SVG code enclosed within \`\`\`xml ... \`\`\`. Do not add any extra text or commentary.
+2. ViewBox MUST be exact "0 0 1000 1000". Scale all elements proportionately to fit this 1000x1000 coordinate space.
+3. SEMANTIC RECONSTRUCTION: Do NOT use image tracing or high-density dense point path approximations. Identify core geometric primitives (<rect>, <circle>, <path>, <text>).
+4. For text elements, use proper SVG <text> tags with suitable font-family, font-size, and fill where legible.
+5. Use clean, distinct layers and group related elements with <g id="..."> tags.
+6. Make paths smooth and minimal using cubic/quadratic beziers (C, S, Q) instead of thousands of line segments.`;
+
+      const payload = {
+        contents: [{
+          parts: [
+            { text: systemPrompt },
+            { inline_data: { mime_type: "image/png", data: base64Image } }
+          ]
+        }]
+      };
+
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+      try {
+        log("Sending payload via REST API...");
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+          const errData = await response.json();
+          throw new Error(errData.error?.message || `HTTP Error ${response.status}`);
+        }
+
+        const data = await response.json();
+        log("API Response received successfully.");
+
+        const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        const svgMatch = rawText.match(/```xml\s*([\s\S]*?)\s*```/) || rawText.match(/<svg[\s\S]*?<\/svg>/);
+
+        if (svgMatch) {
+          const svgCode = svgMatch[1] || svgMatch[0];
+          document.getElementById('svgCodeOutput').value = svgCode;
+          document.getElementById('svgContainer').innerHTML = svgCode;
+          log("SVG successfully reconstructed and rendered!");
+        } else {
+          log("Warning: Could not extract clean SVG code block from response.");
+          document.getElementById('svgCodeOutput').value = rawText;
+        }
+
+      } catch (err) {
+        log(`[ERROR] ${err.message}`);
+        console.error(err);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function downloadSVG() {
+      const code = document.getElementById('svgCodeOutput').value;
+      if (!code) { alert('No SVG content to download'); return; }
+      const blob = new Blob([code], { type: 'image/svg+xml' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'rotcev-reconstruction.svg';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+  </script>
+</body>
+</html>
