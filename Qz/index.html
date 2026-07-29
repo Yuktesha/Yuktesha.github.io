@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>互動刷題與智慧出題系統</title>
+    <!-- SheetJS 用於瀏覽器端解析與生成 ODS/XLSX/CSV -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #0f172a;
+            --text-sub: #64748b;
+            --border-color: #e2e8f0;
+            --success: #22c55e;
+            --danger: #ef4444;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: var(--bg-color); color: var(--text-main); line-height: 1.6; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        
+        /* 頁首 / 頁尾 樣式 */
+        .exam-header-title { font-size: 1.5rem; font-weight: bold; color: #1e293b; text-align: center; margin-bottom: 16px; word-break: break-all; }
+        .footer-info { text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px dashed var(--border-color); color: var(--text-sub); font-size: 0.85rem; }
+
+        .card { background: var(--card-bg); border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05); border: 1px solid var(--border-color); }
+        .card h2 { font-size: 1.2rem; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; color: #334155; }
+        
+        .btn { display: inline-flex; align-items: center; justify-content: center; padding: 10px 18px; font-size: 0.95rem; font-weight: 600; border-radius: 8px; border: none; cursor: pointer; transition: all 0.2s; gap: 6px; text-decoration: none; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-hover); }
+        .btn-outline { background: transparent; border: 1px solid var(--primary); color: var(--primary); }
+        .btn-outline:hover { background: #eff6ff; }
+        .btn-secondary { background: #e2e8f0; color: #334155; }
+        .btn-secondary:hover { background: #cbd5e1; }
+        .btn-danger { background: #fee2e2; color: #ef4444; }
+        .btn-danger:hover { background: #fca5a5; color: white; }
+        
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 0.9rem; }
+        .form-control { width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.95rem; }
+        .form-control:focus { outline: None; border-color: var(--primary); }
+        
+        .radio-group { display: flex; gap: 16px; margin-top: 6px; }
+        .file-dropzone { border: 2px dashed #cbd5e1; border-radius: 8px; padding: 24px; text-align: center; background: #fafafa; cursor: pointer; transition: all 0.2s; margin-top: 10px; }
+        .file-dropzone:hover, .file-dropzone.dragover { border-color: var(--primary); background: #f0f9ff; }
+
+        .hidden { display: none !important; }
+
+        /* README 簡介摺疊卡片 */
+        .readme-box { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 16px; margin-bottom: 20px; font-size: 0.9rem; color: #1e3a8a; }
+        .readme-box h3 { margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+
+        /* 計時器樣式 */
+        .timer-badge { display: inline-flex; gap: 12px; background: #f1f5f9; padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; color: #334155; }
+
+        /* Modal 彈窗樣式 */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+        .modal { background: white; border-radius: 12px; padding: 24px; max-width: 600px; width: 92%; }
+        .modal h3 { margin-bottom: 12px; color: #1e293b; }
+        .prompt-box { background: #f8fafc; border: 1px solid #cbd5e1; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 0.85rem; width: 100%; height: 160px; margin: 10px 0; resize: vertical; line-height: 1.5; color: #334155; }
+
+        /* 答題區域與圖片樣式 */
+        .q-title { font-size: 1.15rem; font-weight: 600; margin-bottom: 16px; line-height: 1.5; }
+        .opts-list { display: flex; flex-direction: column; gap: 10px; }
+        .opt-btn { display: flex; align-items: flex-start; padding: 12px 16px; border: 1px solid var(--border-color); border-radius: 8px; background: white; text-align: left; font-size: 1rem; cursor: pointer; transition: background 0.2s; }
+        .opt-btn:hover:not([disabled]) { background: #f1f5f9; }
+        .opt-btn.correct { background: #dcfce7 !important; border-color: var(--success) !important; color: #166534; }
+        .opt-btn.wrong { background: #fee2e2 !important; border-color: var(--danger) !important; color: #991b1b; }
+        .opt-tag { font-weight: bold; margin-right: 10px; flex-shrink: 0; }
+
+        /* 題目/選項圖片響應式 */
+        .quiz-img { max-width: 100%; max-height: 300px; height: auto; border-radius: 6px; margin: 8px 0; border: 1px solid var(--border-color); cursor: pointer; }
+        .quiz-img:hover { opacity: 0.9; }
+
+        /* Google 表單風 - 編輯器樣式 */
+        .gform-modal { background: #f1f5f9; width: 95%; max-width: 750px; height: 85vh; display: flex; flex-direction: column; border-radius: 12px; padding: 0; overflow: hidden; }
+        .gform-header { background: white; padding: 16px 24px; border-bottom: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 8px; }
+        .gform-body { padding: 20px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 16px; }
+        .gform-footer { background: white; padding: 16px 24px; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+
+        .q-card { background: white; border-radius: 8px; padding: 20px; border: 1px solid var(--border-color); box-shadow: 0 1px 3px rgba(0,0,0,0.05); position: relative; }
+        .q-card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .q-card-title { font-weight: bold; color: var(--primary); font-size: 1rem; }
+        
+        .gform-input-q { width: 100%; border: 1px solid var(--border-color); border-radius: 6px; padding: 10px; font-size: 0.95rem; background: #f8fafc; resize: vertical; min-height: 60px; font-family: inherit; margin-bottom: 6px; }
+        .gform-input-q:focus { background: white; outline: None; border-color: var(--primary); }
+
+        .gform-opt-row { display: flex; flex-direction: column; margin-bottom: 10px; border-bottom: 1px dashed var(--border-color); padding-bottom: 8px; }
+        .gform-opt-main { display: flex; align-items: center; gap: 10px; }
+        .gform-opt-row input[type="radio"] { width: 18px; height: 18px; cursor: pointer; accent-color: var(--primary); }
+        .gform-opt-input { flex: 1; border: none; border-bottom: 1px solid var(--border-color); padding: 6px 4px; font-size: 0.9rem; }
+        .gform-opt-input:focus { outline: none; border-bottom-color: var(--primary); }
+        .btn-remove-opt { cursor: pointer; color: #94a3b8; font-size: 1.1rem; border: none; background: none; padding: 0 4px; }
+        .btn-remove-opt:hover { color: var(--danger); }
+
+        /* 編輯器圖片預覽區元件 */
+        .img-preview-box { display: inline-flex; position: relative; margin-top: 6px; margin-bottom: 6px; }
+        .img-preview-box img { max-height: 120px; max-width: 100%; border-radius: 6px; border: 1px solid var(--border-color); background: #fafafa; }
+        .img-preview-del { position: absolute; top: -8px; right: -8px; background: var(--danger); color: white; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 12px; cursor: pointer; font-weight: bold; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+
+        @media print {
+            body { background: white; padding: 0; }
+            .no-print { display: none !important; }
+            .card { box-shadow: none; border: none; padding: 0; margin-bottom: 30px; page-break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <!-- 系統 README 與黃金工作流說明區塊 -->
+    <div class="readme-box no-print">
+        <h3 onclick="toggleReadme()">
+            <span>📖 系統簡介與推薦黃金出題流 (README)</span>
+            <span id="readmeToggleIcon">▼</span>
+        </h3>
+        <div id="readmeContent">
+            <p style="margin-top: 8px;">歡迎使用<b>互動刷題與智慧出題系統</b>！本系統為純前端應用，所有題庫資料皆於您的本地瀏覽器進行處理，零伺服器傳送，徹底保護您的個資與題庫隱私。</p>
+            <hr style="margin: 10px 0; border: 0; border-top: 1px solid #bfdbfe;">
+            <p>🌟 <b>推薦黃金出題工作流 (Workflow)</b>：</p>
+            <ol style="margin-left: 20px; margin-top: 4px; line-height: 1.5;">
+                <li><b>文字批次輸入</b>：先用 LibreOffice Calc 或 Excel 批次整理好純文字題目與選項，匯出為 `.ods` / `.csv` 檔。</li>
+                <li><b>一鍵拖放上傳</b>：直接將 `.ods` 試算表拖入下方區域載入。</li>
+                <li><b>快速補圖與微調</b>：點擊<b>「✏️ 檢視 / 編輯題庫內容」</b>，對著需要附圖的題目按 <b>`Ctrl+V`</b> 貼上截圖，免除在 Excel 內處理圖片的困擾。</li>
+                <li><b>多卷刷題與計時</b>：設定抽題數量與作答時間，系統將自動洗牌、選項打亂並追蹤錯題！</li>
+            </ol>
+        </div>
+    </div>
+
+    <!-- 主入口區 (無資料時顯示) -->
+    <div id="setupSection" class="no-print">
+        <div class="card">
+            <h2>📥 1. 上傳題庫試算表 (推薦 🌟)</h2>
+            <p style="font-size: 0.9rem; color: var(--text-sub);">支援標準 ODS / CSV / XLSX。第一列為欄位表頭（項次、答案、題目、選項...）。題目或選項若含圖文混合，系統將自動解析。</p>
+            <div style="margin-top: 12px; display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="btn btn-outline" onclick="downloadTemplate()">📄 下載標準 ODS 範本</button>
+            </div>
+            
+            <!-- 拖放上傳區 -->
+            <div class="file-dropzone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+                <p>📁 點擊或將 <b>.ods / .xlsx / .csv</b> 檔案拖曳至此處</p>
+                <input type="file" id="fileInput" class="hidden" accept=".ods, .xlsx, .csv" onchange="handleFileSelect(this)">
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>📝 2. 手動建立或貼上題目 (備案)</h2>
+            <p style="font-size: 0.9rem; color: var(--text-sub);">適合少量題目建立，採用 Google 表單式卡片介面，<b>支援 Ctrl+V 直接貼圖並即時縮圖預覽</b>。</p>
+            <button class="btn btn-secondary" style="margin-top: 12px;" onclick="openManualEditor()">➕ 開啟線上表單編輯器</button>
+        </div>
+
+        <div class="card">
+            <h2>🧪 3. 上傳 PDF / 非標準格式 (AI 引導)</h2>
+            <p style="font-size: 0.9rem; color: var(--text-sub);">純前端直接解析 PDF 容易因排版錯亂導致題數不精準，建議配合 AI 10 秒轉換標準格式。</p>
+            <div class="file-dropzone" id="pdfDropZone" onclick="document.getElementById('pdfInput').click()">
+                <p>📄 上傳 <b>.pdf</b> 或開啟 AI 轉接提示詞</p>
+                <input type="file" id="pdfInput" class="hidden" accept=".pdf" onchange="handlePDFSelect(this)">
+            </div>
+        </div>
+    </div>
+
+    <!-- 題庫確認與抽題設定卡片 -->
+    <div id="configSection" class="card hidden no-print">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+            <h2 style="margin-bottom: 0;">⚙️ 題庫確認與測驗設定</h2>
+            <button class="btn btn-outline" style="padding: 6px 12px; font-size: 0.85rem;" onclick="openManualEditor()">✏️ 檢視 / 編輯題庫內容</button>
+        </div>
+        
+        <div class="form-group">
+            <label>題庫名稱：</label>
+            <input type="text" id="quizTitle" class="form-control" placeholder="請輸入題庫名稱">
+        </div>
+
+        <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+            <div class="form-group" style="flex: 1; min-width: 150px;">
+                <label>單次抽題數量：</label>
+                <input type="number" id="sampleCount" class="form-control" value="50" min="1">
+                <span style="font-size: 0.8rem; color: var(--text-sub);">（目前總題數：<b id="totalQuestionsCount">0</b> 題）</span>
+            </div>
+
+            <div class="form-group" style="flex: 1; min-width: 150px;">
+                <label>產生試卷份數：</label>
+                <select id="examCount" class="form-control">
+                    <option value="1">單次線上測驗 (1 份)</option>
+                    <option value="3">自動產生 3 份考卷</option>
+                    <option value="5">自動產生 5 份考卷</option>
+                    <option value="10">自動產生 10 份考卷</option>
+                </select>
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+            <div class="form-group" style="flex: 1; min-width: 200px;">
+                <label>作答時間限制（分鐘）：</label>
+                <input type="number" id="timeLimitInput" class="form-control" placeholder="留空或填 0 表示不限制時間" min="0">
+            </div>
+
+            <div class="form-group" style="flex: 1; min-width: 200px;">
+                <label>抽題模式：</label>
+                <div class="radio-group">
+                    <label><input type="radio" name="allowRepeat" value="false" checked> 不重複抽題</label>
+                    <label><input type="radio" name="allowRepeat" value="true"> 允許重複抽題</label>
+                </div>
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 10px;">
+            <button class="btn btn-primary" onclick="generateExams()">🚀 開始刷題 / 生成試卷</button>
+            <button class="btn btn-secondary" onclick="resetAll()">🔄 重新選擇檔案</button>
+        </div>
+    </div>
+
+    <!-- 考卷選單區塊 (生成 N 份考卷時顯示) -->
+    <div id="examListSection" class="card hidden no-print">
+        <div id="examListHeaderTitle" class="exam-header-title"></div>
+        <h2 style="font-size: 1.1rem; margin-top: 10px;">📄 已成功生成多份模擬考卷</h2>
+        <div id="examButtonsGroup" style="display: flex; flex-direction: column; gap: 10px; margin-top: 15px;"></div>
+    </div>
+
+    <!-- 線上刷題測驗介面 -->
+    <div id="quizAppSection" class="card hidden">
+        <div id="activeExamTitle" class="exam-header-title"></div>
+
+        <div class="no-print" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; font-weight: 600; color: var(--text-sub); font-size: 0.9rem; flex-wrap: wrap; gap: 10px;">
+            <div>
+                <span id="quizMeta">原題號 #1</span> ｜ 
+                <span id="quizProgress">剩餘未過關：0 題</span>
+            </div>
+            <div id="timerContainer" class="timer-badge hidden">
+                <span id="elapsedDisplay">⌛ 已用：00:00</span>
+                <span id="remainingDisplay" style="color: var(--danger);">⏳ 剩餘：00:00</span>
+            </div>
+        </div>
+
+        <div id="qTitle" class="q-title">題目載入中...</div>
+        <div id="optsList" class="opts-list"></div>
+        <div id="quizFeedback" style="margin-top: 15px; padding: 10px; border-radius: 6px; text-align: center; font-weight: 600; display: none;"></div>
+    </div>
+
+    <!-- 網頁底部系統說明 -->
+    <div class="footer-info no-print">
+        <h3>🎓 互動刷題與智慧出題系統</h3>
+        <p>單檔純前端運作 ｜ 零伺服器隱私保護 ｜ 支援圖文題庫與多卷生成</p>
+    </div>
+
+    <!-- Google 表單風格 - 線上編輯器 Modal -->
+    <div id="editorModal" class="modal-overlay hidden">
+        <div class="modal gform-modal">
+            <div class="gform-header">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="margin: 0;">📝 線上表單編輯器</h3>
+                    <span style="font-size: 0.85rem; color: var(--text-sub);">點選圓圈設為答案，支援 Ctrl+V 貼圖自動預覽</span>
+                </div>
+                <div style="margin-top: 6px;">
+                    <input type="text" id="gformQuizTitle" class="form-control" placeholder="請輸入題庫 / 試卷名稱..." style="font-weight: bold; background: #f8fafc;">
+                </div>
+            </div>
+            <div class="gform-body" id="gformBody">
+                <!-- 動態增建題目卡片 -->
+            </div>
+            <div class="gform-footer">
+                <button class="btn btn-secondary" onclick="addGFormCard()">➕ 新增一題</button>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-primary" onclick="saveGFormData()">💾 儲存並載入</button>
+                    <button class="btn btn-outline" onclick="closeEditorModal()">取消</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI 精準轉接提示詞 Modal -->
+    <div id="aiModal" class="modal-overlay hidden">
+        <div class="modal">
+            <h3>🤖 智慧 AI 轉接結構化提示詞</h3>
+            <p style="font-size: 0.9rem; color: #475569;">為了避免 PDF / 文字排版錯亂導致多算題數，請利用免費 Gemini 助手 10 秒生成精準 ODS / CSV：</p>
+            <ol style="font-size: 0.85rem; margin-left: 20px; margin-top: 8px; color: #334155; line-height: 1.5;">
+                <li>點擊下方按鈕複製<b>專用提示詞</b>。</li>
+                <li>開啟 <a href="https://gemini.google.com/" target="_blank" style="color: var(--primary); font-weight: bold;">Google Gemini</a> 並上傳您的 PDF / 題庫文件，貼上提示詞。</li>
+                <li>將 Gemini 生成的回傳內容匯出或存成 `.ods / .csv` 檔，直接拖回本系統即可完美對位！</li>
+            </ol>
+            <textarea class="prompt-box" id="aiPromptText" readonly>請幫我將這份 PDF/題庫文件中的所有測驗題目，轉換為標準的表格結構。請嚴格遵守以下格式規範：
+
+1. 表格必須包含且僅包含這些欄位標題（置於第一行）：
+   項次,正確答案,題目內文,選項A,選項B,選項C,選項D...（可依實際選項數量增加）
+
+2. 正確答案請一律填寫大寫英文字母 (A、B、C、D、E...)。
+3. 請勿包含大標題（例如：XX場題庫）、注意事項、備註或頁碼等無關文字。第一行必須是欄位標題，第二行起必須是第 1 題。
+4. 請確保輸出資料列數與題目總數完全一致（若有 45 題，就只輸出 1 行表頭 + 45 行題目，切勿多出空行或說明列）。
+5. 若題目或選項帶有圖片網址，請直接填入圖片網址或 <img> 標籤。
+6. 無內容的選項欄位請直接留空即可。
+7. 請直接以 Code Block (程式碼區塊) 輸出 CSV 格式，方便我直接下載或複製成 ODS 檔。</textarea>
+            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                <button class="btn btn-primary" onclick="copyPrompt()">📋 複製完整提示詞</button>
+                <button class="btn btn-secondary" onclick="closeAiModal()">關閉</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ==========================================
+    // 全域變數
+    // ==========================================
+    let globalRawQuestions = [];
+    let currentExams = [];
+    let currentExamQueue = [];
+    let userTimeLimitMinutes = 0;
+    let timerInterval = null;
+    let startTime = null;
+
+    function toggleReadme() {
+        const content = document.getElementById('readmeContent');
+        const icon = document.getElementById('readmeToggleIcon');
+        if (content.style.display === 'none') {
+            content.style.display = 'block';
+            icon.innerText = '▼';
+        } else {
+            content.style.display = 'none';
+            icon.innerText = '▲';
+        }
+    }
+
+    // ==========================================
+    // 智慧文字與圖片渲染器 (支援圖文混合、URL、Base64)
+    // ==========================================
+    function renderSmartText(text) {
+        if (!text) return '';
+        let str = String(text).trim();
+        
+        if (str.includes('<img')) return str;
+
+        // 1. 替換 Base64 圖片編碼
+        str = str.replace(/(data:image\/(?:png|jpeg|jpg|gif|svg\+xml);base64,[A-Za-z0-9+/=]+)/gi, function(match) {
+            return `<br><img src="${match}" class="quiz-img" onclick="window.open(this.src)" title="點擊檢視大圖"><br>`;
+        });
+
+        // 2. 替換一般 HTTP/HTTPS 圖片網址
+        str = str.replace(/(https?:\/\/[^\s]+?\.(?:jpg|jpeg|png|gif|webp|svg)(?:\?[^\s]*)?)/gi, function(match) {
+            if (match.startsWith('data:')) return match;
+            return `<br><img src="${match}" class="quiz-img" onclick="window.open(this.src)" title="點擊檢視大圖"><br>`;
+        });
+
+        return str;
+    }
+
+    // 分離文字與圖片網址/Base64
+    function separateTextAndImage(rawStr) {
+        if (!rawStr) return { text: '', imgSrc: '' };
+        let str = String(rawStr).trim();
+        let imgSrc = '';
+
+        const base64Match = str.match(/(data:image\/(?:png|jpeg|jpg|gif|svg\+xml);base64,[A-Za-z0-9+/=]+)/i);
+        const urlMatch = str.match(/(https?:\/\/[^\s]+?\.(?:jpg|jpeg|png|gif|webp|svg)(?:\?[^\s]*)?)/i);
+
+        if (base64Match) {
+            imgSrc = base64Match[0];
+            str = str.replace(base64Match[0], '').trim();
+        } else if (urlMatch) {
+            imgSrc = urlMatch[0];
+            str = str.replace(urlMatch[0], '').trim();
+        }
+
+        return { text: str, imgSrc: imgSrc };
+    }
+
+    // ==========================================
+    // 拖放上傳 (Drag & Drop) 事件設定
+    // ==========================================
+    window.addEventListener('DOMContentLoaded', () => {
+        setupDragAndDrop('dropZone', handleFile);
+        setupDragAndDrop('pdfDropZone', (file) => handlePDFSelect());
+    });
+
+    function setupDragAndDrop(elementId, callback) {
+        const zone = document.getElementById(elementId);
+        if (!zone) return;
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            zone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                zone.classList.add('dragover');
+            }, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            zone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                zone.classList.remove('dragover');
+            }, false);
+        });
+
+        zone.addEventListener('drop', (e) => {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files && files.length > 0) {
+                callback(files[0]);
+            }
+        }, false);
+    }
+
+    // ==========================================
+    // 1. 範本下載 (ODS格式)
+    // ==========================================
+    function downloadTemplate() {
+        const wsData = [
+            ["項次", "正確答案", "題目內文", "選項A", "選項B", "選項C", "選項D"],
+            [1, "A", "台灣的首都是哪裡？", "台北", "台中", "高雄", "台南"],
+            [2, "B", "下列哪一項屬於同理回應的核心技巧？", "指導", "反映感受與傾聽", "說服", "批評"]
+        ];
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.aoa_to_sheet(wsData);
+        XLSX.utils.book_append_sheet(wb, ws, "題庫範本");
+        XLSX.writeFile(wb, "標準題庫範本.ods");
+    }
+
+    // ==========================================
+    // 2. 試算表解析 (ODS / CSV / XLSX)
+    // ==========================================
+    function handleFileSelect(input) {
+        if (input.files && input.files[0]) handleFile(input.files[0]);
+    }
+
+    function handleFile(file) {
+        document.getElementById('quizTitle').value = file.name.replace(/\.[^/.]+$/, "");
+        const reader = new FileReader();
+
+        reader.onload = function(e) {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const rows = XLSX.utils.sheet_to_json(firstSheet, {header: 1});
+
+                parseParsedRows(rows);
+            } catch (err) {
+                alert("❌ 檔案讀取失敗，請確認檔案是否為合法的試算表！");
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    }
+
+    function parseParsedRows(rows) {
+        if (!rows || rows.length < 2) {
+            alert("⚠️ 試算表內容為空或行數不足！");
+            return;
+        }
+
+        let headerIdx = -1;
+        let colMap = { num: 0, ans: 1, q: 2, opts: [] };
+        
+        for (let i = 0; i < Math.min(10, rows.length); i++) {
+            const rStr = (rows[i] || []).join("").toLowerCase();
+            if (rStr.includes("題目") || rStr.includes("答案") || rStr.includes("選項")) {
+                headerIdx = i;
+                colMap.opts = [];
+                rows[i].forEach((cell, colI) => {
+                    const c = String(cell || "").toLowerCase();
+                    if (c.includes("項次") || c.includes("題號")) colMap.num = colI;
+                    else if (c.includes("答案") || c.includes("ans")) colMap.ans = colI;
+                    else if (c.includes("題目") || c.includes("內容")) colMap.q = colI;
+                    else if (c.includes("選項") || ['a','b','c','d','e','f','g'].includes(c)) colMap.opts.push(colI);
+                });
+                break;
+            }
+        }
+
+        if (colMap.opts.length === 0) {
+            const maxCols = Math.max(...rows.map(r => r ? r.length : 0));
+            for (let c = 3; c < maxCols; c++) colMap.opts.push(c);
+        }
+
+        const ansMap = {};
+        for (let i = 0; i < 26; i++) {
+            ansMap[String.fromCharCode(65 + i)] = i;
+            ansMap[String.fromCharCode(97 + i)] = i;
+            ansMap[String(i + 1)] = i;
+        }
+
+        globalRawQuestions = [];
+        const dataRows = headerIdx !== -1 ? rows.slice(headerIdx + 1) : rows.slice(1);
+
+        dataRows.forEach((r, idx) => {
+            if (!r || r.length <= colMap.q) return;
+            const qTitle = String(r[colMap.q] || "").trim();
+            if (!qTitle) return;
+
+            const rawAns = String(r[colMap.ans] || "").trim().toUpperCase().replace(/[()（）]/g, '');
+            const ansIdx = ansMap[rawAns] !== undefined ? ansMap[rawAns] : 0;
+
+            const opts = [];
+            colMap.opts.forEach(optCol => {
+                if (r[optCol] !== undefined) {
+                    const optVal = String(r[optCol]).trim();
+                    if (optVal !== "" && optVal !== "-") {
+                        opts.push(optVal);
+                    }
+                }
+            });
+
+            if (opts.length >= 2) {
+                globalRawQuestions.push({
+                    num: r[colMap.num] || (idx + 1),
+                    q: qTitle,
+                    opts: opts,
+                    ans: ansIdx
+                });
+            }
+        });
+
+        if (globalRawQuestions.length > 0) {
+            document.getElementById('totalQuestionsCount').innerText = globalRawQuestions.length;
+            document.getElementById('sampleCount').value = Math.min(50, globalRawQuestions.length);
+            document.getElementById('setupSection').classList.add('hidden');
+            document.getElementById('configSection').classList.remove('hidden');
+        } else {
+            alert("❌ 未能成功提取有效題目，請檢查 ODS 欄位標號。");
+        }
+    }
+
+    // ==========================================
+    // 3. 抽題與多卷生成演算法
+    // ==========================================
+    function shuffle(array) {
+        let arr = [...array];
+        for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+    }
+
+    function generateExams() {
+        const sampleCount = parseInt(document.getElementById('sampleCount').value) || 50;
+        const examCount = parseInt(document.getElementById('examCount').value) || 1;
+        const allowRepeat = document.querySelector('input[name="allowRepeat"]:checked').value === 'true';
+        userTimeLimitMinutes = parseInt(document.getElementById('timeLimitInput').value) || 0;
+
+        const baseTitle = document.getElementById('quizTitle').value || '模擬測驗';
+        currentExams = [];
+
+        for (let i = 0; i < examCount; i++) {
+            let examQ = [];
+            if (!allowRepeat) {
+                const shuffled = shuffle(globalRawQuestions);
+                examQ = shuffled.slice(0, Math.min(sampleCount, globalRawQuestions.length));
+            } else {
+                for (let j = 0; j < sampleCount; j++) {
+                    const rIdx = Math.floor(Math.random() * globalRawQuestions.length);
+                    examQ.push(globalRawQuestions[rIdx]);
+                }
+            }
+
+            const titleText = examCount > 1 ? `${baseTitle} - 第 ${i + 1} 卷` : baseTitle;
+            currentExams.push({ title: titleText, questions: examQ });
+        }
+
+        document.getElementById('configSection').classList.add('hidden');
+
+        if (examCount === 1) {
+            startQuizSession(currentExams[0]);
+        } else {
+            renderExamList(baseTitle);
+        }
+    }
+
+    function renderExamList(baseTitle) {
+        const listSec = document.getElementById('examListSection');
+        document.getElementById('examListHeaderTitle').innerText = baseTitle;
+
+        const btnGroup = document.getElementById('examButtonsGroup');
+        btnGroup.innerHTML = '';
+
+        currentExams.forEach((exam, idx) => {
+            const div = document.createElement('div');
+            div.style.display = 'flex';
+            div.style.gap = '10px';
+            div.innerHTML = `
+                <button class="btn btn-primary" style="flex:1;" onclick="startQuizSession(currentExams[${idx}])">🚀 開始測驗：${exam.title} (${exam.questions.length} 題)</button>
+            `;
+            btnGroup.appendChild(div);
+        });
+
+        listSec.classList.remove('hidden');
+    }
+
+    // ==========================================
+    // 4. 線上測驗互動邏輯 & 計時器
+    // ==========================================
+    function startQuizSession(examObject) {
+        document.getElementById('examListSection').classList.add('hidden');
+        document.getElementById('quizAppSection').classList.remove('hidden');
+
+        document.getElementById('activeExamTitle').innerText = examObject.title;
+
+        currentExamQueue = examObject.questions.map(item => {
+            let originalOpts = item.opts.map((opt, idx) => ({ text: opt, isCorrect: idx === item.ans }));
+            let normalOpts = [];
+            let aboveOpts = [];
+
+            originalOpts.forEach(o => {
+                if (o.text.includes("以上")) aboveOpts.push(o);
+                else normalOpts.push(o);
+            });
+
+            let finalOpts = shuffle(normalOpts).concat(aboveOpts);
+            return { num: item.num, q: item.q, opts: finalOpts, isRedo: false };
+        });
+
+        currentExamQueue = shuffle(currentExamQueue);
+        initTimer();
+        renderCurrentQuestion();
+    }
+
+    function initTimer() {
+        if (timerInterval) clearInterval(timerInterval);
+
+        const timerContainer = document.getElementById('timerContainer');
+        if (userTimeLimitMinutes <= 0) {
+            timerContainer.classList.add('hidden');
+            return;
+        }
+
+        timerContainer.classList.remove('hidden');
+        startTime = Date.now();
+        const totalSecondsLimit = userTimeLimitMinutes * 60;
+
+        timerInterval = setInterval(() => {
+            const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+            const remainingSeconds = totalSecondsLimit - elapsedSeconds;
+
+            document.getElementById('elapsedDisplay').innerText = `⌛ 已用：${formatTime(elapsedSeconds)}`;
+
+            if (remainingSeconds <= 0) {
+                document.getElementById('remainingDisplay').innerText = `⏳ 剩餘：00:00 (已到期)`;
+                clearInterval(timerInterval);
+                alert("⏰ 時間到！測驗時間已結束。");
+            } else {
+                document.getElementById('remainingDisplay').innerText = `⏳ 剩餘：${formatTime(remainingSeconds)}`;
+            }
+        }, 1000);
+    }
+
+    function formatTime(sec) {
+        const m = Math.floor(sec / 60);
+        const s = sec % 60;
+        return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+
+    function renderCurrentQuestion() {
+        const app = document.getElementById('quizAppSection');
+        if (currentExamQueue.length === 0) {
+            if (timerInterval) clearInterval(timerInterval);
+
+            app.innerHTML = `
+                <div style="text-align: center; padding: 30px 0;">
+                    <h1 style="font-size: 2.5rem;">🎉</h1>
+                    <h2>恭喜完成本次刷題練習！</h2>
+                    <p style="color: var(--text-sub); margin-top: 8px;">您已全數答對所有題目。</p>
+                    <button class="btn btn-primary" style="margin-top: 20px;" onclick="location.reload()">🔄 回首頁</button>
+                </div>
+            `;
+            return;
+        }
+
+        const curr = currentExamQueue[0];
+        document.getElementById('quizMeta').innerText = `原題號 #${curr.num} ${curr.isRedo ? '(錯題重測)' : ''}`;
+        document.getElementById('quizProgress').innerText = `剩餘未過關：${currentExamQueue.length} 題`;
+        
+        document.getElementById('qTitle').innerHTML = renderSmartText(curr.q);
+
+        const optsList = document.getElementById('optsList');
+        optsList.innerHTML = '';
+        document.getElementById('quizFeedback').style.display = 'none';
+
+        curr.opts.forEach((opt, idx) => {
+            const btn = document.createElement('button');
+            btn.className = 'opt-btn';
+            btn.innerHTML = `<span class="opt-tag">${String.fromCharCode(65 + idx)}.</span><span>${renderSmartText(opt.text)}</span>`;
+            btn.onclick = () => checkAnswer(btn, opt.isCorrect);
+            optsList.appendChild(btn);
+        });
+    }
+
+    function checkAnswer(btn, isCorrect) {
+        const allBtns = document.querySelectorAll('.opt-btn');
+        allBtns.forEach(b => b.setAttribute('disabled', 'true'));
+        const feedback = document.getElementById('quizFeedback');
+        feedback.style.display = 'block';
+
+        if (isCorrect) {
+            btn.classList.add('correct');
+            feedback.innerText = "✨ 答對了！自動進入下一題...";
+            feedback.style.background = "#f0fdf4";
+            feedback.style.color = "#166534";
+
+            currentExamQueue.shift();
+            setTimeout(renderCurrentQuestion, 600);
+        } else {
+            btn.classList.add('wrong');
+            feedback.innerText = "❌ 答錯了！此題已自動排入隊列，待會補考。";
+            feedback.style.background = "#fef2f2";
+            feedback.style.color = "#991b1b";
+
+            let wrongItem = currentExamQueue.shift();
+            wrongItem.isRedo = true;
+            currentExamQueue.push(wrongItem);
+
+            setTimeout(renderCurrentQuestion, 1600);
+        }
+    }
+
+    // ==========================================
+    // 5. Google 表單風格 - 線上編輯器 (預覽與貼圖優化)
+    // ==========================================
+    function openManualEditor() {
+        const container = document.getElementById('gformBody');
+        container.innerHTML = '';
+        
+        const currentTitle = document.getElementById('quizTitle').value || '';
+        document.getElementById('gformQuizTitle').value = currentTitle;
+
+        if (globalRawQuestions.length > 0) {
+            globalRawQuestions.forEach((q, idx) => addGFormCard(q, idx + 1));
+        } else {
+            for (let i = 1; i <= 2; i++) addGFormCard(null, i);
+        }
+        document.getElementById('editorModal').classList.remove('hidden');
+    }
+
+    function addGFormCard(data = null, defaultNum = null) {
+        const container = document.getElementById('gformBody');
+        const cardIndex = container.querySelectorAll('.q-card').length + 1;
+        const qNum = defaultNum || cardIndex;
+
+        const card = document.createElement('div');
+        card.className = 'q-card';
+
+        const qRaw = data ? data.q : '';
+        const parsedQ = separateTextAndImage(qRaw);
+
+        const opts = data ? data.opts : ['', '', '', ''];
+        const ansIdx = data ? data.ans : 0;
+        const radioGroupName = `ans_group_${qNum}_${Date.now()}`;
+
+        let optsHtml = '';
+        opts.forEach((optVal, i) => {
+            optsHtml += createOptRowHtml(radioGroupName, i, optVal, i === ansIdx);
+        });
+
+        card.innerHTML = `
+            <div class="q-card-head">
+                <span class="q-card-title">第 ${qNum} 題</span>
+                <button class="btn btn-danger" style="padding: 4px 10px; font-size: 0.8rem;" onclick="this.closest('.q-card').remove(); updateCardNumbers();">🗑️ 刪除題目</button>
+            </div>
+            <textarea class="gform-input-q" placeholder="請輸入題目內文 (可直接 Ctrl+V 貼上截圖)..." onpaste="handlePasteImage(event, this)">${parsedQ.text}</textarea>
+            <div class="img-preview-container">
+                ${parsedQ.imgSrc ? renderImgPreviewHtml(parsedQ.imgSrc) : ''}
+            </div>
+            <div class="opts-container">
+                ${optsHtml}
+            </div>
+            <button class="btn btn-outline" style="padding: 4px 10px; font-size: 0.8rem; margin-top: 8px;" onclick="addOptToCard(this, '${radioGroupName}')">➕ 新增選項</button>
+        `;
+
+        container.appendChild(card);
+    }
+
+    function createOptRowHtml(groupName, idx, value = '', isChecked = false) {
+        const letter = String.fromCharCode(65 + idx);
+        const parsedOpt = separateTextAndImage(value);
+
+        return `
+            <div class="gform-opt-row">
+                <div class="gform-opt-main">
+                    <input type="radio" name="${groupName}" value="${idx}" ${isChecked ? 'checked' : ''} title="設為正確答案">
+                    <span style="font-weight: bold; color: var(--text-sub); width: 20px;" class="opt-label">${letter}.</span>
+                    <input type="text" class="gform-opt-input" placeholder="選項 ${letter} (可 Ctrl+V 貼圖)" value="${parsedOpt.text}" onpaste="handlePasteImage(event, this)">
+                    <button class="btn-remove-opt" onclick="removeOptRow(this)" title="刪除此選項">✕</button>
+                </div>
+                <div class="img-preview-container" style="padding-left: 38px;">
+                    ${parsedOpt.imgSrc ? renderImgPreviewHtml(parsedOpt.imgSrc) : ''}
+                </div>
+            </div>
+        `;
+    }
+
+    function renderImgPreviewHtml(imgSrc) {
+        return `
+            <div class="img-preview-box" data-img="${imgSrc}">
+                <img src="${imgSrc}">
+                <div class="img-preview-del" onclick="this.parentElement.remove()" title="刪除圖片">✕</div>
+            </div>
+        `;
+    }
+
+    function handlePasteImage(e, inputEl) {
+        const clipboardData = e.clipboardData || window.clipboardData;
+        if (!clipboardData) return;
+
+        const items = clipboardData.items;
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf("image") !== -1) {
+                e.preventDefault();
+                const blob = items[i].getAsFile();
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const base64Img = event.target.result;
+                    let container;
+                    if (inputEl.classList.contains('gform-input-q')) {
+                        container = inputEl.nextElementSibling;
+                    } else {
+                        container = inputEl.closest('.gform-opt-row').querySelector('.img-preview-container');
+                    }
+                    container.innerHTML = renderImgPreviewHtml(base64Img);
+                };
+                reader.readAsDataURL(blob);
+                break;
+            }
+        }
+    }
+
+    function addOptToCard(btn, groupName) {
+        const container = btn.previousElementSibling;
+        const currentCount = container.children.length;
+        const div = document.createElement('div');
+        div.innerHTML = createOptRowHtml(groupName, currentCount, '', currentCount === 0);
+        container.appendChild(div.firstElementChild);
+        reindexCardOpts(container);
+    }
+
+    function removeOptRow(btn) {
+        const row = btn.closest('.gform-opt-row');
+        const container = row.parentElement;
+        if (container.children.length <= 2) {
+            alert("⚠️ 每題至少需要保留 2 個選項！");
+            return;
+        }
+        row.remove();
+        reindexCardOpts(container);
+    }
+
+    function reindexCardOpts(container) {
+        const rows = container.querySelectorAll('.gform-opt-row');
+        rows.forEach((r, idx) => {
+            const letter = String.fromCharCode(65 + idx);
+            r.querySelector('.opt-label').innerText = `${letter}.`;
+            r.querySelector('.gform-opt-input').placeholder = `選項 ${letter} (可 Ctrl+V 貼圖)`;
+            r.querySelector('input[type="radio"]').value = idx;
+        });
+    }
+
+    function updateCardNumbers() {
+        const cards = document.querySelectorAll('#gformBody .q-card');
+        cards.forEach((card, idx) => {
+            card.querySelector('.q-card-title').innerText = `第 ${idx + 1} 題`;
+        });
+    }
+
+    function saveGFormData() {
+        const cards = document.querySelectorAll('#gformBody .q-card');
+        let maxOptLen = 0;
+
+        const editedTitle = document.getElementById('gformQuizTitle').value.trim();
+        if (editedTitle) {
+            document.getElementById('quizTitle').value = editedTitle;
+        }
+
+        cards.forEach(card => {
+            const optInputs = card.querySelectorAll('.gform-opt-input');
+            if (optInputs.length > maxOptLen) maxOptLen = optInputs.length;
+        });
+
+        let headerRow = ["項次", "正確答案", "題目內文"];
+        for (let i = 0; i < maxOptLen; i++) {
+            headerRow.push(`選項${String.fromCharCode(65 + i)}`);
+        }
+
+        let tempRows = [headerRow];
+
+        cards.forEach((card, idx) => {
+            const qTxt = card.querySelector('.gform-input-q').value.trim();
+            const qImgBox = card.querySelector('.gform-input-q + .img-preview-container .img-preview-box');
+            const qImg = qImgBox ? qImgBox.getAttribute('data-img') : '';
+            const fullQ = (qTxt + ' ' + qImg).trim();
+
+            const optRows = card.querySelectorAll('.gform-opt-row');
+            const radioChecked = card.querySelector('input[type="radio"]:checked');
+
+            const ansIdx = radioChecked ? parseInt(radioChecked.value) : 0;
+            const ansLetter = String.fromCharCode(65 + ansIdx);
+
+            if (fullQ) {
+                let rowData = [idx + 1, ansLetter, fullQ];
+                optRows.forEach(row => {
+                    const optTxt = row.querySelector('.gform-opt-input').value.trim();
+                    const optImgBox = row.querySelector('.img-preview-box');
+                    const optImg = optImgBox ? optImgBox.getAttribute('data-img') : '';
+                    rowData.push((optTxt + ' ' + optImg).trim());
+                });
+                tempRows.push(rowData);
+            }
+        });
+
+        closeEditorModal();
+        parseParsedRows(tempRows);
+    }
+
+    function closeEditorModal() {
+        document.getElementById('editorModal').classList.add('hidden');
+    }
+
+    // ==========================================
+    // 6. PDF 解析 / AI Modal
+    // ==========================================
+    function handlePDFSelect() {
+        document.getElementById('aiModal').classList.remove('hidden');
+    }
+
+    function closeAiModal() {
+        document.getElementById('aiModal').classList.add('hidden');
+    }
+
+    function copyPrompt() {
+        const txt = document.getElementById('aiPromptText');
+        txt.select();
+        document.execCommand('copy');
+        alert("📋 提示詞已成功複製到剪貼簿！可以貼給 Gemini 轉換格式。");
+    }
+
+    function resetAll() {
+        location.reload();
+    }
+</script>
+</body>
+</html>
