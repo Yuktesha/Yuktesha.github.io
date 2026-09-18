@@ -730,6 +730,9 @@ html, body {
   flex-direction: column;
 }
 
+/* ==========================================
+   Header & Brand (R-UI/UX 空間幾何接管 · 歐文詞塊單行保護)
+   ========================================== */
 header {
   background: var(--bg-card);
   border-bottom: 1px solid var(--bg-card-border);
@@ -738,33 +741,125 @@ header {
   justify-content: space-between;
   align-items: center;
   flex-shrink: 0;
+  gap: 12px;
+  min-width: 0;
 }
 
 .brand {
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
+  flex-shrink: 1;
+}
+
+.brand-icon {
+  font-size: 1.8rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.brand-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.brand-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
 }
 
 .brand h1 {
   font-size: 1.25rem;
+  margin: 0;
+  white-space: nowrap;
   background: linear-gradient(135deg, var(--accent-cyan), var(--accent-gold));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
 }
 
-.badge {
-  font-size: 0.75rem;
-  background: rgba(0, 210, 211, 0.15);
-  color: var(--accent-cyan);
-  padding: 3px 8px;
-  border-radius: 20px;
-  border: 1px solid rgba(0, 210, 211, 0.3);
+.brand-en {
+  font-size: 0.85rem;
+  font-weight: normal;
+  letter-spacing: 1px;
+  color: var(--accent-gold);
+  -webkit-text-fill-color: var(--accent-gold);
 }
+
+.brand-slogan {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+
+.slogan-highlight {
+  color: var(--accent-gold);
+  font-weight: bold;
+}
+
+/* 狀態膠囊與呼吸燈 (Telemetry Status Badge) */
+.badge {
+  font-size: 0.74rem;
+  background: rgba(0, 210, 211, 0.12);
+  color: var(--accent-cyan);
+  padding: 3px 9px;
+  border-radius: 20px;
+  border: 1px solid rgba(0, 210, 211, 0.32);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap !important;
+  flex-shrink: 0;
+  line-height: 1.2;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-cyan);
+  box-shadow: 0 0 6px var(--accent-cyan);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.status-dot.ready {
+  background: #2ed573;
+  box-shadow: 0 0 8px #2ed573;
+}
+
+.status-dot.loading {
+  background: var(--accent-gold);
+  box-shadow: 0 0 8px var(--accent-gold);
+  animation: pulseDot 1.2s infinite ease-in-out;
+}
+
+@keyframes pulseDot {
+  0%, 100% { opacity: 0.35; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+
+/* 語意漸進降級標籤 (Semantic Progressive Degradation) */
+.status-text-full { display: inline; }
+.status-text-med { display: none; }
+.status-text-short { display: none; }
+
+.tab-text-full { display: inline; }
+.tab-text-short { display: none; }
 
 .nav-tabs {
   display: flex;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .tab-btn {
@@ -776,6 +871,15 @@ header {
   cursor: pointer;
   font-weight: 500;
   transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap !important;
+}
+
+.tab-icon {
+  font-size: 1rem;
+  line-height: 1;
 }
 
 .tab-btn.active {
@@ -1590,32 +1694,68 @@ th {
   margin-left: 1px;
 }
 
+/* ==========================================
+   R-UI/UX 空間幾何接管自適應階層 (rud Multi-Tier System)
+   ========================================== */
+@media (max-width: 1024px) {
+  .brand-slogan {
+    display: none;
+  }
+  .status-text-full { display: none !important; }
+  .status-text-med { display: inline !important; }
+  .status-text-short { display: none !important; }
+}
+
 @media (max-width: 768px) {
-  /* 1. Header 頂部導航自適應：精簡字體與內距 */
+  /* 1. Header 頂部導航自適應：歐文詞塊單行保護、嚴禁垂直擠壓折行 */
   header {
     padding: 6px 10px;
+    gap: 6px;
   }
   .brand {
     gap: 6px;
+    min-width: 0;
+  }
+  .brand-icon {
+    font-size: 1.4rem;
+  }
+  .brand-title-row {
+    gap: 5px;
   }
   .brand h1 {
     font-size: 1.05rem;
   }
-  .brand .badge {
+  .brand-en {
+    display: none;
+  }
+  .brand-slogan {
+    display: none;
+  }
+  .badge {
     font-size: 0.68rem;
     padding: 2px 6px;
-    max-width: 80px;
-    white-space: normal;
-    line-height: 1.15;
-    text-align: center;
+    max-width: none !important;
+    white-space: nowrap !important;
   }
+  .status-text-full { display: none !important; }
+  .status-text-med { display: none !important; }
+  .status-text-short { display: inline !important; }
+
   .nav-tabs {
-    gap: 4px;
+    gap: 3px;
+    flex-shrink: 0;
   }
   .tab-btn {
-    padding: 5px 8px;
+    padding: 4px 8px;
     font-size: 0.78rem;
+    gap: 3px;
+    white-space: nowrap !important;
   }
+  .tab-icon {
+    font-size: 0.9rem;
+  }
+  .tab-text-full { display: none !important; }
+  .tab-text-short { display: inline !important; }
 
   /* 2. 主容器自適應 */
   main {

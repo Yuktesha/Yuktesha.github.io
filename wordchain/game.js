@@ -490,13 +490,24 @@ class WordChainWeb {
     }
   }
 
+  updateLexiconBadge(fullText, medText, shortText, isReady = true) {
+    const statusEl = document.getElementById("loading-status");
+    if (!statusEl) return;
+    statusEl.innerHTML = `
+      <span class="status-dot ${isReady ? 'ready' : 'loading'}"></span>
+      <span class="status-text-full">${fullText}</span>
+      <span class="status-text-med">${medText}</span>
+      <span class="status-text-short">${shortText}</span>
+    `;
+    statusEl.title = fullText;
+  }
+
   async loadLexicon() {
     // 1. 優先使用 script 標籤載入的全域變數 (保證 file:/// 與零延遲)
     if (window.LEXICON_SCORED) {
       this.lexicon = window.LEXICON_SCORED;
       this.zhuyinMap = window.ZHUYIN_MAP || {};
-      const statusEl = document.getElementById("loading-status");
-      if (statusEl) statusEl.innerText = "臺灣萌典詞庫已就緒 (14.7萬正體詞)";
+      this.updateLexiconBadge("臺灣萌典詞庫已就緒 (14.7萬正體詞)", "萌典 14.7萬詞", "14.7萬詞", true);
       this.startNewBattle();
       return;
     }
@@ -511,13 +522,11 @@ class WordChainWeb {
       } catch (zhErr) {
         console.warn("zhuyin_map.json load warning", zhErr);
       }
-      const statusEl = document.getElementById("loading-status");
-      if (statusEl) statusEl.innerText = "臺灣萌典詞庫已就緒 (14.7萬正體詞)";
+      this.updateLexiconBadge("臺灣萌典詞庫已就緒 (14.7萬正體詞)", "萌典 14.7萬詞", "14.7萬詞", true);
       this.startNewBattle();
     } catch (e) {
       console.error("Failed to load scored lexicon", e);
-      const statusEl = document.getElementById("loading-status");
-      if (statusEl) statusEl.innerText = "載入備援模式";
+      this.updateLexiconBadge("載入備援模式", "備援模式", "備援", false);
       this.startNewBattle();
     }
   }

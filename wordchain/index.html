@@ -33,17 +33,36 @@
 
   <header>
     <div class="brand">
-      <span style="font-size:1.8rem;">📜</span>
-      <div>
-        <h1>字戀 <span style="font-size:0.9rem; font-weight:normal; letter-spacing:1px; color:var(--accent-gold);">WordChain</span></h1>
-        <div style="font-size:0.75rem; color:var(--text-muted);">文壇縱橫交錯棋盤 · 臺灣正體聲韻對弈 · <span style="color:var(--accent-gold); font-weight:bold;">您今天字戀了沒？</span></div>
+      <span class="brand-icon">📜</span>
+      <div class="brand-info">
+        <div class="brand-title-row">
+          <h1>字戀 <span class="brand-en">WordChain</span></h1>
+          <span class="badge" id="loading-status" title="臺灣萌典詞庫載入中...">
+            <span class="status-dot loading"></span>
+            <span class="status-text-full">臺灣萌典詞庫載入中...</span>
+            <span class="status-text-med">詞庫載入中...</span>
+            <span class="status-text-short">載入中</span>
+          </span>
+        </div>
+        <div class="brand-slogan">文壇縱橫交錯棋盤 · 臺灣正體聲韻對弈 · <span class="slogan-highlight">您今天字戀了沒？</span></div>
       </div>
-      <span class="badge" id="loading-status">詞庫載入中...</span>
     </div>
-    <nav class="nav-tabs">
-      <button class="tab-btn active" data-target="tab-battle">⚔️ 人機對決</button>
-      <button class="tab-btn" data-target="tab-demo">🎭 雙雄演示秀</button>
-      <button class="tab-btn" data-target="tab-learned">📖 詞海手冊</button>
+    <nav class="nav-tabs" aria-label="模式切換">
+      <button class="tab-btn active" data-target="tab-battle">
+        <span class="tab-icon">⚔️</span>
+        <span class="tab-text-full">人機對決</span>
+        <span class="tab-text-short">對決</span>
+      </button>
+      <button class="tab-btn" data-target="tab-demo">
+        <span class="tab-icon">🎭</span>
+        <span class="tab-text-full">雙雄演示秀</span>
+        <span class="tab-text-short">演示</span>
+      </button>
+      <button class="tab-btn" data-target="tab-learned">
+        <span class="tab-icon">📖</span>
+        <span class="tab-text-full">詞海手冊</span>
+        <span class="tab-text-short">詞海</span>
+      </button>
     </nav>
   </header>
 
