@@ -583,6 +583,10 @@ class WordChainWeb {
       });
     }
 
+    // 視窗即攝影鏡頭：啟用字陣畫布按住攀移 (Camera Pan Dragging - 滑鼠與觸控自由全向攀移)
+    this.setupViewportPan(boardViewport);
+    this.setupViewportPan(demoBoardViewport);
+
     // 出招輸入與快捷鍵
     const inputEl = document.getElementById("input-word");
     if (inputEl) {
@@ -1345,6 +1349,74 @@ class WordChainWeb {
         });
       }, 40);
     }
+  }
+
+  // ==========================================
+  // 7.0 視窗即攝影鏡頭：字陣畫布按住攀移系統 (Camera Pan Dragging Engine)
+  // ==========================================
+  setupViewportPan(viewport) {
+    if (!viewport || viewport._panInitialized) return;
+    viewport._panInitialized = true;
+
+    let isDown = false;
+    let startX = 0;
+    let startY = 0;
+    let scrollLeft = 0;
+    let scrollTop = 0;
+
+    // 滑鼠按下 (Mousedown: 支援左鍵與中鍵)
+    viewport.addEventListener("mousedown", (e) => {
+      if (e.button !== 0 && e.button !== 1) return;
+      isDown = true;
+      viewport.classList.add("is-panning");
+      startX = e.pageX;
+      startY = e.pageY;
+      scrollLeft = viewport.scrollLeft;
+      scrollTop = viewport.scrollTop;
+      e.preventDefault();
+    });
+
+    // 滑鼠放開或離開視窗 (Mouseup / Window Blur)
+    window.addEventListener("mouseup", () => {
+      if (isDown) {
+        isDown = false;
+        viewport.classList.remove("is-panning");
+      }
+    });
+
+    // 滑鼠拖曳攀移 (Mousemove: 1:1 實體跟手感)
+    window.addEventListener("mousemove", (e) => {
+      if (!isDown) return;
+      e.preventDefault();
+      const dx = e.pageX - startX;
+      const dy = e.pageY - startY;
+      viewport.scrollLeft = scrollLeft - dx;
+      viewport.scrollTop = scrollTop - dy;
+    });
+
+    // 觸控螢幕攀移支援 (Touchstart / Touchmove for Mobile & Tablet)
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchScrollLeft = 0;
+    let touchScrollTop = 0;
+
+    viewport.addEventListener("touchstart", (e) => {
+      if (e.touches.length === 1) {
+        touchStartX = e.touches[0].pageX;
+        touchStartY = e.touches[0].pageY;
+        touchScrollLeft = viewport.scrollLeft;
+        touchScrollTop = viewport.scrollTop;
+      }
+    }, { passive: true });
+
+    viewport.addEventListener("touchmove", (e) => {
+      if (e.touches.length === 1) {
+        const dx = e.touches[0].pageX - touchStartX;
+        const dy = e.touches[0].pageY - touchStartY;
+        viewport.scrollLeft = touchScrollLeft - dx;
+        viewport.scrollTop = touchScrollTop - dy;
+      }
+    }, { passive: true });
   }
 
   // ==========================================

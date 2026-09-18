@@ -102,11 +102,12 @@
   background: #1e2433;
   color: var(--text-muted);
   border: 1px solid var(--bg-card-border);
-  padding: 4px 10px;
+  padding: 4px 12px;
   border-radius: 6px;
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   cursor: pointer;
   transition: all 0.2s;
+  white-space: nowrap;
 }
 
 .view-btn.active {
@@ -116,7 +117,27 @@
   font-weight: bold;
 }
 
-/* 二維縱橫交錯字陣棋盤視圖 (Cross-Word Arena · 100% 彈性高度 · 內部平滑攝影攀移) */
+.view-btn .view-btn-short {
+  display: none;
+}
+
+.view-btn .view-btn-full {
+  display: inline;
+}
+
+/* 依據終端寬度自適應切換：「棋盤 / 紀錄表」(桌面寬螢幕) ➔「盤 / 表」(窄螢幕/手機端) */
+@media (max-width: 680px) {
+  .view-btn .view-btn-full {
+    display: none;
+  }
+  .view-btn .view-btn-short {
+    display: inline;
+    font-weight: bold;
+    padding: 0 2px;
+  }
+}
+
+/* 二維縱橫交錯字陣棋盤視圖 (Cross-Word Arena · 100% 彈性高度 · 支援滑鼠按住攀移與滾輪) */
 .cross-board-viewport {
   flex: 1;
   min-height: 0;
@@ -131,6 +152,13 @@
     linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
   background-size: 42px 42px;
   padding: 16px;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.cross-board-viewport.is-panning {
+  cursor: grabbing !important;
 }
 
 .cross-board-grid {
