@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>字戀 (WordChain) - 文壇縱橫對弈 · 漢字聲韻博弈</title>
-  <link rel="stylesheet" href="style.css?v=2.5">
+  <link rel="stylesheet" href="style.css?v=2.6">
   <style>
     /* 防快取滯後：預設隱藏次級與精簡文字，交由 CSS media query 精確接管 */
     .status-text-med, .status-text-short, .tab-text-short, .btn-text-short, .fs-text-short { display: none; }
@@ -279,29 +279,29 @@
         <div class="sidebar-panel">
           <!-- 雙雄對照卡 -->
           <div class="demo-stage-card">
-            <div style="font-size:0.95rem; font-weight:bold; color:var(--accent-gold); margin-bottom:12px;">🎭 文壇擂台 · 雙雄對局狀態</div>
-            <div class="demo-p-box active" id="demo-p1-box" style="margin-bottom:8px;">
-              <span style="font-weight:bold; color:var(--accent-cyan);" id="demo-p1-title">👤 甲相：紀曉嵐</span>
-              <span style="font-size:0.8rem; color:#00e676;" id="demo-p1-status">【主動出招】</span>
+            <div class="demo-stage-title">🎭 文壇擂台 · 雙雄對局狀態</div>
+            <div class="demo-p-box active" id="demo-p1-box">
+              <span class="p-name p1-name" id="demo-p1-title">👤 甲相：紀曉嵐</span>
+              <span class="p-status p1-status" id="demo-p1-status">【主動出招】</span>
             </div>
             <div class="demo-p-box" id="demo-p2-box">
-              <span style="font-weight:bold; color:#fdcb6e;" id="demo-p2-title">👤 乙相：李白</span>
-              <span style="font-size:0.8rem; color:var(--text-muted);" id="demo-p2-status">【凝思接招】</span>
+              <span class="p-name p2-name" id="demo-p2-title">👤 乙相：李白</span>
+              <span class="p-status p2-status" id="demo-p2-status">【凝思接招】</span>
             </div>
           </div>
 
           <!-- 擂台核心字卡 -->
           <div class="target-card">
-            <div style="font-size:0.85rem; color:var(--text-muted);">🎯 擂台當前字卡</div>
+            <div class="card-caption">🎯 擂台當前字卡</div>
             <div class="target-char" id="demo-target-char">空</div>
-            <div style="font-size:0.95rem; font-weight:bold; margin-bottom:4px;" id="demo-target-word">當前詞：天馬行空</div>
-            <div style="font-size:0.85rem; color:var(--text-muted);" id="demo-target-phonetic">注音：ㄎㄨㄥ | 拼音：kōng</div>
+            <div class="target-word" id="demo-target-word">當前詞：天馬行空</div>
+            <div class="target-phonetic" id="demo-target-phonetic">注音：ㄎㄨㄥ | 拼音：kōng</div>
           </div>
 
           <!-- 文宗裁判實時點評 -->
           <div class="demo-stage-card" style="flex:1;">
-            <div style="font-size:0.9rem; font-weight:bold; color:var(--accent-cyan); margin-bottom:6px;" id="demo-referee-title">⚖️ 文宗裁判實時點評</div>
-            <div style="font-size:0.85rem; color:var(--text-muted); line-height:1.5;" id="demo-referee-body">點擊上方「開始演示」，兩位大文豪將在此展開接龍對弈與即興吐槽！</div>
+            <div class="referee-title" id="demo-referee-title">⚖️ 文宗裁判實時點評</div>
+            <div class="referee-body" id="demo-referee-body">點擊上方「開始演示」，兩位大文豪將在此展開接龍對弈與即興吐槽！</div>
           </div>
         </div>
 
@@ -518,10 +518,10 @@
     </div>
   </div>
 
-  <script src="zhuyin_data.js?v=2.5"></script>
-  <script src="lexicon_data.js?v=2.5"></script>
-  <script src="story_data.js?v=2.5"></script>
-  <script src="career_database.js?v=2.5"></script>
-  <script src="game.js?v=2.5"></script>
+  <script src="zhuyin_data.js?v=2.6"></script>
+  <script src="lexicon_data.js?v=2.6"></script>
+  <script src="story_data.js?v=2.6"></script>
+  <script src="career_database.js?v=2.6"></script>
+  <script src="game.js?v=2.6"></script>
 </body>
 </html>

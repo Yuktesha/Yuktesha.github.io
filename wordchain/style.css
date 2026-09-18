@@ -946,6 +946,45 @@ main {
   box-shadow: 0 0 12px rgba(254, 202, 87, 0.2);
 }
 
+.demo-stage-title {
+  font-size: 0.95rem;
+  font-weight: bold;
+  color: var(--accent-gold);
+  margin-bottom: 10px;
+}
+
+.p-name { font-weight: bold; }
+.p1-name { color: var(--accent-cyan); }
+.p2-name { color: #fdcb6e; }
+.p-status { font-size: 0.8rem; }
+.p1-status { color: #00e676; }
+.p2-status { color: var(--text-muted); }
+
+.card-caption {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+.target-word {
+  font-size: 0.95rem;
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+.target-phonetic {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+.referee-title {
+  font-size: 0.9rem;
+  font-weight: bold;
+  color: var(--accent-cyan);
+  margin-bottom: 6px;
+}
+.referee-body {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
 .tab-pane {
   display: none;
   flex: 1;
@@ -1838,41 +1877,95 @@ th {
     padding: 1px 5px;
   }
 
-  /* 5. 側邊欄在手機直式下自動轉為橫向流式卡片，避免吃光棋盤高度 */
+  /* 5. 側邊欄在手機直式下自動轉為橫向流式卡片，高度精準接管、零內部捲軸 */
   .sidebar-panel {
     display: flex;
     flex-direction: row;
     overflow-x: auto;
     overflow-y: hidden;
-    gap: 6px;
-    max-height: 110px;
+    gap: 8px;
+    height: 112px;
+    max-height: 112px;
     flex-shrink: 0;
-    padding-bottom: 2px;
+    padding-bottom: 3px;
     -webkit-overflow-scrolling: touch;
   }
   .sidebar-panel::-webkit-scrollbar {
     height: 3px;
   }
+  .sidebar-panel::-webkit-scrollbar-track {
+    background: transparent;
+  }
   .sidebar-panel::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 3px;
+    background: rgba(254, 202, 87, 0.4);
+    border-radius: 4px;
   }
   .target-card, #scorer-card, .story-card, .demo-stage-card {
-    min-width: 175px;
-    max-width: 240px;
+    min-width: 180px;
+    max-width: 230px;
     flex: 0 0 auto;
     padding: 6px 10px;
     height: 100%;
     box-sizing: border-box;
-    overflow-y: auto;
+    overflow: hidden !important; /* 徹底杜絕卡片內部垂直捲軸！ */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .demo-stage-title {
+    font-size: 0.82rem;
+    margin-bottom: 4px !important;
+    white-space: nowrap;
+  }
+
+  .demo-p-box {
+    padding: 3px 8px !important;
+    margin-bottom: 3px !important;
+    border-radius: 6px;
+  }
+  .demo-p-box:last-child {
+    margin-bottom: 0 !important;
+  }
+
+  .p-name {
+    font-size: 0.78rem;
+  }
+  .p-status {
+    font-size: 0.72rem;
+  }
+
+  .card-caption {
+    font-size: 0.72rem;
   }
   .target-char {
-    font-size: 1.8rem;
-    margin: 0;
-    line-height: 1;
+    font-size: 1.35rem !important;
+    line-height: 1.1 !important;
+    margin: 1px 0 !important;
   }
-  #target-info, #target-radar {
+  .target-word {
+    font-size: 0.78rem !important;
+    margin-bottom: 2px !important;
+    white-space: nowrap;
+  }
+  .target-phonetic {
+    font-size: 0.7rem !important;
+    white-space: nowrap;
+  }
+
+  .referee-title {
+    font-size: 0.78rem;
+    font-weight: bold;
+    color: var(--accent-cyan);
+    margin-bottom: 2px;
+  }
+  .referee-body {
     font-size: 0.72rem;
+    line-height: 1.25;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
   #scorer-title, .story-title {
     font-size: 0.78rem;
@@ -2054,7 +2147,8 @@ body.fullscreen-zen .control-bar {
     flex-direction: row !important;
     overflow-x: auto !important;
     overflow-y: hidden !important;
-    max-height: 105px !important;
+    height: 112px !important;
+    max-height: 112px !important;
     flex: none !important;
     gap: 6px !important;
     padding-bottom: 2px !important;
@@ -2067,8 +2161,12 @@ body.fullscreen-zen .control-bar {
     max-width: 240px !important;
     height: 100% !important;
     flex: 0 0 auto !important;
-    overflow-y: auto !important;
-    padding: 6px 8px !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    padding: 6px 10px !important;
   }
 
   body.fullscreen-zen .arena-board-container {
