@@ -173,6 +173,14 @@
             </div>
           </div>
 
+          <!-- 浮動縮放控制器 (Google Maps 風格) -->
+          <div class="board-zoom-hud" id="zoom-hud-battle">
+            <button class="zoom-btn" id="btn-zoom-in" title="放大字陣 (滾輪向前)">➕</button>
+            <span class="zoom-level" id="zoom-val-battle" title="目前縮放比例 (點擊重設 100%)">100%</span>
+            <button class="zoom-btn" id="btn-zoom-out" title="縮小字陣 (滾輪向後)">➖</button>
+            <button class="zoom-btn zoom-reset" id="btn-zoom-reset" title="重設視角至 100% 居中">🎯</button>
+          </div>
+
           <!-- 2. 結構化對弈流轉表 (點擊任意輪次即時覆盤回放裁判評點) -->
           <div class="table-stream-viewport" id="table-stream-viewport" style="display:none;">
             <table class="flow-table">
@@ -285,6 +293,14 @@
             <div class="cross-board-grid" id="demo-board-grid">
               <!-- 動態生成格子與文字 -->
             </div>
+          </div>
+
+          <!-- 浮動縮放控制器 (Google Maps 風格) -->
+          <div class="board-zoom-hud" id="zoom-hud-demo">
+            <button class="zoom-btn" id="btn-demo-zoom-in" title="放大字陣 (滾輪向前)">➕</button>
+            <span class="zoom-level" id="zoom-val-demo" title="目前縮放比例 (點擊重設 100%)">100%</span>
+            <button class="zoom-btn" id="btn-demo-zoom-out" title="縮小字陣 (滾輪向後)">➖</button>
+            <button class="zoom-btn zoom-reset" id="btn-demo-zoom-reset" title="重設視角至 100% 居中">🎯</button>
           </div>
 
           <!-- 2. 雙雄歷史流轉表 -->

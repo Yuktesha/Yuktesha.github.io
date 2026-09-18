@@ -583,9 +583,29 @@ class WordChainWeb {
       });
     }
 
-    // 視窗即攝影鏡頭：啟用字陣畫布按住攀移 (Camera Pan Dragging - 滑鼠與觸控自由全向攀移)
+    // 視窗即攝影鏡頭：啟用字陣畫布按住攀移與光學縮放 (Camera Pan & Zoom)
     this.setupViewportPan(boardViewport);
     this.setupViewportPan(demoBoardViewport);
+
+    // 縮放 HUD 按鈕綁定 (人機對決)
+    const btnZoomIn = document.getElementById("btn-zoom-in");
+    const btnZoomOut = document.getElementById("btn-zoom-out");
+    const btnZoomReset = document.getElementById("btn-zoom-reset");
+    const zoomValBattle = document.getElementById("zoom-val-battle");
+    if (btnZoomIn) btnZoomIn.addEventListener("click", () => this.zoomViewport(boardViewport, 0.15));
+    if (btnZoomOut) btnZoomOut.addEventListener("click", () => this.zoomViewport(boardViewport, -0.15));
+    if (btnZoomReset) btnZoomReset.addEventListener("click", () => this.recenterViewport(boardViewport, false, true));
+    if (zoomValBattle) zoomValBattle.addEventListener("click", () => this.recenterViewport(boardViewport, false, true));
+
+    // 縮放 HUD 按鈕綁定 (雙雄演示)
+    const btnDemoZoomIn = document.getElementById("btn-demo-zoom-in");
+    const btnDemoZoomOut = document.getElementById("btn-demo-zoom-out");
+    const btnDemoZoomReset = document.getElementById("btn-demo-zoom-reset");
+    const zoomValDemo = document.getElementById("zoom-val-demo");
+    if (btnDemoZoomIn) btnDemoZoomIn.addEventListener("click", () => this.zoomViewport(demoBoardViewport, 0.15));
+    if (btnDemoZoomOut) btnDemoZoomOut.addEventListener("click", () => this.zoomViewport(demoBoardViewport, -0.15));
+    if (btnDemoZoomReset) btnDemoZoomReset.addEventListener("click", () => this.recenterViewport(demoBoardViewport, true, true));
+    if (zoomValDemo) zoomValDemo.addEventListener("click", () => this.recenterViewport(demoBoardViewport, true, true));
 
     // 出招輸入與快捷鍵
     const inputEl = document.getElementById("input-word");
@@ -713,7 +733,7 @@ class WordChainWeb {
 
     const btnVicShare = document.getElementById("btn-vic-share");
     if (btnVicShare) {
-      btnVicShare.addEventListener("click", () => {
+      btnVicShare.addEventListener("click", async () => {
         const rank = document.getElementById("vic-rank-pill")?.innerText || "完美字戀狂";
         const text = `📜【字戀 (WordChain) 勝戰捷報】\n` +
           `我以「${rank.replace('🏅 榮譽頭銜：', '').trim()}」之姿橫掃文壇，讓大文豪甘拜下風！\n` +
@@ -722,11 +742,41 @@ class WordChainWeb {
           `• 終局題目：【${this.battleCurrentWord}】\n` +
           `敢問閣下——您今天字戀了沒？\n` +
           `👉 立即入陣：https://yuktesha.github.io/wordchain/`;
-        navigator.clipboard.writeText(text).then(() => {
-          showToast("📋 戰報已複製到剪貼簿！快去宣揚閣下的字戀之魂！", "success", 3500);
-        }).catch(() => {
-          showToast("📋 請手動複製分享戰報！", "info");
-        });
+
+        try {
+          const canvas = this.generateVictoryCardCanvas();
+          canvas.toBlob(async (blob) => {
+            let copiedImage = false;
+            if (blob && navigator.clipboard && window.ClipboardItem) {
+              try {
+                const item = new ClipboardItem({
+                  "image/png": blob,
+                  "text/plain": new Blob([text], { type: "text/plain" })
+                });
+                await navigator.clipboard.write([item]);
+                copiedImage = true;
+                showToast("🎉 戰報圖卡與文案已同時複製到剪貼簿！可直接貼於社群分享！", "success", 4000);
+                return;
+              } catch (clipErr) {
+                console.warn("ClipboardItem write failed, fallback to text:", clipErr);
+              }
+            }
+
+            // 降級備援：複製文字並自動觸發精美戰報圖下載存檔
+            await navigator.clipboard.writeText(text);
+            const a = document.createElement("a");
+            a.download = `字戀狂勝戰捷報-${Date.now()}.png`;
+            a.href = canvas.toDataURL("image/png");
+            a.click();
+            showToast("📋 戰報文字已複製，精美圖卡已自動下載儲存！", "success", 4000);
+          }, "image/png");
+        } catch (e) {
+          navigator.clipboard.writeText(text).then(() => {
+            showToast("📋 戰報已複製到剪貼簿！快去宣揚閣下的字戀之魂！", "success", 3500);
+          }).catch(() => {
+            showToast("📋 請手動複製分享戰報！", "info");
+          });
+        }
       });
     }
 
@@ -888,8 +938,218 @@ class WordChainWeb {
     const pEl = document.getElementById("vic-rank-pill");
     if (pEl) pEl.innerText = `🏅 榮譽頭銜：${rankTitle}`;
 
+    this.lastLongestWord = longestWord;
+    this.lastSpeedStr = speedStr;
+    this.lastRankTitle = rankTitle;
+
     modal.style.display = "flex";
     this.updateRomanceStatus("victory");
+  }
+
+  // ==========================================
+  // 4.1 生成戰報圖卡 (Canvas 2D 典雅朱印證書 PNG)
+  // ==========================================
+  generateVictoryCardCanvas() {
+    const canvas = document.createElement("canvas");
+    const width = 800;
+    const height = 960;
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return canvas;
+
+    const drawRoundRect = (x, y, w, h, r) => {
+      ctx.beginPath();
+      if (ctx.roundRect) {
+        ctx.roundRect(x, y, w, h, r);
+      } else {
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + w - r, y);
+        ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+        ctx.lineTo(x + w, y + h - r);
+        ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        ctx.lineTo(x + r, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+        ctx.lineTo(x, y + r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+      }
+    };
+
+    // 1. 背景漸層
+    const bgGrad = ctx.createLinearGradient(0, 0, width, height);
+    bgGrad.addColorStop(0, "#121722");
+    bgGrad.addColorStop(0.5, "#182030");
+    bgGrad.addColorStop(1, "#0a0d14");
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, width, height);
+
+    // 2. 幾何金色棋盤網格底紋
+    ctx.strokeStyle = "rgba(241, 196, 15, 0.04)";
+    ctx.lineWidth = 1;
+    const step = 40;
+    for (let x = 0; x < width; x += step) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, height);
+      ctx.stroke();
+    }
+    for (let y = 0; y < height; y += step) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(width, y);
+      ctx.stroke();
+    }
+
+    // 3. 雙層金邊裝飾框
+    ctx.strokeStyle = "#f1c40f";
+    ctx.lineWidth = 4;
+    ctx.strokeRect(28, 28, width - 56, height - 56);
+
+    ctx.strokeStyle = "rgba(241, 196, 15, 0.4)";
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(36, 36, width - 72, height - 72);
+
+    // 四角典雅回紋
+    const drawCorner = (cx, cy, dirX, dirY) => {
+      ctx.strokeStyle = "#f1c40f";
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(cx + dirX * 24, cy);
+      ctx.lineTo(cx, cy);
+      ctx.lineTo(cx, cy + dirY * 24);
+      ctx.stroke();
+    };
+    drawCorner(44, 44, 1, 1);
+    drawCorner(width - 44, 44, -1, 1);
+    drawCorner(44, height - 44, 1, -1);
+    drawCorner(width - 44, height - 44, -1, -1);
+
+    // 4. 右上角朱紅斜角官印：「字戀狂認證」
+    ctx.save();
+    ctx.translate(width - 130, 95);
+    ctx.rotate(12 * Math.PI / 180);
+    ctx.fillStyle = "rgba(192, 57, 43, 0.9)";
+    ctx.fillRect(-65, -22, 130, 44);
+    ctx.strokeStyle = "#e74c3c";
+    ctx.lineWidth = 3;
+    ctx.strokeRect(-61, -18, 122, 36);
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 18px 'Noto Serif TC', serif, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("字 戀 狂 認 證", 0, 0);
+    ctx.restore();
+
+    // 5. 頂部皇冠與大標題
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = "56px 'Segoe UI Emoji', sans-serif";
+    ctx.fillText("👑", width / 2, 120);
+
+    ctx.font = "900 46px 'Noto Serif TC', serif, sans-serif";
+    ctx.fillStyle = "#f1c40f";
+    ctx.shadowColor = "rgba(241, 196, 15, 0.6)";
+    ctx.shadowBlur = 18;
+    ctx.fillText("您這個完美字戀狂！", width / 2, 195);
+    ctx.shadowBlur = 0;
+
+    const persona = PERSONAS[this.currentPersona] || PERSONAS.ji_xiaolan;
+    ctx.font = "500 20px 'Noto Sans TC', sans-serif";
+    ctx.fillStyle = "#cbd5e1";
+    ctx.fillText(`滿腹經綸，威震文壇；${persona.name} 氣血耗盡，甘拜下風！`, width / 2, 250);
+
+    // 6. 戰績儀表盒 (4 欄統計)
+    const boxX = 60;
+    const boxY = 295;
+    const boxW = width - 120;
+    const boxH = 150;
+
+    ctx.fillStyle = "rgba(0, 0, 0, 0.45)";
+    ctx.fillRect(boxX, boxY, boxW, boxH);
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(boxX, boxY, boxW, boxH);
+
+    const statsCols = [
+      { lbl: "對弈回合", val: `${this.roundCount} 輪` },
+      { lbl: "最長詞格", val: this.lastLongestWord || `${this.battleCurrentWord} (4字)` },
+      { lbl: "極速出招", val: this.lastSpeedStr || "1.0s" },
+      { lbl: "累積戰分", val: `${this.playerScore} 分` }
+    ];
+
+    const colW = boxW / 4;
+    statsCols.forEach((col, idx) => {
+      const cx = boxX + colW * idx + colW / 2;
+      ctx.font = "500 16px 'Noto Sans TC', sans-serif";
+      ctx.fillStyle = "#94a3b8";
+      ctx.fillText(col.lbl, cx, boxY + 45);
+
+      ctx.font = "bold 24px 'Noto Sans TC', sans-serif";
+      ctx.fillStyle = "#00cec9";
+      ctx.fillText(col.val, cx, boxY + 95);
+
+      if (idx < 3) {
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+        ctx.beginPath();
+        ctx.moveTo(boxX + colW * (idx + 1), boxY + 25);
+        ctx.lineTo(boxX + colW * (idx + 1), boxY + boxH - 25);
+        ctx.stroke();
+      }
+    });
+
+    // 7. 榮譽頭銜膠囊
+    const rankY = 490;
+    const rankW = 440;
+    const rankH = 50;
+    const rankX = (width - rankW) / 2;
+
+    ctx.fillStyle = "rgba(241, 196, 15, 0.15)";
+    ctx.strokeStyle = "rgba(241, 196, 15, 0.5)";
+    ctx.lineWidth = 1.5;
+    drawRoundRect(rankX, rankY, rankW, rankH, 25);
+    ctx.fill();
+    ctx.stroke();
+
+    const rankTitle = this.lastRankTitle || "👑 傳奇 · 完美字戀狂";
+    ctx.font = "bold 22px 'Noto Sans TC', sans-serif";
+    ctx.fillStyle = "#f1c40f";
+    ctx.fillText(`🏅 榮譽頭銜：${rankTitle}`, width / 2, rankY + rankH / 2);
+
+    // 8. 終局之題與名句卡
+    const quoteY = 580;
+    const quoteW = width - 140;
+    const quoteH = 150;
+    const quoteX = 70;
+
+    ctx.fillStyle = "rgba(18, 24, 38, 0.85)";
+    ctx.strokeStyle = "rgba(0, 206, 201, 0.35)";
+    ctx.lineWidth = 1.2;
+    drawRoundRect(quoteX, quoteY, quoteW, quoteH, 14);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.font = "bold 18px 'Noto Sans TC', sans-serif";
+    ctx.fillStyle = "#00cec9";
+    ctx.fillText(`🚩 終局題目：【${this.battleCurrentWord}】`, width / 2, quoteY + 45);
+
+    ctx.font = "italic 21px 'Noto Serif TC', serif";
+    ctx.fillStyle = "#f1f5f9";
+    ctx.fillText("「文思泉湧，詞海弄潮！敢問閣下——您今天字戀了沒？」", width / 2, quoteY + 95);
+
+    // 9. 底部官方網址與印記
+    ctx.font = "500 16px 'Noto Sans TC', sans-serif";
+    ctx.fillStyle = "#64748b";
+    ctx.fillText("臺灣教育部重編國語辭典 · 中華文采字陣對弈雅苑", width / 2, 790);
+
+    ctx.font = "bold 19px monospace, sans-serif";
+    ctx.fillStyle = "#f1c40f";
+    ctx.fillText("https://yuktesha.github.io/wordchain/", width / 2, 825);
+
+    ctx.font = "14px 'Noto Sans TC', sans-serif";
+    ctx.fillStyle = "#475569";
+    ctx.fillText(`戰報產出時間：${new Date().toLocaleDateString('zh-TW')} · 獨家傳世授權認證`, width / 2, 875);
+
+    return canvas;
   }
 
   // ==========================================
@@ -1337,8 +1597,9 @@ class WordChainWeb {
 
       // 計算目標置中滾動位置 (延遲 40ms 等待 DOM 排版與彈性盒尺寸穩定，確保精準平滑居中)
       setTimeout(() => {
-        const centerX = (roiMinX + roiMaxX) / 2;
-        const centerY = (roiMinY + roiMaxY) / 2;
+        const currentScale = viewport._zoomScale || 1.0;
+        const centerX = ((roiMinX + roiMaxX) / 2) * currentScale;
+        const centerY = ((roiMinY + roiMaxY) / 2) * currentScale;
         const targetScrollLeft = Math.max(0, centerX - (viewport.clientWidth / 2));
         const targetScrollTop = Math.max(0, centerY - (viewport.clientHeight / 2));
 
@@ -1352,11 +1613,12 @@ class WordChainWeb {
   }
 
   // ==========================================
-  // 7.0 視窗即攝影鏡頭：字陣畫布按住攀移系統 (Camera Pan Dragging Engine)
+  // 7.0 視窗即攝影鏡頭：字陣畫布按住攀移與光學變焦 (Camera Pan & Zoom Engine)
   // ==========================================
   setupViewportPan(viewport) {
     if (!viewport || viewport._panInitialized) return;
     viewport._panInitialized = true;
+    viewport._zoomScale = 1.0;
 
     let isDown = false;
     let startX = 0;
@@ -1364,7 +1626,7 @@ class WordChainWeb {
     let scrollLeft = 0;
     let scrollTop = 0;
 
-    // 滑鼠按下 (Mousedown: 支援左鍵與中鍵)
+    // 滑鼠按下 (Mousedown: 支援左鍵與中鍵攀移)
     viewport.addEventListener("mousedown", (e) => {
       if (e.button !== 0 && e.button !== 1) return;
       isDown = true;
@@ -1394,6 +1656,57 @@ class WordChainWeb {
       viewport.scrollTop = scrollTop - dy;
     });
 
+    // Google Maps 風格：滑鼠滾輪向游標焦點平滑光學縮放 (Wheel Zoom to Cursor)
+    viewport.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      const oldScale = viewport._zoomScale || 1.0;
+      const factor = e.deltaY < 0 ? 1.12 : 0.89;
+      const newScale = Math.min(2.2, Math.max(0.35, parseFloat((oldScale * factor).toFixed(2))));
+      if (newScale === oldScale) return;
+
+      const grid = viewport.querySelector(".cross-board-grid");
+      if (!grid) return;
+
+      const rect = viewport.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      const contentX = (viewport.scrollLeft + mouseX) / oldScale;
+      const contentY = (viewport.scrollTop + mouseY) / oldScale;
+
+      viewport._zoomScale = newScale;
+      grid.style.transform = `scale(${newScale})`;
+      grid.style.transformOrigin = "0 0";
+
+      viewport.scrollLeft = contentX * newScale - mouseX;
+      viewport.scrollTop = contentY * newScale - mouseY;
+
+      this.updateZoomHUD(viewport);
+
+      // 滾輪縮放時切換放大鏡游標回饋
+      viewport.classList.remove("is-zooming-in", "is-zooming-out");
+      viewport.classList.add(e.deltaY < 0 ? "is-zooming-in" : "is-zooming-out");
+      clearTimeout(viewport._zoomTimer);
+      viewport._zoomTimer = setTimeout(() => {
+        viewport.classList.remove("is-zooming-in", "is-zooming-out");
+      }, 450);
+    }, { passive: false });
+
+    // Ctrl 鍵按住時提示放大鏡游標 (Ctrl Key Zoom Hint)
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Control") viewport.classList.add("ctrl-zoom");
+    });
+    window.addEventListener("keyup", (e) => {
+      if (e.key === "Control") viewport.classList.remove("ctrl-zoom");
+    });
+
+    // 雙擊畫布重設縮放或置中居中 (Double-click Reset)
+    viewport.addEventListener("dblclick", (e) => {
+      if (e.target === viewport || e.target.classList.contains("cross-board-grid")) {
+        this.recenterViewport(viewport, viewport.id.includes("demo"), true);
+      }
+    });
+
     // 觸控螢幕攀移支援 (Touchstart / Touchmove for Mobile & Tablet)
     let touchStartX = 0;
     let touchStartY = 0;
@@ -1417,6 +1730,60 @@ class WordChainWeb {
         viewport.scrollTop = touchScrollTop - dy;
       }
     }, { passive: true });
+  }
+
+  updateZoomHUD(viewport) {
+    if (!viewport) return;
+    const isDemo = viewport.id.includes("demo");
+    const valEl = document.getElementById(isDemo ? "zoom-val-demo" : "zoom-val-battle");
+    if (valEl) {
+      const scale = viewport._zoomScale || 1.0;
+      valEl.innerText = `${Math.round(scale * 100)}%`;
+    }
+  }
+
+  zoomViewport(viewport, delta) {
+    if (!viewport) return;
+    const grid = viewport.querySelector(".cross-board-grid");
+    if (!grid) return;
+    const oldScale = viewport._zoomScale || 1.0;
+    const newScale = Math.min(2.2, Math.max(0.35, parseFloat((oldScale + delta).toFixed(2))));
+    if (newScale === oldScale) return;
+
+    const centerX = viewport.scrollLeft + viewport.clientWidth / 2;
+    const centerY = viewport.scrollTop + viewport.clientHeight / 2;
+    const contentX = centerX / oldScale;
+    const contentY = centerY / oldScale;
+
+    viewport._zoomScale = newScale;
+    grid.style.transform = `scale(${newScale})`;
+    grid.style.transformOrigin = "0 0";
+
+    viewport.scrollLeft = contentX * newScale - viewport.clientWidth / 2;
+    viewport.scrollTop = contentY * newScale - viewport.clientHeight / 2;
+    this.updateZoomHUD(viewport);
+  }
+
+  recenterViewport(viewport, isDemo = false, resetScale = true) {
+    if (!viewport) return;
+    const grid = viewport.querySelector(".cross-board-grid");
+    if (resetScale && grid) {
+      viewport._zoomScale = 1.0;
+      grid.style.transform = "scale(1)";
+      grid.style.transformOrigin = "0 0";
+      this.updateZoomHUD(viewport);
+    }
+    const lastCoord = isDemo ? this.demoLastTailCoord : this.lastTailCoord;
+    if (lastCoord) {
+      const scale = viewport._zoomScale || 1.0;
+      const targetX = (lastCoord.col * 44 + 22) * scale;
+      const targetY = (lastCoord.row * 44 + 22) * scale;
+      viewport.scrollTo({
+        left: Math.max(0, targetX - viewport.clientWidth / 2),
+        top: Math.max(0, targetY - viewport.clientHeight / 2),
+        behavior: "smooth"
+      });
+    }
   }
 
   // ==========================================
