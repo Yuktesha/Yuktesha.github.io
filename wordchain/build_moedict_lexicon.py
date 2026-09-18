@@ -41,6 +41,21 @@ NUM_EXCEPTIONS = {
 
 IDIOM_KEYWORDS = ('比喻', '形容', '語本', '典出', '義參', '後用以', '成語', '猶言', '意謂', '意指')
 
+# 5字至12字長句純化過濾器（剔除純地名山川、群島、曲牌名，保留現代科技/專業百科詞目以供職業神算）
+LONG_JUNK_DEF_PREFIXES = (
+    '書名。', '山名。', '地名。', '國名。', '群島名。', '河名。', '植物名。', '動物名。', 
+    '礦物名。', '市名。', '省名。', '縣名。', '島名。', '寺名。', '曲牌名。', '詞牌名。'
+)
+
+LONG_BAD_SUFFIXES = (
+    '地下', '底下', '裡頭', '頭上', '身上', '嘴裡', '心裡', '眼裡', '手裡', 
+    '的日子', '的人', '的東西', '的樣子'
+)
+
+GENUINE_SAYING_KEYWORDS = (
+    '（諺語）', '（俗語）', '（歇後語）', '語本', '語出', '典出', '典本', '義參'
+)
+
 def download_and_load_moedict():
     cache_xz = os.path.join(BASE_DIR, "dict-revised.json.xz")
     if not os.path.exists(cache_xz):
@@ -174,15 +189,22 @@ def process_lexicon(data, cat_chengyu):
         def_text = ' '.join(d.get('def', '').strip() for d in defs)
         quotes = [q.strip() for d in defs if d.get('quote') for q in d.get('quote')]
 
-        # 成語與詩詞名句判定 Heuristic：
-        # 1. 四字成語：隸屬教育部官方成語標籤 (cat_chengyu) 或包含比喻、語本等關鍵字
-        # 2. 五至十二字：古典詩詞名句、文獻典出、完整諺語俗語
+        # 對於 5 至 12 字長詞，進行純化與現代專業百科詞彙分流：
+        # 排除口語方位與白話小說對話殘片（如「大毒日頭地下」），但包容正統諺語、俗語、歇後語、典故名句以及現代專業科技/醫學/法律/財經/工程百科術語（供職業神算統計）
         is_true_idiom = False
-        if len(clean_title) == 4:
-            if clean_title in cat_chengyu or any(kw in def_text for kw in IDIOM_KEYWORDS):
+        if len(clean_title) >= 5:
+            if any(clean_title.endswith(suf) for suf in LONG_BAD_SUFFIXES):
+                continue
+            if any(def_text.startswith(j) or f' {j}' in def_text for j in LONG_JUNK_DEF_PREFIXES):
+                continue
+            is_saying = any(st in def_text for st in GENUINE_SAYING_KEYWORDS) or ('比喻' in def_text or '形容' in def_text)
+            is_domain = any(kw in def_text for kw in ['電路', '晶片', '計算機', '資訊', '軟體', '硬體', '演算法', '醫學', '病名', '藥名', '法律', '經濟', '金融', '工程', '技術', '科學', '化學', '物理', '名詞。', '用語。'])
+            if not is_saying and not is_domain:
+                continue
+            if is_saying:
                 is_true_idiom = True
-        elif len(clean_title) >= 5:
-            if any(kw in def_text for kw in ['語本', '語出', '詩', '詞', '諺語', '俗語', '歇後語', '宋．', '唐．', '漢．', '明．', '清．', '元．', '孟子', '論語', '莊子', '老子', '史記', '禮記', '易經', '詩經', '楚辭', '比喻', '形容']) or quotes:
+        elif len(clean_title) == 4:
+            if clean_title in cat_chengyu or any(kw in def_text for kw in IDIOM_KEYWORDS):
                 is_true_idiom = True
 
         # 製作成語典故與長句故事卡
@@ -190,7 +212,13 @@ def process_lexicon(data, cat_chengyu):
             story_def = defs[0].get('def', '').strip() if defs else ''
             story_quote = quotes[0] if quotes else ''
             origin = '古典文獻經籍'
-            if story_quote and ('《' in story_quote):
+            if '（諺語）' in story_def:
+                origin = '民間諺語'
+            elif '（俗語）' in story_def:
+                origin = '民間俗語'
+            elif '（歇後語）' in story_def:
+                origin = '民間歇後語'
+            elif story_quote and ('《' in story_quote):
                 m = re.search(r'《([^》]+)》', story_quote)
                 if m:
                     origin = f"《{m.group(1)}》"
@@ -200,6 +228,10 @@ def process_lexicon(data, cat_chengyu):
                     origin = f"《{m.group(1)}》"
             elif '語出' in story_def:
                 m = re.search(r'語出《([^》]+)》', story_def)
+                if m:
+                    origin = f"《{m.group(1)}》"
+            elif '典出' in story_def:
+                m = re.search(r'典出《([^》]+)》', story_def)
                 if m:
                     origin = f"《{m.group(1)}》"
 
@@ -243,6 +275,31 @@ def process_lexicon(data, cat_chengyu):
             print(f"    古典名詩名句庫已成功載入: {len(poetry_corpus)} 條")
         except Exception as e:
             print(f"    ⚠️ 載入 classical_poetry.json 失敗: {e}")
+
+    # 載入額外收錄之民間熟語與擴充詞庫 (如「起手無回」、「白白犧牲」等經審核詞彙)
+    supp_file = os.path.join(BASE_DIR, "supplementary_lexicon.json")
+    if os.path.exists(supp_file):
+        try:
+            with open(supp_file, "r", encoding="utf-8") as f:
+                supp_corpus = json.load(f)
+            for item in supp_corpus:
+                sw = item["word"]
+                s_head = sw[0]
+                if item.get("is_idiom", True):
+                    story_cache[sw] = {
+                        'pinyin': item.get('pinyin', ''),
+                        'origin': item.get('origin', '民間熟語'),
+                        'story': item.get('def', '民間通俗定型化熟語或常用詞。'),
+                        'usage': f"「{sw}」"
+                    }
+                all_words.add(sw)
+                if s_head not in words_by_head:
+                    words_by_head[s_head] = []
+                if sw not in words_by_head[s_head]:
+                    words_by_head[s_head].append(sw)
+            print(f"    補充民間熟語與擴充詞庫已成功載入: {len(supp_corpus)} 條")
+        except Exception as e:
+            print(f"    ⚠️ 載入 supplementary_lexicon.json 失敗: {e}")
 
     print(f"    合格臺灣正體純漢字詞總量: {len(all_words):,}")
     print(f"    收錄【純正成語與詩詞長句】總量: {len(story_cache):,}")

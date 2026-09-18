@@ -78,9 +78,9 @@
         <div class="control-group" id="group-homo-style">
           <label>同音呈現：</label>
           <select id="select-homo-style" title="同音不同字樞紐格的呈現方式">
-            <option value="tile" selected>方案 A：合璧雙字磚</option>
-            <option value="bridge">方案 B：雙星音律橋</option>
-            <option value="flip">方案 C：太極翻轉牌 (慢速自旋)</option>
+            <option value="tile" selected>合璧雙字磚</option>
+            <option value="bridge">雙星音律橋</option>
+            <option value="flip">太極翻轉牌</option>
           </select>
         </div>
         <div class="control-group">
@@ -173,8 +173,9 @@
             </div>
           </div>
 
-          <!-- 浮動縮放控制器 (Google Maps 風格) -->
+          <!-- 浮動縮放控制器 (Google Maps 風格，支援滑鼠自由拖曳) -->
           <div class="board-zoom-hud" id="zoom-hud-battle">
+            <div class="zoom-drag-handle" title="按住可自由拖曳移動縮放控制器">⠿</div>
             <button class="zoom-btn" id="btn-zoom-in" title="放大字陣 (滾輪向前)">➕</button>
             <span class="zoom-level" id="zoom-val-battle" title="目前縮放比例 (點擊重設 100%)">100%</span>
             <button class="zoom-btn" id="btn-zoom-out" title="縮小字陣 (滾輪向後)">➖</button>
@@ -295,8 +296,9 @@
             </div>
           </div>
 
-          <!-- 浮動縮放控制器 (Google Maps 風格) -->
+          <!-- 浮動縮放控制器 (Google Maps 風格，支援滑鼠自由拖曳) -->
           <div class="board-zoom-hud" id="zoom-hud-demo">
+            <div class="zoom-drag-handle" title="按住可自由拖曳移動縮放控制器">⠿</div>
             <button class="zoom-btn" id="btn-demo-zoom-in" title="放大字陣 (滾輪向前)">➕</button>
             <span class="zoom-level" id="zoom-val-demo" title="目前縮放比例 (點擊重設 100%)">100%</span>
             <button class="zoom-btn" id="btn-demo-zoom-out" title="縮小字陣 (滾輪向後)">➖</button>
@@ -334,18 +336,49 @@
     <!-- TAB 3: 詞海手冊 -->
     <section id="tab-learned" class="tab-pane">
       <div class="control-bar">
-        <span style="font-weight:bold; color:var(--accent-cyan);">📖 玩家親授詞海手冊</span>
-        <span style="font-size:0.85rem; color:var(--text-muted);">（玩家在對局中出過的非標準自創新詞將保存在此，AI 未來將學以致用！）</span>
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+          <span style="font-weight:bold; color:var(--accent-cyan); font-size:1.05rem;">📖 詞海手冊</span>
+          <span style="font-size:0.85rem; color:var(--text-muted);">（對局所出字詞記錄。支持一鍵比對萌典認證、Gemma 智慧評估並建入官方詞庫！）</span>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <button id="btn-gemma-audit" class="btn btn-primary" style="padding:5px 14px; font-size:0.85rem; cursor:pointer;">🤖 Gemma 智慧評估建庫</button>
+          <button id="btn-sync-learned" class="btn btn-secondary" style="padding:5px 12px; font-size:0.85rem; cursor:pointer;">🔄 比對萌典認證</button>
+          <button id="btn-export-learned" class="btn btn-secondary" style="padding:5px 12px; font-size:0.85rem; cursor:pointer;">📥 匯出 JSON</button>
+          <button id="btn-clear-verified" class="btn btn-secondary" style="padding:5px 12px; font-size:0.85rem; color:var(--accent-red); cursor:pointer;">🧹 清理已認證</button>
+        </div>
       </div>
 
-      <div style="background:var(--bg-card); border-radius:var(--radius-lg); border:1px solid var(--bg-card-border); overflow:hidden;">
+      <!-- 詞海狀態統計儀表板 (Stats Grid) -->
+      <div class="learned-stats-grid" id="learned-stats-grid">
+        <div class="learned-stat-card">
+          <div class="learned-stat-val" id="stat-total-learned" style="color:var(--accent-cyan);">0</div>
+          <div class="learned-stat-lbl">📚 總登錄詞彙</div>
+        </div>
+        <div class="learned-stat-card">
+          <div class="learned-stat-val" id="stat-moe-certified" style="color:var(--accent-green);">0</div>
+          <div class="learned-stat-lbl">🟢 萌典官方已認證（AI隨時調用）</div>
+        </div>
+        <div class="learned-stat-card">
+          <div class="learned-stat-val" id="stat-poetry-saying" style="color:var(--accent-gold);">0</div>
+          <div class="learned-stat-lbl">👑 詩詞名篇與俗諺（頂級權重）</div>
+        </div>
+        <div class="learned-stat-card">
+          <div class="learned-stat-val" id="stat-pending-audit" style="color:var(--accent-purple);">0</div>
+          <div class="learned-stat-lbl">⚡ 待 Gemma 評估擴充</div>
+        </div>
+      </div>
+
+      <!-- 表格容器 -->
+      <div class="learned-table-container">
         <table>
           <thead>
             <tr>
-              <th style="width:140px;">詞彙</th>
-              <th>釋義 / 來源</th>
-              <th style="width:100px; text-align:center;">使用次數</th>
-              <th style="width:140px;">收錄時間</th>
+              <th style="width:130px;">詞彙</th>
+              <th style="width:150px;">詞庫收錄狀態</th>
+              <th>釋義與出處典故</th>
+              <th style="width:85px; text-align:center;">出招次數</th>
+              <th style="width:110px;">登記入冊</th>
+              <th style="width:75px; text-align:center;">操作</th>
             </tr>
           </thead>
           <tbody id="learned-table-body">
@@ -355,6 +388,33 @@
       </div>
     </section>
   </main>
+
+  <!-- ========================================== -->
+  <!-- Gemma 智慧審定與詞庫建置彈窗 -->
+  <!-- ========================================== -->
+  <div id="modal-gemma-audit" class="modal-overlay" style="display:none;">
+    <div class="modal-card" style="max-width:680px; width:92%; max-height:85vh; display:flex; flex-direction:column; padding:24px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--bg-card-border); padding-bottom:12px; margin-bottom:14px;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span style="font-size:1.6rem;">🤖</span>
+          <div>
+            <div style="font-size:1.2rem; font-weight:bold; color:var(--accent-cyan);">Gemma 國語文院士審查院</div>
+            <div style="font-size:0.8rem; color:var(--text-muted);">古典名篇考證 · 棋諺熟語鑑定 · 自動建入神譜詞庫</div>
+          </div>
+        </div>
+        <button id="btn-close-gemma-modal" style="background:none; border:none; color:var(--text-muted); font-size:1.4rem; cursor:pointer;">✕</button>
+      </div>
+
+      <div id="gemma-modal-content" style="flex:1; overflow-y:auto; padding-right:6px; display:flex; flex-direction:column; gap:12px;">
+        <!-- 動態注入審定卡片 -->
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:16px; border-top:1px solid var(--bg-card-border); padding-top:14px;">
+        <button id="btn-close-gemma-modal2" class="btn btn-secondary">關閉</button>
+        <button id="btn-confirm-gemma-adopt" class="btn btn-primary" style="background:var(--gradient-cyan); color:#0a101d;">✨ 一鍵吸納並建入詞庫</button>
+      </div>
+    </div>
+  </div>
 
   <!-- ========================================== -->
   <!-- 勝利結算彈窗：您這個完美字戀狂！ -->
@@ -386,6 +446,17 @@
       </div>
 
       <div class="victory-badge-pill" id="vic-rank-pill">🏅 榮譽頭銜：絕代字戀宗師</div>
+      <div class="victory-homo-pill" id="vic-homo-pill" style="display:none;">🇹🇼 臺灣諧音梗宗師 · 深入骨髓諧音魂！</div>
+
+      <!-- 🔮 詞海八字 · 職業神算 (Career Divination) -->
+      <div class="victory-career-box" id="vic-career-box">
+        <div class="career-box-header">
+          <span class="career-box-icon">🔮</span>
+          <span class="career-box-tag">詞海八字 · 職業神算</span>
+        </div>
+        <div class="career-box-title" id="vic-career-title">您該不是被詩詞耽誤的竹科工程師吧？XD</div>
+        <div class="career-box-desc" id="vic-career-desc">落子字裡行間滿溢晶片、演算法與半導體之玄機，若非竹科大老，定是隱世科技巨擘！</div>
+      </div>
 
       <div class="victory-actions">
         <button id="btn-vic-again" class="btn-primary vic-action-btn" title="再戰一局，繼續字戀">
@@ -393,10 +464,15 @@
           <span class="vic-btn-label">再戰一局</span>
           <span class="vic-btn-sub">(繼續字戀)</span>
         </button>
-        <button id="btn-vic-share" class="btn-secondary vic-action-btn" title="複製戰報，宣揚字戀">
+        <button id="btn-vic-share" class="btn-secondary vic-action-btn" title="複製戰報文字與4K典雅證書圖卡">
           <span class="vic-btn-icon">📋</span>
           <span class="vic-btn-label">複製戰報</span>
-          <span class="vic-btn-sub">(宣揚字戀)</span>
+          <span class="vic-btn-sub">(4K圖卡)</span>
+        </button>
+        <button id="btn-vic-pdf" class="btn-warning vic-action-btn" title="下載 A4 印刷級高解析 / 全向量戰報（可放大至整面牆壁）">
+          <span class="vic-btn-icon">📜</span>
+          <span class="vic-btn-label">典雅證書</span>
+          <span class="vic-btn-sub">(列印/PDF)</span>
         </button>
         <button id="btn-vic-close" class="btn-accent vic-action-btn" title="檢視終局字陣棋盤">
           <span class="vic-btn-icon">👁️</span>
@@ -409,6 +485,7 @@
   <script src="zhuyin_data.js"></script>
   <script src="lexicon_data.js"></script>
   <script src="story_data.js"></script>
+  <script src="career_database.js"></script>
   <script src="game.js"></script>
 </body>
 </html>

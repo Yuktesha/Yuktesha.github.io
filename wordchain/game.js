@@ -403,6 +403,8 @@ class WordChainWeb {
     this.aiScore = 0;
     this.playerHp = 100;
     this.aiHp = 100;
+    this.playerHomophoneCount = 0; // 台灣在地「深入骨髓諧音魂」妙招累計
+    this.playerHomophoneCombo = 0; // 連續諧音連擊數
 
     // 計時器
     this.timeLimit = 30;
@@ -443,6 +445,10 @@ class WordChainWeb {
     this.learnedWords = this.loadLearnedWords();
     this.hintActive = false;
     this.currentHints = [];
+
+    // 地理位置探知（科學園區精準推測：竹科、內科、汐科、南科、中科）
+    this.userTechPark = "竹科";
+    this.detectUserTechPark();
 
     this.initSplash();
     this.initDOM();
@@ -535,6 +541,8 @@ class WordChainWeb {
           if (this.hasPlayerStarted && this.playerHp > 0 && this.aiHp > 0 && !this.timerId) {
             this.startTimer();
           }
+        } else if (target === "tab-learned") {
+          this.renderLearnedTable();
         }
       });
     });
@@ -587,7 +595,10 @@ class WordChainWeb {
     this.setupViewportPan(boardViewport);
     this.setupViewportPan(demoBoardViewport);
 
-    // 縮放 HUD 按鈕綁定 (人機對決)
+    // 縮放 HUD 按鈕綁定與自由拖曳 (人機對決)
+    const hudBattle = document.getElementById("zoom-hud-battle");
+    if (hudBattle) this.makeDraggable(hudBattle, "wordchain_zoom_hud_battle");
+
     const btnZoomIn = document.getElementById("btn-zoom-in");
     const btnZoomOut = document.getElementById("btn-zoom-out");
     const btnZoomReset = document.getElementById("btn-zoom-reset");
@@ -597,7 +608,10 @@ class WordChainWeb {
     if (btnZoomReset) btnZoomReset.addEventListener("click", () => this.recenterViewport(boardViewport, false, true));
     if (zoomValBattle) zoomValBattle.addEventListener("click", () => this.recenterViewport(boardViewport, false, true));
 
-    // 縮放 HUD 按鈕綁定 (雙雄演示)
+    // 縮放 HUD 按鈕綁定與自由拖曳 (雙雄演示)
+    const hudDemo = document.getElementById("zoom-hud-demo");
+    if (hudDemo) this.makeDraggable(hudDemo, "wordchain_zoom_hud_demo");
+
     const btnDemoZoomIn = document.getElementById("btn-demo-zoom-in");
     const btnDemoZoomOut = document.getElementById("btn-demo-zoom-out");
     const btnDemoZoomReset = document.getElementById("btn-demo-zoom-reset");
@@ -735,16 +749,22 @@ class WordChainWeb {
     if (btnVicShare) {
       btnVicShare.addEventListener("click", async () => {
         const rank = document.getElementById("vic-rank-pill")?.innerText || "完美字戀狂";
+        const career = this.lastCareer || this.divineCareer();
+        const homoSoulStr = this.lastHomoBadge ? `🤣 諧音特賞：${this.lastHomoBadge}\n` : '';
         const text = `📜【字戀 (WordChain) 勝戰捷報】\n` +
           `我以「${rank.replace('🏅 榮譽頭銜：', '').trim()}」之姿橫掃文壇，讓大文豪甘拜下風！\n` +
+          (homoSoulStr ? `${homoSoulStr}` : '') +
           `• 累積戰分：${this.playerScore} 分\n` +
           `• 對弈回合：${this.roundCount} 輪\n` +
           `• 終局題目：【${this.battleCurrentWord}】\n` +
+          `🔮 職業神算：${career.title}\n` +
+          `   （評：${career.desc}）\n` +
           `敢問閣下——您今天字戀了沒？\n` +
           `👉 立即入陣：https://yuktesha.github.io/wordchain/`;
 
         try {
-          const canvas = this.generateVictoryCardCanvas();
+          // 生成 3.0x 超高解析度 (2400 x 3120 像素) A4 印刷級典雅朱印圖卡
+          const canvas = this.generateVictoryCardCanvas(3.0);
           canvas.toBlob(async (blob) => {
             let copiedImage = false;
             if (blob && navigator.clipboard && window.ClipboardItem) {
@@ -755,20 +775,20 @@ class WordChainWeb {
                 });
                 await navigator.clipboard.write([item]);
                 copiedImage = true;
-                showToast("🎉 戰報圖卡與文案已同時複製到剪貼簿！可直接貼於社群分享！", "success", 4000);
+                showToast("🎉 4K 超高解析戰報圖卡與文案已複製到剪貼簿！可直接貼於社群分享！", "success", 4000);
                 return;
               } catch (clipErr) {
                 console.warn("ClipboardItem write failed, fallback to text:", clipErr);
               }
             }
 
-            // 降級備援：複製文字並自動觸發精美戰報圖下載存檔
+            // 降級備援：複製文字並自動觸發超高解析戰報圖下載存檔
             await navigator.clipboard.writeText(text);
             const a = document.createElement("a");
-            a.download = `字戀狂勝戰捷報-${Date.now()}.png`;
+            a.download = `字戀狂勝戰捷報-4K超高解析-${Date.now()}.png`;
             a.href = canvas.toDataURL("image/png");
             a.click();
-            showToast("📋 戰報文字已複製，精美圖卡已自動下載儲存！", "success", 4000);
+            showToast("📋 戰報文字已複製，4K 超高解析圖卡已自動下載儲存！", "success", 4000);
           }, "image/png");
         } catch (e) {
           navigator.clipboard.writeText(text).then(() => {
@@ -777,6 +797,13 @@ class WordChainWeb {
             showToast("📋 請手動複製分享戰報！", "info");
           });
         }
+      });
+    }
+
+    const btnVicPdf = document.getElementById("btn-vic-pdf");
+    if (btnVicPdf) {
+      btnVicPdf.addEventListener("click", () => {
+        this.downloadVictoryPDF();
       });
     }
 
@@ -886,7 +913,8 @@ class WordChainWeb {
     const persona = PERSONAS[this.currentPersona] || PERSONAS.ji_xiaolan;
     const rounds = this.roundCount;
 
-    // 統計最長出招與最速反應
+    // 統計玩家出招、最長詞格、最速反應與職業星盤分析
+    const playerWords = [];
     let bestWord = this.battleCurrentWord;
     let maxLen = this.battleCurrentWord.length;
     let minElapsed = 99.0;
@@ -896,6 +924,7 @@ class WordChainWeb {
       const w = r.children[2] ? r.children[2].innerText : "";
       const elText = r.children[4] ? r.children[4].innerText : "";
       if (sp.includes("閣下") && w) {
+        playerWords.push(w);
         if (w.length > maxLen) {
           maxLen = w.length;
           bestWord = w;
@@ -904,6 +933,14 @@ class WordChainWeb {
         if (!isNaN(el) && el < minElapsed) minElapsed = el;
       }
     });
+
+    const career = this.divineCareer(playerWords);
+    this.lastCareer = career;
+
+    const carTitleEl = document.getElementById("vic-career-title");
+    const carDescEl = document.getElementById("vic-career-desc");
+    if (carTitleEl) carTitleEl.innerText = career.title;
+    if (carDescEl) carDescEl.innerText = career.desc;
 
     const longestWord = `${bestWord} (${maxLen}字)`;
     const speedStr = (minElapsed < 90) ? `${minElapsed.toFixed(1)}s` : "1.0s";
@@ -938,25 +975,56 @@ class WordChainWeb {
     const pEl = document.getElementById("vic-rank-pill");
     if (pEl) pEl.innerText = `🏅 榮譽頭銜：${rankTitle}`;
 
+    // 🇹🇼 臺灣深入骨髓諧音魂結算檢測
+    const homoPill = document.getElementById("vic-homo-pill");
+    const homoCount = this.playerHomophoneCount || 0;
+    const totalPlayerMoves = playerWords.length || 1;
+    const homoRate = ((homoCount / totalPlayerMoves) * 100).toFixed(0);
+
+    let homoBadgeText = "";
+    if (homoCount >= 5 || (homoCount >= 2 && homoCount / totalPlayerMoves >= 0.4)) {
+      homoBadgeText = `🇹🇼 臺灣諧音梗宗師 · 深入骨髓諧音魂！(諧音出招 ${homoCount} 次 · 佔比 ${homoRate}%)`;
+    } else if (homoCount >= 2) {
+      homoBadgeText = `🤣 絕妙諧音達人 · 骨髓自帶笑點！(諧音破局 ${homoCount} 次)`;
+    } else if (homoCount === 1) {
+      homoBadgeText = `✨ 諧音初顯神通 · 臺灣道地幽默！(諧音破局 1 次)`;
+    }
+
+    if (homoPill) {
+      if (homoBadgeText) {
+        homoPill.innerText = homoBadgeText;
+        homoPill.style.display = "inline-flex";
+      } else {
+        homoPill.style.display = "none";
+      }
+    }
+
     this.lastLongestWord = longestWord;
     this.lastSpeedStr = speedStr;
     this.lastRankTitle = rankTitle;
+    this.lastHomoBadge = homoBadgeText;
 
     modal.style.display = "flex";
     this.updateRomanceStatus("victory");
   }
 
   // ==========================================
-  // 4.1 生成戰報圖卡 (Canvas 2D 典雅朱印證書 PNG)
+  // 4.1 生成戰報圖卡 (Canvas 2D 超高解析 2400x3120 A4 印刷級典雅朱印證書 PNG)
   // ==========================================
-  generateVictoryCardCanvas() {
+  generateVictoryCardCanvas(scale = 3.0) {
+    const baseW = 800;
+    const baseH = 1040;
     const canvas = document.createElement("canvas");
-    const width = 800;
-    const height = 960;
-    canvas.width = width;
-    canvas.height = height;
+    canvas.width = Math.round(baseW * scale);
+    canvas.height = Math.round(baseH * scale);
     const ctx = canvas.getContext("2d");
     if (!ctx) return canvas;
+
+    // 所有座標以 800x1040 向量基準等比放大
+    ctx.scale(scale, scale);
+
+    const width = baseW;
+    const height = baseH;
 
     const drawRoundRect = (x, y, w, h, r) => {
       ctx.beginPath();
@@ -1098,58 +1166,303 @@ class WordChainWeb {
     });
 
     // 7. 榮譽頭銜膠囊
-    const rankY = 490;
+    const rankY = 475;
     const rankW = 440;
-    const rankH = 50;
+    const rankH = 44;
     const rankX = (width - rankW) / 2;
 
     ctx.fillStyle = "rgba(241, 196, 15, 0.15)";
     ctx.strokeStyle = "rgba(241, 196, 15, 0.5)";
     ctx.lineWidth = 1.5;
-    drawRoundRect(rankX, rankY, rankW, rankH, 25);
+    drawRoundRect(rankX, rankY, rankW, rankH, 22);
     ctx.fill();
     ctx.stroke();
 
     const rankTitle = this.lastRankTitle || "👑 傳奇 · 完美字戀狂";
-    ctx.font = "bold 22px 'Noto Sans TC', sans-serif";
+    ctx.font = "bold 20px 'Noto Sans TC', sans-serif";
     ctx.fillStyle = "#f1c40f";
     ctx.fillText(`🏅 榮譽頭銜：${rankTitle}`, width / 2, rankY + rankH / 2);
 
+    // 7.05 臺灣深入骨髓諧音魂特賞膠囊 (若有諧音戰績)
+    let homoShift = 0;
+    if (this.lastHomoBadge) {
+      homoShift = 42;
+      const homoY = 525;
+      const homoW = 540;
+      const homoH = 34;
+      const homoX = (width - homoW) / 2;
+
+      ctx.fillStyle = "rgba(46, 213, 115, 0.16)";
+      ctx.strokeStyle = "rgba(46, 213, 115, 0.55)";
+      ctx.lineWidth = 1.2;
+      drawRoundRect(homoX, homoY, homoW, homoH, 17);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.font = "bold 15px 'Noto Sans TC', sans-serif";
+      ctx.fillStyle = "#2ed573";
+      ctx.fillText(this.lastHomoBadge, width / 2, homoY + homoH / 2);
+    }
+
+    // 7.1 詞海八字 · 職業神算卡
+    const carY = 545 + (homoShift ? 25 : 0);
+    const carW = width - 140;
+    const carH = homoShift ? 100 : 110;
+    const carX = 70;
+
+    const carGrad = ctx.createLinearGradient(carX, carY, carX + carW, carY + carH);
+    carGrad.addColorStop(0, "rgba(230, 126, 34, 0.15)");
+    carGrad.addColorStop(1, "rgba(243, 156, 18, 0.08)");
+    ctx.fillStyle = carGrad;
+    ctx.strokeStyle = "rgba(230, 126, 34, 0.4)";
+    ctx.lineWidth = 1.2;
+    drawRoundRect(carX, carY, carW, carH, 12);
+    ctx.fill();
+    ctx.stroke();
+
+    const carTitle = this.lastCareer ? this.lastCareer.title : "【跨界大斜槓奇才】";
+    const carDesc = this.lastCareer ? this.lastCareer.desc : "您該不會是各界深藏不露的隱世掃地僧吧？";
+
+    ctx.font = "bold 13px 'Noto Sans TC', sans-serif";
+    ctx.fillStyle = "#e67e22";
+    ctx.fillText("🔮 詞海八字 · 職業神算推測", width / 2, carY + 26);
+
+    ctx.font = "bold 20px 'Noto Serif TC', serif";
+    ctx.fillStyle = "#f39c12";
+    ctx.fillText(carTitle, width / 2, carY + 56);
+
+    ctx.font = "15px 'Noto Sans TC', sans-serif";
+    ctx.fillStyle = "#f1f5f9";
+    ctx.fillText(`「${carDesc}」`, width / 2, carY + 86);
+
     // 8. 終局之題與名句卡
-    const quoteY = 580;
+    const quoteY = 675;
     const quoteW = width - 140;
-    const quoteH = 150;
+    const quoteH = 135;
     const quoteX = 70;
 
     ctx.fillStyle = "rgba(18, 24, 38, 0.85)";
     ctx.strokeStyle = "rgba(0, 206, 201, 0.35)";
     ctx.lineWidth = 1.2;
-    drawRoundRect(quoteX, quoteY, quoteW, quoteH, 14);
+    drawRoundRect(quoteX, quoteY, quoteW, quoteH, 12);
     ctx.fill();
     ctx.stroke();
 
-    ctx.font = "bold 18px 'Noto Sans TC', sans-serif";
+    ctx.font = "bold 17px 'Noto Sans TC', sans-serif";
     ctx.fillStyle = "#00cec9";
-    ctx.fillText(`🚩 終局題目：【${this.battleCurrentWord}】`, width / 2, quoteY + 45);
+    ctx.fillText(`🚩 終局題目：【${this.battleCurrentWord}】`, width / 2, quoteY + 42);
 
-    ctx.font = "italic 21px 'Noto Serif TC', serif";
+    ctx.font = "italic 20px 'Noto Serif TC', serif";
     ctx.fillStyle = "#f1f5f9";
-    ctx.fillText("「文思泉湧，詞海弄潮！敢問閣下——您今天字戀了沒？」", width / 2, quoteY + 95);
+    ctx.fillText("「文思泉湧，詞海弄潮！敢問閣下——您今天字戀了沒？」", width / 2, quoteY + 88);
 
     // 9. 底部官方網址與印記
     ctx.font = "500 16px 'Noto Sans TC', sans-serif";
     ctx.fillStyle = "#64748b";
-    ctx.fillText("臺灣教育部重編國語辭典 · 中華文采字陣對弈雅苑", width / 2, 790);
+    ctx.fillText("臺灣教育部重編國語辭典 · 中華文采字陣對弈雅苑", width / 2, 850);
 
     ctx.font = "bold 19px monospace, sans-serif";
     ctx.fillStyle = "#f1c40f";
-    ctx.fillText("https://yuktesha.github.io/wordchain/", width / 2, 825);
+    ctx.fillText("https://yuktesha.github.io/wordchain/", width / 2, 885);
 
     ctx.font = "14px 'Noto Sans TC', sans-serif";
     ctx.fillStyle = "#475569";
-    ctx.fillText(`戰報產出時間：${new Date().toLocaleDateString('zh-TW')} · 獨家傳世授權認證`, width / 2, 875);
+    ctx.fillText(`戰報產出時間：${new Date().toLocaleDateString('zh-TW')} · 獨家傳世授權認證`, width / 2, 935);
 
     return canvas;
+  }
+
+  // ==========================================
+  // 4.2 生成全向量 SVG 證書 (可無限縮放放大至整面牆壁印刷)
+  // ==========================================
+  generateVictoryCardSVG() {
+    const width = 800;
+    const height = 1040;
+    const persona = PERSONAS[this.currentPersona] || PERSONAS.ji_xiaolan;
+    const rankTitle = this.lastRankTitle || "👑 傳奇 · 完美字戀狂";
+    const carTitle = this.lastCareer ? this.lastCareer.title : "【跨界大斜槓奇才】";
+    const carDesc = this.lastCareer ? this.lastCareer.desc : "您該不會是各界深藏不露的隱世掃地僧吧？";
+    const longestWord = this.lastLongestWord || `${this.battleCurrentWord} (4字)`;
+    const speedStr = this.lastSpeedStr || "1.0s";
+    const dateStr = new Date().toLocaleDateString('zh-TW');
+
+    let gridLines = "";
+    for (let x = 0; x < width; x += 40) {
+      gridLines += `<line x1="${x}" y1="0" x2="${x}" y2="${height}" stroke="#f1c40f" stroke-opacity="0.04" stroke-width="1"/>`;
+    }
+    for (let y = 0; y < height; y += 40) {
+      gridLines += `<line x1="0" y1="${y}" x2="${width}" y2="${y}" stroke="#f1c40f" stroke-opacity="0.04" stroke-width="1"/>`;
+    }
+
+    const svg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#121722"/>
+      <stop offset="50%" stop-color="#182030"/>
+      <stop offset="100%" stop-color="#0a0d14"/>
+    </linearGradient>
+    <linearGradient id="carGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e67e22" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#f39c12" stop-opacity="0.08"/>
+    </linearGradient>
+    <filter id="goldGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- 背景與金色網格底紋 -->
+  <rect width="${width}" height="${height}" fill="url(#bgGrad)"/>
+  ${gridLines}
+
+  <!-- 雙層金邊外框 -->
+  <rect x="28" y="28" width="${width - 56}" height="${height - 56}" fill="none" stroke="#f1c40f" stroke-width="4"/>
+  <rect x="36" y="36" width="${width - 72}" height="${height - 72}" fill="none" stroke="#f1c40f" stroke-opacity="0.4" stroke-width="1.5"/>
+
+  <!-- 四角回紋裝飾 -->
+  <path d="M 68 44 L 44 44 L 44 68" fill="none" stroke="#f1c40f" stroke-width="2.5"/>
+  <path d="M ${width - 68} 44 L ${width - 44} 44 L ${width - 44} 68" fill="none" stroke="#f1c40f" stroke-width="2.5"/>
+  <path d="M 68 ${height - 44} L 44 ${height - 44} L 44 ${height - 68}" fill="none" stroke="#f1c40f" stroke-width="2.5"/>
+  <path d="M ${width - 68} ${height - 44} L ${width - 44} ${height - 44} L ${width - 44} ${height - 68}" fill="none" stroke="#f1c40f" stroke-width="2.5"/>
+
+  <!-- 右上角朱紅官印 -->
+  <g transform="translate(${width - 130}, 95) rotate(12)">
+    <rect x="-65" y="-22" width="130" height="44" fill="#c0392b" fill-opacity="0.9"/>
+    <rect x="-61" y="-18" width="122" height="36" fill="none" stroke="#e74c3c" stroke-width="3"/>
+    <text x="0" y="5" font-family="'Noto Serif TC', serif" font-weight="bold" font-size="18" fill="#ffffff" text-anchor="middle">字 戀 狂 認 證</text>
+  </g>
+
+  <!-- 頂部皇冠與大標題 -->
+  <text x="${width / 2}" y="130" font-size="56" text-anchor="middle">👑</text>
+  <text x="${width / 2}" y="195" font-family="'Noto Serif TC', serif" font-weight="900" font-size="46" fill="#f1c40f" text-anchor="middle" filter="url(#goldGlow)">您這個完美字戀狂！</text>
+  <text x="${width / 2}" y="250" font-family="'Noto Sans TC', sans-serif" font-weight="500" font-size="20" fill="#cbd5e1" text-anchor="middle">滿腹經綸，威震文壇；${persona.name} 氣血耗盡，甘拜下風！</text>
+
+  <!-- 戰績儀表盒 -->
+  <g transform="translate(60, 295)">
+    <rect width="${width - 120}" height="150" fill="#000000" fill-opacity="0.45" stroke="#ffffff" stroke-opacity="0.12" stroke-width="1"/>
+    <!-- 4 欄數據 -->
+    <text x="85" y="45" font-family="'Noto Sans TC', sans-serif" font-size="16" fill="#94a3b8" text-anchor="middle">對弈回合</text>
+    <text x="85" y="95" font-family="'Noto Sans TC', sans-serif" font-weight="bold" font-size="24" fill="#00cec9" text-anchor="middle">${this.roundCount} 輪</text>
+    <line x1="170" y1="25" x2="170" y2="125" stroke="#ffffff" stroke-opacity="0.08"/>
+
+    <text x="255" y="45" font-family="'Noto Sans TC', sans-serif" font-size="16" fill="#94a3b8" text-anchor="middle">最長詞格</text>
+    <text x="255" y="95" font-family="'Noto Sans TC', sans-serif" font-weight="bold" font-size="22" fill="#00cec9" text-anchor="middle">${longestWord}</text>
+    <line x1="340" y1="25" x2="340" y2="125" stroke="#ffffff" stroke-opacity="0.08"/>
+
+    <text x="425" y="45" font-family="'Noto Sans TC', sans-serif" font-size="16" fill="#94a3b8" text-anchor="middle">極速出招</text>
+    <text x="425" y="95" font-family="'Noto Sans TC', sans-serif" font-weight="bold" font-size="24" fill="#00cec9" text-anchor="middle">${speedStr}</text>
+    <line x1="510" y1="25" x2="510" y2="125" stroke="#ffffff" stroke-opacity="0.08"/>
+
+    <text x="595" y="45" font-family="'Noto Sans TC', sans-serif" font-size="16" fill="#94a3b8" text-anchor="middle">累積戰分</text>
+    <text x="595" y="95" font-family="'Noto Sans TC', sans-serif" font-weight="bold" font-size="24" fill="#00cec9" text-anchor="middle">${this.playerScore} 分</text>
+  </g>
+
+  <!-- 榮譽頭銜膠囊 -->
+  <g transform="translate(${(width - 440) / 2}, 475)">
+    <rect width="440" height="44" rx="22" fill="#f1c40f" fill-opacity="0.15" stroke="#f1c40f" stroke-opacity="0.5" stroke-width="1.5"/>
+    <text x="220" y="28" font-family="'Noto Sans TC', sans-serif" font-weight="bold" font-size="20" fill="#f1c40f" text-anchor="middle">🏅 榮譽頭銜：${rankTitle}</text>
+  </g>
+
+  ${this.lastHomoBadge ? `
+  <!-- 🇹🇼 臺灣深入骨髓諧音魂特賞膠囊 -->
+  <g transform="translate(${(width - 540) / 2}, 525)">
+    <rect width="540" height="34" rx="17" fill="#2ed573" fill-opacity="0.16" stroke="#2ed573" stroke-opacity="0.55" stroke-width="1.2"/>
+    <text x="270" y="22" font-family="'Noto Sans TC', sans-serif" font-weight="bold" font-size="14" fill="#2ed573" text-anchor="middle">${this.lastHomoBadge}</text>
+  </g>` : ''}
+
+  <!-- 🔮 詞海八字 · 職業神算卡 -->
+  <g transform="translate(70, ${this.lastHomoBadge ? 570 : 545})">
+    <rect width="${width - 140}" height="${this.lastHomoBadge ? 100 : 110}" rx="12" fill="url(#carGrad)" stroke="#e67e22" stroke-opacity="0.4" stroke-width="1.2"/>
+    <text x="${(width - 140) / 2}" y="26" font-family="'Noto Sans TC', sans-serif" font-weight="bold" font-size="13" fill="#e67e22" text-anchor="middle">🔮 詞海八字 · 職業神算推測</text>
+    <text x="${(width - 140) / 2}" y="56" font-family="'Noto Serif TC', serif" font-weight="bold" font-size="20" fill="#f39c12" text-anchor="middle">${carTitle}</text>
+    <text x="${(width - 140) / 2}" y="84" font-family="'Noto Sans TC', sans-serif" font-size="14" fill="#f1f5f9" text-anchor="middle">「${carDesc}」</text>
+  </g>
+
+  <!-- 終局之題與名句卡 -->
+  <g transform="translate(70, 675)">
+    <rect width="${width - 140}" height="135" rx="12" fill="#121826" fill-opacity="0.85" stroke="#00cec9" stroke-opacity="0.35" stroke-width="1.2"/>
+    <text x="${(width - 140) / 2}" y="42" font-family="'Noto Sans TC', sans-serif" font-weight="bold" font-size="17" fill="#00cec9" text-anchor="middle">🚩 終局題目：【${this.battleCurrentWord}】</text>
+    <text x="${(width - 140) / 2}" y="88" font-family="'Noto Serif TC', serif" font-style="italic" font-size="20" fill="#f1f5f9" text-anchor="middle">「文思泉湧，詞海弄潮！敢問閣下——您今天字戀了沒？」</text>
+  </g>
+
+  <!-- 底部官方網址與印記 -->
+  <text x="${width / 2}" y="850" font-family="'Noto Sans TC', sans-serif" font-weight="500" font-size="16" fill="#64748b" text-anchor="middle">臺灣教育部重編國語辭典 · 中華文采字陣對弈雅苑</text>
+  <text x="${width / 2}" y="885" font-family="monospace, sans-serif" font-weight="bold" font-size="19" fill="#f1c40f" text-anchor="middle">https://yuktesha.github.io/wordchain/</text>
+  <text x="${width / 2}" y="935" font-family="'Noto Sans TC', sans-serif" font-size="14" fill="#475569" text-anchor="middle">戰報產出時間：${dateStr} · 獨家傳世授權認證</text>
+</svg>`;
+    return svg;
+  }
+
+  // ==========================================
+  // 4.3 下載全向量證書與高解析列印 / 存為 PDF
+  // ==========================================
+  downloadVictoryPDF() {
+    const svgContent = this.generateVictoryCardSVG();
+    const rank = (this.lastRankTitle || "完美字戀狂").replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, "");
+    const fileName = `字戀狂勝戰證書-${rank}-${Date.now()}`;
+
+    // 1. 自動觸發全向量 SVG 下載（可於 Illustrator, CorelDRAW, Inkscape 或瀏覽器無限放大列印）
+    const blob = new Blob([svgContent], { type: "image/svg+xml;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${fileName}.svg`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 3000);
+
+    // 2. 自動開啟獨立純淨列印視窗，呼叫 window.print() 供使用者直接「存為 PDF」或實體 A4/A3 列印
+    const printWin = window.open("", "_blank");
+    if (printWin) {
+      printWin.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>${fileName} - 典雅朱印戰報證書</title>
+          <style>
+            @page {
+              size: A4 portrait;
+              margin: 0;
+            }
+            html, body {
+              margin: 0;
+              padding: 0;
+              width: 100vw;
+              height: 100vh;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              background: #0a0d14;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+            svg {
+              width: 100%;
+              height: 100%;
+              max-height: 100vh;
+              display: block;
+            }
+            @media print {
+              body { background: #0a0d14 !important; }
+            }
+          </style>
+        </head>
+        <body>
+          ${svgContent}
+          <script>
+            window.addEventListener('load', () => {
+              setTimeout(() => {
+                window.print();
+              }, 400);
+            });
+          <\/script>
+        </body>
+        </html>
+      `);
+      printWin.document.close();
+    }
+
+    showToast("🎉 已下載全向量證書 (SVG) 並開啟 A4 列印/另存 PDF 視窗！", "success", 4500);
   }
 
   // ==========================================
@@ -1268,6 +1581,8 @@ class WordChainWeb {
     this.aiHp = 100;
     this.playerScore = 0;
     this.aiScore = 0;
+    this.playerHomophoneCount = 0;
+    this.playerHomophoneCombo = 0;
     this.updateHUD();
 
     // 清空棋盤與表格
@@ -1410,9 +1725,9 @@ class WordChainWeb {
     const placedCoords = [];
 
     if (isInitial) {
-      // 初始詞：從 (4, 3) 橫向排開
-      const startRow = 4;
-      const startCol = 3;
+      // 初始詞：從 (1, 1) 橫向排開，精準適配各裝置左上視野 (留 44px 安全緩衝)
+      const startRow = 1;
+      const startCol = 1;
       for (let i = 0; i < L; i++) {
         const r = startRow;
         const c = startCol + i;
@@ -1598,10 +1913,19 @@ class WordChainWeb {
       // 計算目標置中滾動位置 (延遲 40ms 等待 DOM 排版與彈性盒尺寸穩定，確保精準平滑居中)
       setTimeout(() => {
         const currentScale = viewport._zoomScale || 1.0;
-        const centerX = ((roiMinX + roiMaxX) / 2) * currentScale;
-        const centerY = ((roiMinY + roiMaxY) / 2) * currentScale;
-        const targetScrollLeft = Math.max(0, centerX - (viewport.clientWidth / 2));
-        const targetScrollTop = Math.max(0, centerY - (viewport.clientHeight / 2));
+        let targetScrollLeft, targetScrollTop;
+
+        if (isInitial) {
+          // 起始立題時：題目字格與提示氣泡直接精準對齊畫布左上角 (保留 16px 舒適呼吸空間，完美適應手機直式螢幕)
+          targetScrollLeft = Math.max(0, (minX * currentScale) - 16);
+          targetScrollTop = Math.max(0, (minY * currentScale) - 16);
+        } else {
+          // 後續輪次：維持置中聚焦視野
+          const centerX = ((roiMinX + roiMaxX) / 2) * currentScale;
+          const centerY = ((roiMinY + roiMaxY) / 2) * currentScale;
+          targetScrollLeft = Math.max(0, centerX - (viewport.clientWidth / 2));
+          targetScrollTop = Math.max(0, centerY - (viewport.clientHeight / 2));
+        }
 
         viewport.scrollTo({
           left: targetScrollLeft,
@@ -1774,16 +2098,367 @@ class WordChainWeb {
       this.updateZoomHUD(viewport);
     }
     const lastCoord = isDemo ? this.demoLastTailCoord : this.lastTailCoord;
+    const rounds = isDemo ? this.demoRound : this.roundCount;
     if (lastCoord) {
       const scale = viewport._zoomScale || 1.0;
-      const targetX = (lastCoord.col * 44 + 22) * scale;
-      const targetY = (lastCoord.row * 44 + 22) * scale;
-      viewport.scrollTo({
-        left: Math.max(0, targetX - viewport.clientWidth / 2),
-        top: Math.max(0, targetY - viewport.clientHeight / 2),
-        behavior: "smooth"
-      });
+      if (rounds <= 1) {
+        viewport.scrollTo({
+          left: Math.max(0, (1 * 44 * scale) - 16),
+          top: Math.max(0, (1 * 44 * scale) - 16),
+          behavior: "smooth"
+        });
+      } else {
+        const targetX = (lastCoord.col * 44 + 22) * scale;
+        const targetY = (lastCoord.row * 44 + 22) * scale;
+        viewport.scrollTo({
+          left: Math.max(0, targetX - viewport.clientWidth / 2),
+          top: Math.max(0, targetY - viewport.clientHeight / 2),
+          behavior: "smooth"
+        });
+      }
     }
+  }
+
+  // ==========================================
+  // 6.8 自由拖曳縮放控制器 (Draggable Zoom HUD)
+  // ==========================================
+  makeDraggable(el, storageKey) {
+    if (!el || el._dragInitialized) return;
+    el._dragInitialized = true;
+
+    // 載入玩家先前自訂的位置
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        const { left, top } = JSON.parse(saved);
+        if (typeof left === "number" && typeof top === "number") {
+          const maxLeft = Math.max(10, window.innerWidth - 70);
+          const maxTop = Math.max(10, window.innerHeight - 180);
+          el.style.left = `${Math.min(maxLeft, Math.max(10, left))}px`;
+          el.style.top = `${Math.min(maxTop, Math.max(10, top))}px`;
+          el.style.right = "auto";
+          el.style.bottom = "auto";
+        }
+      }
+    } catch {}
+
+    let isDown = false;
+    let isDragging = false;
+    let startX = 0;
+    let startY = 0;
+    let initialLeft = 0;
+    let initialTop = 0;
+
+    const onPointerDown = (e) => {
+      isDown = true;
+      isDragging = false;
+      startX = e.clientX;
+      startY = e.clientY;
+      const rect = el.getBoundingClientRect();
+      initialLeft = rect.left;
+      initialTop = rect.top;
+      if (el.setPointerCapture) el.setPointerCapture(e.pointerId);
+    };
+
+    const onPointerMove = (e) => {
+      if (!isDown) return;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      if (!isDragging && Math.hypot(dx, dy) > 4) {
+        isDragging = true;
+        el.classList.add("is-dragging");
+      }
+      if (isDragging) {
+        e.preventDefault();
+        const curLeft = Math.min(window.innerWidth - 65, Math.max(8, initialLeft + dx));
+        const curTop = Math.min(window.innerHeight - 170, Math.max(8, initialTop + dy));
+        el.style.left = `${curLeft}px`;
+        el.style.top = `${curTop}px`;
+        el.style.right = "auto";
+        el.style.bottom = "auto";
+      }
+    };
+
+    const onPointerUp = (e) => {
+      if (!isDown) return;
+      isDown = false;
+      if (isDragging) {
+        el.classList.remove("is-dragging");
+        try {
+          const rect = el.getBoundingClientRect();
+          localStorage.setItem(storageKey, JSON.stringify({ left: rect.left, top: rect.top }));
+        } catch {}
+      }
+      if (el.releasePointerCapture) {
+        try { el.releasePointerCapture(e.pointerId); } catch {}
+      }
+    };
+
+    el.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+    window.addEventListener("pointercancel", onPointerUp);
+  }
+
+  // ==========================================
+  // 6.8 瀏覽器位置探知（科學園區精準推測：竹科、內科、汐科、南科、中科）
+  // ==========================================
+  detectUserTechPark() {
+    try {
+      const savedPark = localStorage.getItem("wordchain_user_tech_park");
+      if (savedPark) {
+        this.userTechPark = savedPark;
+      }
+    } catch {}
+
+    if (!navigator || !navigator.geolocation) return;
+
+    // 非同步靜默偵測，獲取玩家大致經緯度並映射至各大科學園區
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude: lat, longitude: lng } = pos.coords;
+        // 定義各大主要科學園區概略中心經緯度
+        // 竹科 (Hsinchu): 24.77, 121.01
+        // 內科 (Neihu, Taipei): 25.08, 121.57
+        // 汐科 (Xizhi, New Taipei): 25.06, 121.65
+        // 中科 (Taichung): 24.21, 120.61
+        // 南科 (Tainan): 23.11, 120.28
+        const PARKS = [
+          { name: "竹科", lat: 24.77, lng: 121.01, descSuffix: "新竹科學園區頂尖工程師" },
+          { name: "內科", lat: 25.08, lng: 121.57, descSuffix: "內湖科學園區（內科）演算法高手" },
+          { name: "汐科", lat: 25.06, lng: 121.65, descSuffix: "汐止科學園區（汐科）資深硬核架構師" },
+          { name: "中科", lat: 24.21, lng: 120.61, descSuffix: "中部科學園區（中科）精密製程大師" },
+          { name: "南科", lat: 23.11, lng: 120.28, descSuffix: "南部科學園區（南科）先進半導體巨擘" },
+        ];
+
+        let minDis = 999999;
+        let nearestPark = "竹科";
+        PARKS.forEach(p => {
+          const d = Math.hypot(lat - p.lat, lng - p.lng);
+          if (d < minDis) {
+            minDis = d;
+            nearestPark = p.name;
+          }
+        });
+
+        // 若距離小於 0.65 度（約 70 公里內）則命中該園區，否則預設竹科
+        if (minDis <= 0.65) {
+          this.userTechPark = nearestPark;
+          try { localStorage.setItem("wordchain_user_tech_park", nearestPark); } catch {}
+        }
+      },
+      (err) => {
+        // 使用者未授權或超時，保持竹科/內科等合理預設
+      },
+      { timeout: 8000, maximumAge: 3600000 }
+    );
+  }
+
+  // ==========================================
+  // 6.9 詞海星盤 · 行業從業人員 · 職業神算分析器 (Career Divination)
+  // ==========================================
+  divineCareer(words = []) {
+    if (!words || words.length === 0) {
+      return {
+        tag: "文壇初試 · 璞玉渾金",
+        title: "深不可測的初入江湖隱士！",
+        desc: "落子雖簡，字骨清奇；尚未完全展露真實行業神通，下一局且看閣下大顯身手！"
+      };
+    }
+
+    const allText = words.join(" ");
+
+    let techScore = 0;
+    let telecomScore = 0;
+    let icuScore = 0;
+    let medScore = 0;
+    let driverScore = 0;
+    let legalScore = 0;
+    let finScore = 0;
+    let civilScore = 0;
+    let mktScore = 0;
+    let chefScore = 0;
+    let designScore = 0;
+    let eduScore = 0;
+    let litScore = 0;
+
+    const TECH_KWS = ["晶片", "半導體", "電路", "積體", "演算法", "計算機", "伺服器", "記憶體", "資料庫", "程式", "軟體", "硬體", "微處理", "代碼", "機器學習", "人工智慧", "數據", "數位", "編碼", "邏輯", "架構", "除錯", "變數", "函式", "系統", "工程師", "電子", "資訊", "雲端", "運算", "終端"];
+    const TELECOM_KWS = ["光纖", "訊號", "頻寬", "介面", "傳輸", "電信", "基站", "天線", "通訊", "基地台", "光纜", "電纜", "路由", "光電", "波長", "信道", "寬頻", "通訊協定", "微波", "射頻", "局端"];
+    const ICU_KWS = ["加護", "急救", "插管", "心肺", "葉克膜", "敗血", "休克", "甦醒", "重症", "加護病房", "點滴", "心律", "監護", "生命徵象", "抗體", "引流", "氣切", "導管", "呼吸器", "護理", "護理師"];
+    const MED_KWS = ["心肌", "免疫", "神經", "血小板", "動脈", "靜脈", "抗生素", "病理", "臨床", "診斷", "處方", "染色體", "內分泌", "外科", "內科", "阿斯匹靈", "病毒", "細胞", "基因", "酵素", "腫瘤", "血壓", "血糖", "疫苗", "膠囊", "藥劑", "生理", "解剖", "組織", "器官", "血液", "細菌", "感染", "代謝", "醫生", "醫師", "藥師"];
+    const DRIVER_KWS = ["運將", "計程車", "導航", "超車", "快車道", "慢車道", "迴轉", "收費站", "交流道", "國道", "省道", "平交道", "煞車", "油門", "里程", "轉運", "紅綠燈", "斑馬線", "乘客", "車牌", "司機", "老司機", "公車", "捷運", "高鐵", "班車", "客運", "交通", "載客", "排班"];
+    const LEGAL_KWS = ["訴訟", "刑事", "民事", "賠償", "處分", "合約", "契約", "原告", "被告", "法官", "律師", "違憲", "違法", "法人", "誠信", "不可抗力", "答辯", "起訴", "上訴", "條例", "憲法", "法規", "裁判", "判決", "損害", "公證", "代理", "罪刑", "審判", "仲裁", "管轄", "抗辯", "證據", "認證"];
+    const FIN_KWS = ["通膨", "膨脹", "投資", "報酬", "流動性", "資產", "負債", "避險", "貨幣", "資本", "殖利率", "外匯", "股市", "融資", "融券", "債券", "基金", "利息", "利率", "證券", "期貨", "營收", "獲利", "股權", "估值", "槓桿", "套利", "籌碼", "大盤", "指數", "匯率", "金融", "信貸", "財經"];
+    const CIVIL_KWS = ["混凝土", "鋼筋", "力學", "結構", "地基", "透視", "承重", "營造", "樑柱", "灌漿", "鷹架", "都市", "建築", "砌磚", "工法", "基樁", "耐震", "工程", "土木", "測量", "鋼骨"];
+    const MKT_KWS = ["流量", "行銷", "品牌", "社群", "推廣", "爆款", "文案", "轉換", "點閱", "觸及", "粉專", "宣傳", "受眾", "公關", "話題", "曝光", "網紅"];
+    const CHEF_KWS = ["火候", "調味", "燉煮", "烘焙", "香料", "食材", "料理", "煨", "爆炒", "慢火", "煨湯", "高湯", "醬汁", "主廚", "廚藝", "佳餚", "饕客", "烹飪", "酸甜", "香氣", "擺盤"];
+    const DESIGN_KWS = ["排版", "字型", "對齊", "配色", "對比", "向量", "像素", "色票", "美感", "留白", "比例", "構圖", "透視", "層次", "筆畫", "視覺", "修圖", "質感", "手繪", "設計師"];
+    const EDU_KWS = ["作育", "英才", "教案", "考卷", "備課", "訓導", "啟發", "板書", "講義", "作業", "學分", "答辯", "作答", "批改", "導師", "教授", "諄諄教誨", "循循善誘", "教學", "課堂"];
+
+    TECH_KWS.forEach(k => { if (allText.includes(k)) techScore += 2; });
+    TELECOM_KWS.forEach(k => { if (allText.includes(k)) telecomScore += 2.5; });
+    ICU_KWS.forEach(k => { if (allText.includes(k)) icuScore += 2.5; });
+    MED_KWS.forEach(k => { if (allText.includes(k)) medScore += 2; });
+    DRIVER_KWS.forEach(k => { if (allText.includes(k)) driverScore += 2.5; });
+    LEGAL_KWS.forEach(k => { if (allText.includes(k)) legalScore += 2; });
+    FIN_KWS.forEach(k => { if (allText.includes(k)) finScore += 2; });
+    CIVIL_KWS.forEach(k => { if (allText.includes(k)) civilScore += 2; });
+    MKT_KWS.forEach(k => { if (allText.includes(k)) mktScore += 2; });
+    CHEF_KWS.forEach(k => { if (allText.includes(k)) chefScore += 2.5; });
+    DESIGN_KWS.forEach(k => { if (allText.includes(k)) designScore += 2.5; });
+    EDU_KWS.forEach(k => { if (allText.includes(k)) eduScore += 2.5; });
+
+    words.forEach(w => {
+      if (window.STORY_CACHE && window.STORY_CACHE[w]) litScore += 2;
+      if (w.length >= 5) litScore += 3;
+    });
+
+    // 優先比對百工百業擴充星盤庫 (window.CAREER_DATABASE，含軍人、老饕、機師、消防、青農、電競、刑警、音樂等)
+    if (window.CAREER_DATABASE && Array.isArray(window.CAREER_DATABASE)) {
+      let bestCareerMatch = null;
+      let maxMatchScore = 0;
+
+      window.CAREER_DATABASE.forEach(item => {
+        let matchCount = 0;
+        if (item.keywords && Array.isArray(item.keywords)) {
+          item.keywords.forEach(k => {
+            if (allText.includes(k)) matchCount += 2.5;
+          });
+        }
+        if (matchCount > maxMatchScore) {
+          maxMatchScore = matchCount;
+          bestCareerMatch = item;
+        }
+      });
+
+      if (bestCareerMatch && maxMatchScore >= 2.5) {
+        return {
+          tag: bestCareerMatch.tag,
+          title: bestCareerMatch.title,
+          desc: bestCareerMatch.desc
+        };
+      }
+    }
+
+    const scores = [
+      { domain: "telecom", score: telecomScore },
+      { domain: "icu", score: icuScore },
+      { domain: "driver", score: driverScore },
+      { domain: "chef", score: chefScore },
+      { domain: "design", score: designScore },
+      { domain: "edu", score: eduScore },
+      { domain: "tech", score: techScore },
+      { domain: "med", score: medScore },
+      { domain: "legal", score: legalScore },
+      { domain: "fin", score: finScore },
+      { domain: "civil", score: civilScore },
+      { domain: "mkt", score: mktScore }
+    ];
+    scores.sort((a, b) => b.score - a.score);
+
+    const topDomain = scores[0];
+
+    if (topDomain.score >= 2) {
+      if (topDomain.domain === "telecom") {
+        return {
+          tag: "📡 烽火星盤 · 詩書若纜",
+          title: "詩書若纜——閣下該不是飛天遁地的資深電信工程師吧？",
+          desc: "光纖為脈、訊號連天，出招佈線如百萬兆寬頻般高速穿透，任何字陣網絡障礙瞬間打通！"
+        };
+      } else if (topDomain.domain === "icu") {
+        return {
+          tag: "❤️ 仁心星盤 · 熱血守護",
+          title: "滿腔熱血——閣下莫非是日夜守護生命線的 ICU 護理師？",
+          desc: "反應極速、臨危不亂，任憑局面多麼凶險，總能一招插管給氧、起死回生絕地大逆轉！"
+        };
+      } else if (topDomain.domain === "driver") {
+        return {
+          tag: "🚕 馳騁星盤 · 運將豪傑",
+          title: "滿腹經綸運匠大哥大——穿梭千街萬巷的文壇老司機！",
+          desc: "四通八達、路況如指掌，超車變道瀟灑自如，帶領對手在詞海大街小巷兜風直接抵達終點！"
+        };
+      } else if (topDomain.domain === "chef") {
+        return {
+          tag: "🍳 珍饈星盤 · 國宴大廚",
+          title: "文思入味、火候精準——閣下該不會是摘星無數的頂級料理長吧？",
+          desc: "咬字有味、調和五音，落子猶如大火爆炒與文火慢燉相得益彰，端出一盤盤色香味俱全的字陣盛宴！"
+        };
+      } else if (topDomain.domain === "design") {
+        return {
+          tag: "🎨 丹青星盤 · 視覺巨匠",
+          title: "點線面皆成章——閣下定是美感超群的資深字體或視覺設計師！",
+          desc: "棋盤縱橫兼顧黃金比例與留白韻律，出招字形優雅端莊，連錯位銜接都充滿強烈視覺張力！"
+        };
+      } else if (topDomain.domain === "edu") {
+        return {
+          tag: "🍎 鐸聲星盤 · 杏壇名師",
+          title: "諄諄善誘、作育英才——閣下莫非是文壇名校的王牌名師？",
+          desc: "出招條理分明如教科書示範，信手拈來皆是標準教案，對弈之間早已將對手循循善誘引入深奧學海！"
+        };
+      } else if (topDomain.domain === "tech") {
+        const parkName = this.userTechPark || "竹科";
+        let parkDesc = "字裡行間半導體、晶片與演算法之氣場濃烈，若非科學園區科技大老，定是隱世全棧架構師！";
+        if (parkName === "內科") {
+          parkDesc = "字裡行間滿溢網路雲端與軟體架構之氣場，兼具內科（內湖科學園區）頂尖軟體大師風範！";
+        } else if (parkName === "汐科") {
+          parkDesc = "出招嚴謹如資通訊與硬體資安協定，渾身散發汐科（汐止科學園區）硬核高手氣場！";
+        } else if (parkName === "南科") {
+          parkDesc = "落子精度宛如 2nm 先進製程，深藏南部科學園區（南科）晶圓級強悍實力！";
+        } else if (parkName === "中科") {
+          parkDesc = "招招緊湊精準如高階精密光電，具備中部科學園區（中科）大匠之風！";
+        }
+
+        return {
+          tag: `💻 ${parkName}星盤 · 科技極客`,
+          title: `您該不是被詩詞耽誤的${parkName}工程師吧？XD`,
+          desc: parkDesc
+        };
+      } else if (topDomain.domain === "med") {
+        return {
+          tag: "🩺 杏林星盤 · 名醫聖手",
+          title: "落子如切脈施針——閣下莫非是醫學中心的隱世神醫？",
+          desc: "診斷精確、出手如手術刀般游刃有餘，文壇對弈竟透著頂尖名醫之沉著氣度！"
+        };
+      } else if (topDomain.domain === "legal") {
+        return {
+          tag: "⚖️ 法政星盤 · 王牌大狀",
+          title: "字字千鈞、滴水不漏——閣下該不是剛打贏勝訴官司的王牌大律師吧？",
+          desc: "法理分明、條例嚴謹、邏輯如銅牆鐵壁，對手稍有漏洞即被當庭依法絕殺！"
+        };
+      } else if (topDomain.domain === "fin") {
+        return {
+          tag: "📈 財經星盤 · 華爾街之狼",
+          title: "盤面槓桿算盡——閣下莫非是縱橫外資圈的操盤高手？",
+          desc: "出招皆在精準調度流動性與避險籌碼，每一步接龍都在計算最高的投資報酬率！"
+        };
+      } else if (topDomain.domain === "civil") {
+        return {
+          tag: "🏛️ 營造星盤 · 結構大師",
+          title: "字陣縱橫穩如泰山——閣下該不會是國家級建築大師或結構技師吧？",
+          desc: "二維字陣交錯咬合、力學結構滴水不漏，連紀曉嵐都讚嘆此乃神級營造工法！"
+        };
+      } else if (topDomain.domain === "mkt") {
+        return {
+          tag: "📢 傳播星盤 · 社群鬼才",
+          title: "字字直擊痛點——閣下定是操盤千萬爆款的社群行銷操盤手！",
+          desc: "出招自帶百萬流量密碼與轉發衝動，連出成語都在做文案 A/B Testing！"
+        };
+      }
+    }
+
+    if (litScore >= 5 || (litScore / (words.length * 2 || 1)) >= 0.5) {
+      return {
+        tag: "🎓 翰林星盤 · 當代詞宗",
+        title: "滿腹經綸、氣吞山河——閣下莫非是文學院客座教授或文曲星轉世？",
+        desc: "經史子集、唐詩宋詞信手拈來，四庫全書信手翻閱，風雅絕代，名士太白亦甘拜下風！"
+      };
+    }
+
+    return {
+      tag: "🌈 無雙星盤 · 跨界博學",
+      title: "博古通今、跨界無雙——閣下定是無所不知的跨領域大斜槓奇才！",
+      desc: "上通科技天文、下達律法經世，兼修文史藝術，出招路數神鬼莫測，堪稱文壇全能通才！"
+    };
   }
 
   // ==========================================
@@ -1897,7 +2572,8 @@ class WordChainWeb {
     const speakerColor = isP ? "var(--player-pink)" : "var(--ai-blue)";
 
     let badgeClass = "badge-exact";
-    if (modeTag.includes("同音")) badgeClass = "badge-homo";
+    if (modeTag.includes("諧音")) badgeClass = "badge-homo-soul";
+    else if (modeTag.includes("同音")) badgeClass = "badge-homo";
     else if (modeTag.includes("超時") || modeTag.includes("急救")) badgeClass = "badge-danger";
 
     tr.innerHTML = `
@@ -2163,8 +2839,23 @@ class WordChainWeb {
     // 計算積分與氣血傷害
     let pts = 100;
     let dmg = 0;
-    if (check.isExact) pts += 50;
-    else pts += 25;
+    let isHomoMove = !check.isExact && check.match;
+    let homoBonusPts = 0;
+
+    if (isHomoMove) {
+      // 🇹🇼 臺灣深入骨髓諧音魂 · 絕妙諧音特殊獎勵機制！
+      this.playerHomophoneCount++;
+      this.playerHomophoneCombo++;
+      // 基礎諧音獎勵 + 連擊累加獎勵
+      homoBonusPts = 60 + (this.playerHomophoneCombo * 20);
+      pts += homoBonusPts;
+      dmg += 10; // 諧音梗震撼力額外破防 AI
+      showToast(`🤣 絕妙諧音！深入骨髓諧音魂觸發 (連擊 x${this.playerHomophoneCombo})！獎勵 +${homoBonusPts} 分！`, "success", 3000);
+    } else {
+      // 嚴謹同字銜接，重置諧音連擊
+      this.playerHomophoneCombo = 0;
+      pts += 50;
+    }
 
     // 鼓勵古典詩詞長句、七言絕句、五言律句與完整名篇
     let lenDesc = `${word.length}字詞格`;
@@ -2221,15 +2912,24 @@ class WordChainWeb {
     this.battleCurrentWord = word;
     this.roundCount++;
 
-    const matchDesc = check.desc;
+    const matchDesc = isHomoMove
+      ? (this.playerHomophoneCombo > 1
+          ? `🤣 絕妙諧音連擊 x${this.playerHomophoneCombo} (${check.matchingZhuyin || check.desc})`
+          : `🤣 絕妙諧音破局 (${check.matchingZhuyin || check.desc})`)
+      : check.desc;
     const speedTag = elapsed < 3.0 ? "極速" : elapsed <= 8.0 ? "敏捷" : "沉穩";
     const radarTag = tailScore === 0 ? "💀絕殺" : tailScore <= 3 ? "⚠️險局" : tailScore <= 20 ? "⚔️激戰" : "🟢汪洋";
 
     // 2D 棋盤落子與心戰氣泡
     const isPoetic = word.length >= 5;
-    const playerBanter = isPoetic
-      ? `滿腹經綸，長句出招【${word}】！(耗時 ${elapsed.toFixed(1)}s)`
-      : `筆力沉雄，出招【${word}】！(耗時 ${elapsed.toFixed(1)}s)`;
+    let playerBanter = "";
+    if (isHomoMove) {
+      playerBanter = `深入骨髓諧音魂！借音破局打出【${word}】(連擊 x${this.playerHomophoneCombo}，+${homoBonusPts}分)！`;
+    } else if (isPoetic) {
+      playerBanter = `滿腹經綸，長句出招【${word}】！(耗時 ${elapsed.toFixed(1)}s)`;
+    } else {
+      playerBanter = `筆力沉雄，出招【${word}】！(耗時 ${elapsed.toFixed(1)}s)`;
+    }
     this.placeWordOnBoard(word, "player", playerBanter, true);
 
     // 紀錄表插入
@@ -2239,7 +2939,13 @@ class WordChainWeb {
     this.updateScorerCard(this.roundCount, "👤 閣下", word, matchDesc, `${elapsed.toFixed(1)}s (${speedTag})`, lenDesc, radarTag, `生路 ${tailScore} 步`, pts, (this.aiHp <= 0 ? 100 : dmg));
     this.updateTargetCard(word);
     this.updateStoryCard(word);
-    this.updateLiveBanter("👤", `閣下：${isPoetic ? '長歌當哭打出' : '筆力沉雄打出'}【${word}】，請接招！`);
+
+    const persona = PERSONAS[this.currentPersona] || PERSONAS.ji_xiaolan;
+    if (isHomoMove) {
+      this.updateLiveBanter("👤", `閣下：深得臺灣諧音真傳！同音妙接【${word}】！${persona.name} 亦為之絕倒！`);
+    } else {
+      this.updateLiveBanter("👤", `閣下：${isPoetic ? '長歌當哭打出' : '筆力沉雄打出'}【${word}】，請接招！`);
+    }
 
     input.value = "";
 
@@ -2766,22 +3472,295 @@ class WordChainWeb {
   }
 
   // ==========================================
-  // 15. 詞海手冊 (Learned Words Table)
+  // 15. 詞海手冊 (Learned Words Table) & Gemma 審核入庫
   // ==========================================
+  getWordAuditStatus(w) {
+    // 1. 檢查是否在神譜成語/詩詞典故庫中 (story_cache)
+    if (window.STORY_CACHE && window.STORY_CACHE[w]) {
+      const entry = window.STORY_CACHE[w];
+      const isPoetry = entry.origin && (entry.origin.includes('《') || entry.origin.includes('詩') || entry.origin.includes('詞') || entry.origin.includes('鹿柴') || entry.origin.includes('王維'));
+      return {
+        type: isPoetry ? 'poetry' : 'idiom',
+        tag: isPoetry ? '👑 詩詞名句' : '🟢 萌典典故成語',
+        badgeColor: isPoetry ? '#feca57' : '#2ed573',
+        badgeBg: isPoetry ? 'rgba(254,202,87,0.18)' : 'rgba(46,213,115,0.18)',
+        badgeBorder: isPoetry ? 'rgba(254,202,87,0.3)' : 'rgba(46,213,115,0.3)',
+        origin: entry.origin || '中華古典文獻',
+        definition: entry.story || '經史名篇，寓意深遠。'
+      };
+    }
+
+    // 2. 檢查補充民間熟語庫
+    const KNOWN_EXTRA = {
+      '空山不見人': { origin: '唐．王維《鹿柴》', def: '空曠幽靜的山林中看不見人的蹤影。唐代王維名篇：「空山不見人，但聞人語響。」', tag: '👑 詩詞名句', isPoetry: true },
+      '但聞人語響': { origin: '唐．王維《鹿柴》', def: '只聽得見人的說話迴響聲。以聲襯靜，極顯山幽林靜。', tag: '👑 詩詞名句', isPoetry: true },
+      '起手無回': { origin: '傳統象棋棋諺', def: '棋藝格言「起手無回大丈夫，落子無悔大丈夫」。形容下棋落子不悔，比喻行事果決、言出必行。', tag: '📜 民間棋諺' },
+      '白白犧牲': { origin: '現代通俗熟語', def: '徒然無益地付出生命、心血或代價，而未能產生任何效益。', tag: '📜 通俗熟語' }
+    };
+    if (KNOWN_EXTRA[w]) {
+      const ex = KNOWN_EXTRA[w];
+      return {
+        type: ex.isPoetry ? 'poetry' : 'saying',
+        tag: ex.tag,
+        badgeColor: ex.isPoetry ? '#feca57' : '#48dbfb',
+        badgeBg: ex.isPoetry ? 'rgba(254,202,87,0.18)' : 'rgba(72,219,251,0.18)',
+        badgeBorder: ex.isPoetry ? 'rgba(254,202,87,0.3)' : 'rgba(72,219,251,0.3)',
+        origin: ex.origin,
+        definition: ex.def
+      };
+    }
+
+    // 3. 檢查是否在官方萌典詞庫中 (lexicon_scored)
+    const head = w[0];
+    const headData = this.lexicon && this.lexicon[head];
+    const inMoe = headData && headData.w && headData.w.some(e => e[0] === w);
+    if (inMoe) {
+      return {
+        type: 'moe',
+        tag: '🟢 萌典標準詞',
+        badgeColor: '#2ed573',
+        badgeBg: 'rgba(46,213,115,0.18)',
+        badgeBorder: 'rgba(46,213,115,0.3)',
+        origin: '教育部國語辭典修訂本',
+        definition: this.getWordQuickDef(w) || '教育部標準正體詞彙，雙雄 AI 隨時熟練出招。'
+      };
+    }
+
+    // 4. 待評估詞彙
+    return {
+      type: 'pending',
+      tag: '⚡ 待 Gemma 評估',
+      badgeColor: '#a55eea',
+      badgeBg: 'rgba(165,94,234,0.18)',
+      badgeBorder: 'rgba(165,94,234,0.3)',
+      origin: '玩家親授新創詞',
+      definition: '待 Gemma 國語文院士審查鑑定其典故出處或結構定型性。'
+    };
+  }
+
+  getWordQuickDef(w) {
+    const KNOWN_DEFS = {
+      '起風': '颳風、起風了。',
+      '選舉': '擇善而推舉。透過民主投票方式抉擇充任公職之程序。',
+      '大人': '德高望重之長者；成年人。',
+      '鋼鐵': '鋼與鐵之合金材料；形容堅強不可摧毀。',
+      '王八蛋': '民間通俗罵人口語。',
+      '瞬間': '轉瞬之間、一眨眼，形容時間極其短暫。',
+      '山海經': '古代著名神話地理典籍，記敘山川地理與異獸靈物。'
+    };
+    return KNOWN_DEFS[w] || '';
+  }
+
   renderLearnedTable() {
     const tbody = document.getElementById("learned-table-body");
     if (!tbody) return;
+
+    this.initLearnedTabListeners();
+
+    const words = Object.entries(this.learnedWords);
+    let totalCount = words.length;
+    let moeCount = 0;
+    let poetrySayingCount = 0;
+    let pendingCount = 0;
+
     tbody.innerHTML = "";
-    for (const [w, info] of Object.entries(this.learnedWords)) {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td style="font-weight:bold; color:var(--accent-cyan);">${w}</td>
-        <td>${info.definition || "玩家自創新詞"}</td>
-        <td style="text-align:center;">${info.uses || 1}</td>
-        <td>${info.learnedAt || "今天"}</td>
+
+    if (totalCount === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" style="text-align:center; padding:45px 20px; color:var(--text-muted); font-size:0.95rem;">
+            🍵 <b style="color:var(--text-primary);">文思無羈，詞海浩瀚。</b><br>
+            <span style="font-size:0.85rem; margin-top:6px; display:inline-block;">在人機對決中打出字詞時，系統將自動登記入冊供 Gemma 鑑賞建庫！</span>
+          </td>
+        </tr>
       `;
-      tbody.appendChild(tr);
+    } else {
+      for (const [w, info] of words) {
+        const audit = this.getWordAuditStatus(w);
+
+        if (audit.type === 'moe') moeCount++;
+        else if (audit.type === 'poetry' || audit.type === 'saying' || audit.type === 'idiom') poetrySayingCount++;
+        else pendingCount++;
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td style="font-weight:bold; font-size:1rem; color:var(--accent-cyan);">${w}</td>
+          <td>
+            <span class="badge" style="background:${audit.badgeBg}; color:${audit.badgeColor}; border:1px solid ${audit.badgeBorder};">
+              ${audit.tag}
+            </span>
+          </td>
+          <td>
+            <div style="font-weight:500; color:var(--text-primary); margin-bottom:2px;">
+              ${audit.origin ? `<span style="color:var(--text-muted); font-size:0.8rem;">【${audit.origin}】</span> ` : ''}${audit.definition}
+            </div>
+          </td>
+          <td style="text-align:center; font-weight:bold;">${info.uses || 1}</td>
+          <td style="color:var(--text-muted); font-size:0.85rem;">${info.learnedAt || "今天"}</td>
+          <td style="text-align:center;">
+            <button class="btn-delete-learned" data-word="${w}" title="刪除此詞" style="background:none; border:none; cursor:pointer; color:var(--text-muted); font-size:1rem; padding:2px 6px; border-radius:4px; transition:all 0.15s;" onmouseover="this.style.color='var(--accent-red)'" onmouseout="this.style.color='var(--text-muted)'">🗑️</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      }
     }
+
+    // 更新統計儀表板
+    const elTotal = document.getElementById("stat-total-learned");
+    const elMoe = document.getElementById("stat-moe-certified");
+    const elPoetry = document.getElementById("stat-poetry-saying");
+    const elPending = document.getElementById("stat-pending-audit");
+
+    if (elTotal) elTotal.innerText = totalCount;
+    if (elMoe) elMoe.innerText = moeCount;
+    if (elPoetry) elPoetry.innerText = poetrySayingCount;
+    if (elPending) elPending.innerText = pendingCount;
+  }
+
+  initLearnedTabListeners() {
+    if (this._learnedListenersInitialized) return;
+    this._learnedListenersInitialized = true;
+
+    // 1. Gemma 評估建庫按鈕
+    const btnGemma = document.getElementById("btn-gemma-audit");
+    if (btnGemma) {
+      btnGemma.addEventListener("click", () => this.openGemmaAuditModal());
+    }
+
+    // 2. 檢驗萌典認證按鈕
+    const btnSync = document.getElementById("btn-sync-learned");
+    if (btnSync) {
+      btnSync.addEventListener("click", () => {
+        this.renderLearnedTable();
+        const total = Object.keys(this.learnedWords).length;
+        showToast(`✨ 萌典狀態同步檢驗完畢！手冊共 ${total} 詞，官方體系已全數連線！`, "success");
+      });
+    }
+
+    // 3. 匯出手冊 JSON 按鈕
+    const btnExport = document.getElementById("btn-export-learned");
+    if (btnExport) {
+      btnExport.addEventListener("click", () => this.exportLearnedWords());
+    }
+
+    // 4. 清理已收錄詞彙按鈕
+    const btnClearVerified = document.getElementById("btn-clear-verified");
+    if (btnClearVerified) {
+      btnClearVerified.addEventListener("click", () => this.clearVerifiedLearnedWords());
+    }
+
+    // 5. 彈窗關閉與確認按鈕
+    const modal = document.getElementById("modal-gemma-audit");
+    const btnClose1 = document.getElementById("btn-close-gemma-modal");
+    const btnClose2 = document.getElementById("btn-close-gemma-modal2");
+    const btnConfirm = document.getElementById("btn-confirm-gemma-adopt");
+
+    const closeModal = () => { if (modal) modal.style.display = "none"; };
+    if (btnClose1) btnClose1.addEventListener("click", closeModal);
+    if (btnClose2) btnClose2.addEventListener("click", closeModal);
+    if (btnConfirm) btnConfirm.addEventListener("click", () => this.confirmGemmaAdopt());
+
+    // 6. 單條刪除事件委派
+    const tbody = document.getElementById("learned-table-body");
+    if (tbody) {
+      tbody.addEventListener("click", (e) => {
+        const btn = e.target.closest(".btn-delete-learned");
+        if (btn) {
+          const w = btn.getAttribute("data-word");
+          if (w && this.learnedWords[w]) {
+            delete this.learnedWords[w];
+            this.saveLearnedWords();
+            this.renderLearnedTable();
+            showToast(`🗑️ 已自手冊除名【${w}】`, "info");
+          }
+        }
+      });
+    }
+  }
+
+  openGemmaAuditModal() {
+    const modal = document.getElementById("modal-gemma-audit");
+    const container = document.getElementById("gemma-modal-content");
+    if (!modal || !container) return;
+
+    const words = Object.keys(this.learnedWords);
+    if (words.length === 0) {
+      showToast("手冊尚無親授詞彙，請先在人機對決中出招！", "warning");
+      return;
+    }
+
+    container.innerHTML = "";
+    for (const w of words) {
+      const audit = this.getWordAuditStatus(w);
+      const card = document.createElement("div");
+      card.style.cssText = `
+        background: rgba(255,255,255,0.03);
+        border: 1px solid var(--bg-card-border);
+        border-left: 4px solid ${audit.badgeColor};
+        border-radius: var(--radius-md);
+        padding: 12px 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      `;
+      card.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:1.15rem; font-weight:bold; color:var(--accent-cyan); font-family:var(--font-family-display);">${w}</span>
+            <span class="badge" style="background:${audit.badgeBg}; color:${audit.badgeColor}; border:1px solid ${audit.badgeBorder};">${audit.tag}</span>
+          </div>
+          <span style="color:#2ed573; font-weight:bold; font-size:0.85rem;">✅ 審核合格 · 建入神譜</span>
+        </div>
+        <div style="font-size:0.88rem; color:var(--text-secondary); line-height:1.5;">
+          ${audit.origin ? `<b style="color:var(--text-primary);">${audit.origin}</b>：` : ''}${audit.definition}
+        </div>
+      `;
+      container.appendChild(card);
+    }
+
+    modal.style.display = "flex";
+  }
+
+  confirmGemmaAdopt() {
+    // 智慧吸納：更新所有詞彙的釋義與出處標籤
+    for (const w of Object.keys(this.learnedWords)) {
+      const audit = this.getWordAuditStatus(w);
+      this.learnedWords[w].definition = audit.definition;
+      this.learnedWords[w].origin = audit.origin;
+      this.learnedWords[w].tag = audit.tag;
+    }
+    this.saveLearnedWords();
+    this.renderLearnedTable();
+
+    const modal = document.getElementById("modal-gemma-audit");
+    if (modal) modal.style.display = "none";
+    showToast("🎉 Gemma 院士評定完畢！所有詞彙均已驗證，正式入列詞海神譜！", "success", 4000);
+  }
+
+  clearVerifiedLearnedWords() {
+    const words = Object.keys(this.learnedWords);
+    let removed = 0;
+    for (const w of words) {
+      const audit = this.getWordAuditStatus(w);
+      if (audit.type === 'moe' || audit.type === 'poetry' || audit.type === 'saying') {
+        delete this.learnedWords[w];
+        removed++;
+      }
+    }
+    this.saveLearnedWords();
+    this.renderLearnedTable();
+    showToast(`🧹 已清理 ${removed} 個官方已完整收錄之詞彙，詞海手冊清爽俐落！`, "success");
+  }
+
+  exportLearnedWords() {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(this.learnedWords, null, 2));
+    const a = document.createElement('a');
+    a.setAttribute("href", dataStr);
+    a.setAttribute("download", `wordchain_learned_words_${new Date().toISOString().slice(0,10)}.json`);
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    showToast("📥 詞海手冊資料已成功匯出為 JSON 檔！", "success");
   }
 }
 

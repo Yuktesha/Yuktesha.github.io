@@ -178,25 +178,53 @@
   transition: transform 0.05s ease-out;
 }
 
-/* Google Maps 風格浮動縮放控制器 (Floating Zoom HUD) */
+/* Google Maps 風格浮動縮放控制器 (Floating Draggable Zoom HUD) */
 .board-zoom-hud {
   position: absolute;
-  bottom: 24px;
-  right: 28px;
+  top: 48px;
+  right: 18px;
   z-index: 45;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
-  background: rgba(22, 28, 42, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  gap: 2px;
+  background: rgba(22, 28, 42, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 20px;
-  padding: 6px 4px;
+  padding: 4px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55), 0 0 14px rgba(0, 206, 201, 0.15);
   backdrop-filter: blur(10px);
   user-select: none;
   -webkit-user-select: none;
-  transition: opacity 0.2s, transform 0.2s, border-color 0.2s;
+  touch-action: none;
+  cursor: default;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.zoom-drag-handle {
+  width: 100%;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  cursor: grab;
+  opacity: 0.65;
+  transition: opacity 0.2s, color 0.2s;
+  padding-top: 1px;
+}
+
+.zoom-drag-handle:hover {
+  opacity: 1;
+  color: var(--accent-cyan);
+}
+
+.board-zoom-hud.is-dragging {
+  cursor: grabbing !important;
+  opacity: 0.95;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.75), 0 0 22px rgba(0, 206, 201, 0.35);
+  border-color: var(--accent-gold);
 }
 
 .board-zoom-hud:hover {
@@ -998,11 +1026,92 @@ select:focus, input:focus {
   padding: 8px 14px;
 }
 
-/* 詞海手冊表格容器彈性高度自適應 */
-#tab-learned > div {
+/* 詞海手冊表格容器彈性高度自適應與版面優化 (徹底解決頂部大黑框 Bug) */
+#tab-learned {
+  display: none;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
+}
+
+#tab-learned.active {
+  display: flex;
+}
+
+#tab-learned .control-bar {
+  flex-shrink: 0;
+  flex-grow: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+}
+
+.learned-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.learned-stat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--bg-card-border);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.learned-stat-val {
+  font-size: 1.4rem;
+  font-weight: 800;
+  font-family: var(--font-family-display);
+}
+
+.learned-stat-lbl {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.learned-table-container {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--bg-card-border);
+}
+
+.learned-table-container table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.learned-table-container thead th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #181d28;
+  box-shadow: 0 1px 0 var(--bg-card-border);
+  padding: 10px 12px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-align: left;
+}
+
+.learned-table-container tbody td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--bg-card-border);
+  font-size: 0.88rem;
+}
+
+.learned-table-container tbody tr:hover {
+  background: rgba(255, 255, 255, 0.02);
 }
 
 /* Tables */
@@ -1045,6 +1154,19 @@ th {
   background: rgba(0, 210, 211, 0.15);
   color: #00d2d3;
   border: 1px solid rgba(0, 210, 211, 0.4);
+}
+.badge-homo-soul {
+  background: linear-gradient(135deg, rgba(241, 196, 15, 0.25), rgba(46, 213, 115, 0.25));
+  color: #f1c40f;
+  border: 1px solid rgba(241, 196, 15, 0.6);
+  box-shadow: 0 0 10px rgba(241, 196, 15, 0.35);
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  animation: homoSoulPulse 1.8s ease-in-out infinite;
+}
+@keyframes homoSoulPulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 8px rgba(241, 196, 15, 0.3); }
+  50% { transform: scale(1.05); box-shadow: 0 0 16px rgba(46, 213, 115, 0.6); }
 }
 .badge-danger {
   background: rgba(255, 71, 87, 0.15);
@@ -1236,12 +1358,12 @@ th {
 }
 
 .modal-card.victory-card {
-  max-width: 640px;
-  width: min(640px, 94vw);
+  max-width: 680px;
+  width: min(680px, 96vw);
   background: linear-gradient(160deg, #1d2536 0%, #111622 100%);
   border: 2px solid var(--accent-gold);
   border-radius: 18px;
-  padding: 38px 28px 28px;
+  padding: 38px 24px 28px;
   text-align: center;
   position: relative;
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.9), 0 0 50px rgba(241, 196, 15, 0.25);
@@ -1338,8 +1460,68 @@ th {
   padding: 6px 20px;
   font-weight: bold;
   font-size: 0.95rem;
-  margin-bottom: 24px;
+  margin-bottom: 8px;
   white-space: nowrap;
+}
+
+.victory-homo-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, rgba(46, 213, 115, 0.2), rgba(241, 196, 15, 0.2));
+  color: #2ed573;
+  border: 1px solid rgba(46, 213, 115, 0.5);
+  border-radius: 20px;
+  padding: 5px 16px;
+  font-weight: 800;
+  font-size: 0.88rem;
+  margin-bottom: 14px;
+  box-shadow: 0 0 12px rgba(46, 213, 115, 0.25);
+  animation: homoSoulPulse 2s ease-in-out infinite;
+}
+
+/* 🔮 詞海八字 · 職業神算卡片 */
+.victory-career-box {
+  background: linear-gradient(135deg, rgba(165, 94, 234, 0.16), rgba(0, 206, 201, 0.09));
+  border: 1px solid rgba(165, 94, 234, 0.45);
+  border-radius: 12px;
+  padding: 12px 18px;
+  margin-bottom: 22px;
+  text-align: left;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35), inset 0 0 12px rgba(165, 94, 234, 0.12);
+}
+
+.career-box-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.career-box-icon {
+  font-size: 1.15rem;
+}
+
+.career-box-tag {
+  font-size: 0.76rem;
+  font-weight: 800;
+  color: var(--accent-purple);
+  letter-spacing: 0.8px;
+}
+
+.career-box-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--accent-gold);
+  margin-bottom: 3px;
+  font-family: var(--font-serif, "Noto Serif TC", serif);
+  line-height: 1.35;
+}
+
+.career-box-desc {
+  font-size: 0.84rem;
+  color: #cbd5e1;
+  line-height: 1.45;
 }
 
 /* ========================================== */
@@ -1347,7 +1529,7 @@ th {
 /* ========================================== */
 .victory-actions {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   justify-content: center;
   align-items: stretch;
   width: 100%;
@@ -1357,10 +1539,10 @@ th {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 11px 16px;
+  gap: 5px;
+  padding: 10px 12px;
   border-radius: 10px;
-  font-size: 0.95rem;
+  font-size: 0.92rem;
   font-weight: 700;
   line-height: 1.2;
   white-space: nowrap;
@@ -1370,6 +1552,13 @@ th {
   min-height: 48px;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
   transition: transform 0.16s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.16s ease, filter 0.16s ease;
+}
+
+.vic-action-btn.btn-warning {
+  background: linear-gradient(135deg, #d35400, #e67e22);
+  color: #ffffff;
+  border: 1px solid rgba(243, 156, 18, 0.6);
+  box-shadow: 0 4px 14px rgba(211, 84, 0, 0.4);
 }
 
 .vic-action-btn:hover {
@@ -1401,19 +1590,195 @@ th {
   margin-left: 1px;
 }
 
+@media (max-width: 768px) {
+  /* 1. Header 頂部導航自適應：精簡字體與內距 */
+  header {
+    padding: 6px 10px;
+  }
+  .brand {
+    gap: 6px;
+  }
+  .brand h1 {
+    font-size: 1.05rem;
+  }
+  .brand .badge {
+    font-size: 0.68rem;
+    padding: 2px 6px;
+    max-width: 80px;
+    white-space: normal;
+    line-height: 1.15;
+    text-align: center;
+  }
+  .nav-tabs {
+    gap: 4px;
+  }
+  .tab-btn {
+    padding: 5px 8px;
+    font-size: 0.78rem;
+  }
+
+  /* 2. 主容器自適應 */
+  main {
+    padding: 6px 6px 4px;
+    gap: 6px;
+  }
+
+  /* 3. 控制面板折行與按鈕適配 */
+  .control-bar {
+    padding: 4px 6px;
+    gap: 4px 6px;
+  }
+  .control-group {
+    font-size: 0.74rem;
+    gap: 3px;
+  }
+  select, input, button {
+    padding: 3px 6px;
+    font-size: 0.76rem;
+  }
+  .control-bar > div:last-child {
+    width: 100%;
+    justify-content: flex-end;
+    margin-top: 2px;
+  }
+  .control-bar button {
+    padding: 4px 10px;
+    font-size: 0.78rem;
+  }
+
+  /* 4. HUD 戰鬥狀態儀表收斂 */
+  .hud-bar {
+    padding: 4px 8px;
+  }
+  #lbl-player-score, #lbl-ai-score {
+    font-size: 0.8rem;
+  }
+  #lbl-timer {
+    font-size: 0.85rem;
+  }
+  .badge-status-romance {
+    font-size: 0.68rem;
+    padding: 1px 5px;
+  }
+
+  /* 5. 側邊欄在手機直式下自動轉為橫向流式卡片，避免吃光棋盤高度 */
+  .sidebar-panel {
+    display: flex;
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    gap: 6px;
+    max-height: 110px;
+    flex-shrink: 0;
+    padding-bottom: 2px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .sidebar-panel::-webkit-scrollbar {
+    height: 3px;
+  }
+  .sidebar-panel::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+  }
+  .target-card, #scorer-card, .story-card, .demo-stage-card {
+    min-width: 175px;
+    max-width: 240px;
+    flex: 0 0 auto;
+    padding: 6px 10px;
+    height: 100%;
+    box-sizing: border-box;
+    overflow-y: auto;
+  }
+  .target-char {
+    font-size: 1.8rem;
+    margin: 0;
+    line-height: 1;
+  }
+  #target-info, #target-radar {
+    font-size: 0.72rem;
+  }
+  #scorer-title, .story-title {
+    font-size: 0.78rem;
+    margin-bottom: 2px;
+  }
+  #scorer-detail, #scorer-radar, #scorer-summary, .story-body {
+    font-size: 0.7rem;
+    line-height: 1.25;
+  }
+
+  /* 6. 右側棋盤主舞台：吞納最大縱向剩餘高度 */
+  .arena-board-container {
+    padding: 6px 8px;
+    flex: 1 1 0;
+    min-height: 160px;
+  }
+  .cross-board-viewport {
+    padding: 8px;
+  }
+
+  /* 7. 縮放 HUD 控制器在窄螢幕更緊湊靠右 */
+  .board-zoom-hud {
+    top: 36px;
+    right: 8px;
+    padding: 2px;
+  }
+  .zoom-btn {
+    width: 26px;
+    height: 26px;
+    font-size: 0.75rem;
+  }
+  .zoom-level {
+    font-size: 0.62rem;
+    padding: 1px 2px;
+  }
+
+  /* 8. 底部即時心戰與輸入出招列 */
+  .live-banter-card {
+    padding: 4px 8px;
+    margin-top: 4px;
+  }
+  .banter-speaker-icon {
+    font-size: 0.95rem;
+  }
+  .banter-text {
+    font-size: 0.75rem;
+    line-height: 1.25;
+  }
+  .input-dock {
+    margin-top: 4px;
+    gap: 6px;
+  }
+  .input-dock input {
+    font-size: 0.88rem;
+    padding: 6px 10px;
+  }
+  .input-dock button {
+    padding: 0 14px;
+    font-size: 0.88rem;
+  }
+}
+
 @media (max-width: 580px) {
+  /* 品牌副標在極窄螢幕隱藏，保留核心 Title 與詞庫 Badge */
+  .brand div div {
+    display: none;
+  }
+
   .modal-card.victory-card {
-    padding: 30px 16px 20px;
+    padding: 26px 14px 18px;
     width: 95%;
+    max-height: 90vh;
+    overflow-y: auto;
   }
 
   .victory-title {
-    font-size: 1.65rem;
+    font-size: 1.5rem;
   }
 
   .victory-stats-grid {
     grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
+    gap: 6px;
+    padding: 10px 8px;
   }
 
   .victory-actions {
@@ -1424,7 +1789,9 @@ th {
   .vic-action-btn {
     width: 100%;
     flex: none;
-    min-height: 44px;
+    min-height: 42px;
+    padding: 8px 10px;
+    font-size: 0.85rem;
   }
 }
 
