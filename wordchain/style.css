@@ -859,6 +859,9 @@ header {
 .tab-text-full { display: inline; }
 .tab-text-short { display: none; }
 
+.btn-text-full, .fs-text-full { display: inline; }
+.btn-text-short, .fs-text-short { display: none; }
+
 .nav-tabs {
   display: flex;
   gap: 8px;
@@ -1776,6 +1779,8 @@ th {
   }
   .tab-text-full { display: none !important; }
   .tab-text-short { display: inline !important; }
+  .btn-text-full, .fs-text-full { display: none !important; }
+  .btn-text-short, .fs-text-short { display: inline !important; }
 
   /* 2. 主容器自適應：自然向下展開，絕不截斷鎖死 */
   main {
@@ -1982,7 +1987,7 @@ body.fullscreen-zen header {
 }
 
 body.fullscreen-zen main {
-  padding: 4px 10px !important;
+  padding: 4px 8px !important;
   height: 100vh !important;
   max-height: 100vh !important;
   display: flex !important;
@@ -1991,42 +1996,95 @@ body.fullscreen-zen main {
 }
 
 body.fullscreen-zen .control-bar {
-  padding: 4px 10px !important;
+  padding: 3px 8px !important;
   margin-bottom: 4px !important;
   background: rgba(21, 25, 35, 0.85) !important;
   backdrop-filter: blur(10px);
 }
 
-body.fullscreen-zen .demo-arena-grid {
-  flex: 1 1 0 !important;
-  height: calc(100vh - 50px) !important;
-  min-height: 0 !important;
-  display: grid !important;
-  grid-template-columns: 260px 1fr !important;
-  gap: 8px !important;
-  overflow: hidden !important;
+/* 橫向模式屏保 (Landscape / 寬屏): 雙欄布局，右側大畫布 */
+@media (min-width: 769px), (orientation: landscape) {
+  body.fullscreen-zen .demo-arena-grid {
+    flex: 1 1 0 !important;
+    height: calc(100vh - 46px) !important;
+    min-height: 0 !important;
+    display: grid !important;
+    grid-template-columns: 260px 1fr !important;
+    gap: 8px !important;
+    overflow: hidden !important;
+  }
+
+  body.fullscreen-zen .sidebar-panel {
+    display: flex !important;
+    flex-direction: column !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    max-height: 100% !important;
+    gap: 6px !important;
+  }
+
+  body.fullscreen-zen .arena-board-container {
+    height: 100% !important;
+    min-height: 0 !important;
+    flex: 1 1 0 !important;
+    padding: 6px 10px !important;
+  }
+
+  body.fullscreen-zen .cross-board-viewport {
+    height: 100% !important;
+    min-height: 0 !important;
+    flex: 1 1 0 !important;
+  }
 }
 
-body.fullscreen-zen .sidebar-panel {
-  display: flex !important;
-  flex-direction: column !important;
-  overflow-y: auto !important;
-  overflow-x: hidden !important;
-  max-height: 100% !important;
-  gap: 6px !important;
-}
+/* 直向模式屏保 (Portrait / 手機直屏 橫轉直！): 單欄垂直堆疊，棋盤吃滿垂直剩餘高度！ */
+@media (max-width: 768px) and (orientation: portrait) {
+  body.fullscreen-zen .demo-arena-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 0 !important;
+    height: calc(100vh - 46px) !important;
+    min-height: 0 !important;
+    gap: 6px !important;
+    overflow: hidden !important;
+  }
 
-body.fullscreen-zen .arena-board-container {
-  height: 100% !important;
-  min-height: 0 !important;
-  flex: 1 1 0 !important;
-  padding: 6px 10px !important;
-}
+  body.fullscreen-zen .sidebar-panel {
+    display: flex !important;
+    flex-direction: row !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    max-height: 105px !important;
+    flex: none !important;
+    gap: 6px !important;
+    padding-bottom: 2px !important;
+    -webkit-overflow-scrolling: touch;
+  }
 
-body.fullscreen-zen .cross-board-viewport {
-  height: 100% !important;
-  min-height: 0 !important;
-  flex: 1 1 0 !important;
+  body.fullscreen-zen .target-card,
+  body.fullscreen-zen .demo-stage-card {
+    min-width: 175px !important;
+    max-width: 240px !important;
+    height: 100% !important;
+    flex: 0 0 auto !important;
+    overflow-y: auto !important;
+    padding: 6px 8px !important;
+  }
+
+  body.fullscreen-zen .arena-board-container {
+    flex: 1 1 0 !important;
+    height: auto !important;
+    min-height: 250px !important;
+    padding: 6px 8px !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  body.fullscreen-zen .cross-board-viewport {
+    flex: 1 1 0 !important;
+    min-height: 180px !important;
+    height: 100% !important;
+  }
 }
 
 /* ==========================================

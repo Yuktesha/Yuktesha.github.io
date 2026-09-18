@@ -758,11 +758,35 @@ class WordChainWeb {
         const isFS = !!document.fullscreenElement;
         document.body.classList.toggle("fullscreen-zen", isFS);
         if (btnDemoFullscreen) {
-          btnDemoFullscreen.innerText = isFS ? "🪟 退出全螢幕" : "🖥️ 全螢幕觀戰";
+          const fullSpan = btnDemoFullscreen.querySelector(".fs-text-full");
+          const shortSpan = btnDemoFullscreen.querySelector(".fs-text-short");
+          if (fullSpan && shortSpan) {
+            fullSpan.innerText = isFS ? "🪟 退出全螢幕" : "🖥️ 全螢幕觀戰";
+            shortSpan.innerText = isFS ? "🪟 退出" : "🖥️ 全螢幕";
+          } else {
+            btnDemoFullscreen.innerText = isFS ? "🪟 退出全螢幕" : "🖥️ 全螢幕觀戰";
+          }
         }
         setTimeout(() => {
           this.recenterViewport(demoBoardViewport, true, false);
         }, 120);
+      });
+
+      // 橫轉直 / 直轉橫 (Orientation Change & Viewport Resize) 自動回正視角
+      window.addEventListener("resize", () => {
+        setTimeout(() => {
+          const isDemoActive = document.getElementById("tab-demo")?.classList.contains("active");
+          const vp = isDemoActive ? demoBoardViewport : boardViewport;
+          this.recenterViewport(vp, isDemoActive, false);
+        }, 150);
+      });
+
+      window.addEventListener("orientationchange", () => {
+        setTimeout(() => {
+          const isDemoActive = document.getElementById("tab-demo")?.classList.contains("active");
+          const vp = isDemoActive ? demoBoardViewport : boardViewport;
+          this.recenterViewport(vp, isDemoActive, false);
+        }, 200);
       });
     }
 
@@ -3209,7 +3233,12 @@ class WordChainWeb {
       this.isDemoRunning = false;
       this.updateRomanceStatus("demo_stopped");
       const btn = document.getElementById("btn-start-demo");
-      if (btn) btn.innerText = "開始演示";
+      if (btn) {
+        const full = btn.querySelector(".btn-text-full");
+        const short = btn.querySelector(".btn-text-short");
+        if (full && short) { full.innerText = "開始演示"; short.innerText = "開始"; }
+        else { btn.innerText = "開始演示"; }
+      }
       return;
     }
 
@@ -3226,7 +3255,12 @@ class WordChainWeb {
     this.isDemoRunning = true;
     this.updateRomanceStatus("demo_running");
     const btn = document.getElementById("btn-start-demo");
-    if (btn) btn.innerText = "暫停演示";
+    if (btn) {
+      const full = btn.querySelector(".btn-text-full");
+      const short = btn.querySelector(".btn-text-short");
+      if (full && short) { full.innerText = "暫停演示"; short.innerText = "暫停"; }
+      else { btn.innerText = "暫停演示"; }
+    }
 
     // 清空雙雄 demo 棋盤與流轉表
     this.demoBoardMap.clear();

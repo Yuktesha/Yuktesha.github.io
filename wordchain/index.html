@@ -4,10 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>字戀 (WordChain) - 文壇縱橫對弈 · 漢字聲韻博弈</title>
-  <link rel="stylesheet" href="style.css?v=2.4">
+  <link rel="stylesheet" href="style.css?v=2.5">
   <style>
     /* 防快取滯後：預設隱藏次級與精簡文字，交由 CSS media query 精確接管 */
-    .status-text-med, .status-text-short, .tab-text-short { display: none; }
+    .status-text-med, .status-text-short, .tab-text-short, .btn-text-short, .fs-text-short { display: none; }
   </style>
 </head>
 <body>
@@ -254,11 +254,23 @@
           <span class="badge-status-romance" id="badge-demo-status" style="display:none;">雙雄字戀中……</span>
         </div>
         <span style="font-size:0.85rem; color:var(--text-muted);">（觀摩雙 AI 唇槍舌劍，隨時可按右側按鈕接管戰局！）</span>
-        <div style="margin-left:auto; display:flex; gap:8px;">
-          <button id="btn-start-demo" class="btn-primary">開始演示</button>
-          <button id="btn-demo-fullscreen" class="btn-secondary" title="開啟全螢幕沉浸觀戰，亦可充當文壇字陣動態螢幕保護程式">🖥️ 全螢幕觀戰</button>
-          <button id="btn-export-demo-log" class="btn-secondary" title="匯出雙雄對戰完整 Log 供 Gemma 審查分析">📥 匯出對戰 Log</button>
-          <button id="btn-takeover" class="btn-takeover">⚔️ 換我來接！(接管戰局)</button>
+        <div class="demo-actions-bar" style="margin-left:auto; display:flex; gap:6px; flex-wrap:wrap;">
+          <button id="btn-start-demo" class="btn-primary">
+            <span class="btn-text-full">開始演示</span>
+            <span class="btn-text-short">開始</span>
+          </button>
+          <button id="btn-demo-fullscreen" class="btn-secondary" title="開啟全螢幕沉浸觀戰，亦可充當文壇字陣動態螢幕保護程式">
+            <span class="fs-text-full">🖥️ 全螢幕觀戰</span>
+            <span class="fs-text-short">🖥️ 全螢幕</span>
+          </button>
+          <button id="btn-export-demo-log" class="btn-secondary" title="匯出雙雄對戰完整 Log 供 Gemma 審查分析">
+            <span class="btn-text-full">📥 匯出 Log</span>
+            <span class="btn-text-short">📥 Log</span>
+          </button>
+          <button id="btn-takeover" class="btn-takeover">
+            <span class="btn-text-full">⚔️ 換我來接！</span>
+            <span class="btn-text-short">⚔️ 接管</span>
+          </button>
         </div>
       </div>
 
@@ -506,10 +518,10 @@
     </div>
   </div>
 
-  <script src="zhuyin_data.js?v=2.4"></script>
-  <script src="lexicon_data.js?v=2.4"></script>
-  <script src="story_data.js?v=2.4"></script>
-  <script src="career_database.js?v=2.4"></script>
-  <script src="game.js?v=2.4"></script>
+  <script src="zhuyin_data.js?v=2.5"></script>
+  <script src="lexicon_data.js?v=2.5"></script>
+  <script src="story_data.js?v=2.5"></script>
+  <script src="career_database.js?v=2.5"></script>
+  <script src="game.js?v=2.5"></script>
 </body>
 </html>
