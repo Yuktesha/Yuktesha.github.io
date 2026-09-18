@@ -1626,12 +1626,12 @@ class WordChainWeb {
     const flowTbody = document.getElementById("flow-table-body");
     if (flowTbody) flowTbody.innerHTML = "";
 
-    this.lastTailCoord = { row: 4, col: 3 };
+    this.lastTailCoord = { row: 1, col: 1 };
     this.lastDirection = 'horizontal';
-    this.minRow = 4;
-    this.maxRow = 4;
-    this.minCol = 3;
-    this.maxCol = 3;
+    this.minRow = 1;
+    this.maxRow = 1;
+    this.minCol = 1;
+    this.maxCol = 1;
 
     // 放置題目詞 (立題)
     this.placeWordOnBoard(this.battleCurrentWord, "system", `先手立題【${this.battleCurrentWord}】，請閣下出招！`, false, true);

@@ -743,6 +743,9 @@ header {
   flex-shrink: 0;
   gap: 12px;
   min-width: 0;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
 }
 
 .brand {
@@ -1707,8 +1710,25 @@ th {
 }
 
 @media (max-width: 768px) {
-  /* 1. Header 頂部導航自適應：歐文詞塊單行保護、嚴禁垂直擠壓折行 */
+  /* 0. 行動端根容器彈性滾動接管：徹底破除 100vh 鎖死與無法回捲 */
+  html, body {
+    height: auto;
+    min-height: 100dvh;
+    max-height: none;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* 1. Header 永駐置頂 (Sticky Header)：毛玻璃背景、杜絕被擠出畫面 */
   header {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    background: rgba(21, 25, 35, 0.98);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
     padding: 6px 10px;
     gap: 6px;
   }
@@ -1757,10 +1777,22 @@ th {
   .tab-text-full { display: none !important; }
   .tab-text-short { display: inline !important; }
 
-  /* 2. 主容器自適應 */
+  /* 2. 主容器自適應：自然向下展開，絕不截斷鎖死 */
   main {
-    padding: 6px 6px 4px;
+    flex: 1 0 auto;
+    overflow: visible;
+    min-height: auto;
+    padding: 6px 6px 8px;
     gap: 6px;
+  }
+
+  .battle-grid, .demo-arena-grid {
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+    flex: none;
+    min-height: auto;
+    gap: 8px;
   }
 
   /* 3. 控制面板折行與按鈕適配 */
@@ -1846,13 +1878,16 @@ th {
     line-height: 1.25;
   }
 
-  /* 6. 右側棋盤主舞台：吞納最大縱向剩餘高度 */
+  /* 6. 右側棋盤主舞台：保證行動端充足觀盤高度 */
   .arena-board-container {
     padding: 6px 8px;
-    flex: 1 1 0;
-    min-height: 160px;
+    height: 320px;
+    min-height: 260px;
+    flex: none;
   }
   .cross-board-viewport {
+    flex: 1;
+    min-height: 180px;
     padding: 8px;
   }
 
