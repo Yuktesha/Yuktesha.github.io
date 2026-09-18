@@ -755,11 +755,14 @@ class WordChainWeb {
       });
 
       document.addEventListener("fullscreenchange", () => {
-        if (!document.fullscreenElement) {
-          if (btnDemoFullscreen) btnDemoFullscreen.innerText = "🖥️ 全螢幕觀戰";
-        } else {
-          if (btnDemoFullscreen) btnDemoFullscreen.innerText = "🪟 退出全螢幕";
+        const isFS = !!document.fullscreenElement;
+        document.body.classList.toggle("fullscreen-zen", isFS);
+        if (btnDemoFullscreen) {
+          btnDemoFullscreen.innerText = isFS ? "🪟 退出全螢幕" : "🖥️ 全螢幕觀戰";
         }
+        setTimeout(() => {
+          this.recenterViewport(demoBoardViewport, true, false);
+        }, 120);
       });
     }
 
