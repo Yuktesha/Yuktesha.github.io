@@ -4,7 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>字戀 (WordChain) - 文壇縱橫對弈 · 漢字聲韻博弈</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=2.2">
+  <style>
+    /* 防快取滯後：預設隱藏次級與精簡文字，交由 CSS media query 精確接管 */
+    .status-text-med, .status-text-short, .tab-text-short { display: none; }
+  </style>
 </head>
 <body>
   <!-- 非侵入式優雅 Toast 容器 (100% 杜絕彈跳視窗與輸入法跑位) -->
@@ -252,6 +256,7 @@
         <span style="font-size:0.85rem; color:var(--text-muted);">（觀摩雙 AI 唇槍舌劍，隨時可按右側按鈕接管戰局！）</span>
         <div style="margin-left:auto; display:flex; gap:8px;">
           <button id="btn-start-demo" class="btn-primary">開始演示</button>
+          <button id="btn-demo-fullscreen" class="btn-secondary" title="開啟全螢幕沉浸觀戰，亦可充當文壇字陣動態螢幕保護程式">🖥️ 全螢幕觀戰</button>
           <button id="btn-export-demo-log" class="btn-secondary" title="匯出雙雄對戰完整 Log 供 Gemma 審查分析">📥 匯出對戰 Log</button>
           <button id="btn-takeover" class="btn-takeover">⚔️ 換我來接！(接管戰局)</button>
         </div>

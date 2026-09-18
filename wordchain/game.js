@@ -738,6 +738,31 @@ class WordChainWeb {
     const btnStartDemo = document.getElementById("btn-start-demo");
     if (btnStartDemo) btnStartDemo.addEventListener("click", () => this.startDemo());
 
+    const btnDemoFullscreen = document.getElementById("btn-demo-fullscreen");
+    if (btnDemoFullscreen) {
+      btnDemoFullscreen.addEventListener("click", () => {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(() => {});
+          btnDemoFullscreen.innerText = "🪟 退出全螢幕";
+          if (!this.isDemoRunning) {
+            this.startDemo();
+          }
+          showToast("🖥️ 已進入全螢幕觀戰模式（雙雄字戀屏保中）", "info", 2500);
+        } else {
+          document.exitFullscreen().catch(() => {});
+          btnDemoFullscreen.innerText = "🖥️ 全螢幕觀戰";
+        }
+      });
+
+      document.addEventListener("fullscreenchange", () => {
+        if (!document.fullscreenElement) {
+          if (btnDemoFullscreen) btnDemoFullscreen.innerText = "🖥️ 全螢幕觀戰";
+        } else {
+          if (btnDemoFullscreen) btnDemoFullscreen.innerText = "🪟 退出全螢幕";
+        }
+      });
+    }
+
     const btnTakeover = document.getElementById("btn-takeover");
     if (btnTakeover) btnTakeover.addEventListener("click", () => this.takeoverDemo());
 
@@ -3207,12 +3232,12 @@ class WordChainWeb {
     const demoTbody = document.getElementById("demo-table-body");
     if (demoTbody) demoTbody.innerHTML = "";
 
-    this.demoLastTailCoord = { row: 4, col: 3 };
+    this.demoLastTailCoord = { row: 1, col: 1 };
     this.demoLastDirection = 'horizontal';
-    this.demoMinRow = 4;
-    this.demoMaxRow = 4;
-    this.demoMinCol = 3;
-    this.demoMaxCol = 3;
+    this.demoMinRow = 1;
+    this.demoMaxRow = 1;
+    this.demoMinCol = 1;
+    this.demoMaxCol = 1;
     this.demoRound = 1;
     this.demoTurn = 1;
 
