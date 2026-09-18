@@ -1,0 +1,1323 @@
+:root {
+  --bg-main: #0c0e14;
+  --bg-card: #151923;
+  --bg-card-border: #262c3e;
+  --text-main: #f0f3f8;
+  --text-muted: #8c97ad;
+  --accent-cyan: #00d2d3;
+  --accent-gold: #feca57;
+  --accent-crimson: #ff6b6b;
+  --accent-purple: #9b59b6;
+  --player-pink: #e84393;
+  --ai-blue: #0984e3;
+  --grid-line: rgba(255, 255, 255, 0.06);
+  --radius-lg: 14px;
+  --radius-md: 8px;
+  --font-sans: system-ui, -apple-system, "Microsoft JhengHei", "PingFang TC", sans-serif;
+}
+
+/* 非侵入式優雅浮動 Toast 系統 (杜絕輸入法中斷) */
+#toast-container {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.toast-item {
+  padding: 10px 20px;
+  border-radius: 30px;
+  font-size: 0.92rem;
+  font-weight: bold;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  animation: toastFadeIn 0.3s ease;
+  pointer-events: auto;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  backdrop-filter: blur(8px);
+}
+
+.toast-item.info { background: rgba(9, 132, 227, 0.92); color: #fff; }
+.toast-item.success { background: rgba(46, 213, 115, 0.92); color: #fff; }
+.toast-item.warning { background: rgba(254, 202, 87, 0.95); color: #1e1e1e; }
+.toast-item.error { background: rgba(235, 77, 75, 0.95); color: #fff; }
+
+@keyframes toastFadeIn {
+  from { opacity: 0; transform: translateY(-12px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Battle Layout (R-UI/UX 空間幾何接管 · 自適應不溢出) */
+.battle-grid {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+@media (max-width: 920px) {
+  .battle-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 右側主舞台容器 */
+.arena-board-container {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-card);
+  border: 1px solid var(--bg-card-border);
+  border-radius: var(--radius-lg);
+  padding: 10px 14px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.board-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--bg-card-border);
+  margin-bottom: 6px;
+  flex-shrink: 0;
+}
+
+.view-toggles {
+  display: flex;
+  gap: 6px;
+}
+
+.view-btn {
+  background: #1e2433;
+  color: var(--text-muted);
+  border: 1px solid var(--bg-card-border);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.view-btn.active {
+  background: rgba(0, 210, 211, 0.2);
+  color: var(--accent-cyan);
+  border-color: var(--accent-cyan);
+  font-weight: bold;
+}
+
+/* 二維縱橫交錯字陣棋盤視圖 (Cross-Word Arena · 100% 彈性高度 · 內部平滑攝影攀移) */
+.cross-board-viewport {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  background: #11141c;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--bg-card-border);
+  overflow: auto;
+  position: relative;
+  background-image: 
+    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+  background-size: 42px 42px;
+  padding: 16px;
+}
+
+.cross-board-grid {
+  position: relative;
+  min-width: 700px;
+  min-height: 450px;
+}
+
+/* 棋盤上的單字格子 */
+.board-cell {
+  position: absolute;
+  width: 42px;
+  height: 42px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.35rem;
+  font-weight: 900;
+  border-radius: 6px;
+  border: 1.5px solid transparent;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.board-cell.player {
+  background: rgba(232, 67, 147, 0.15);
+  color: var(--player-pink);
+  border-color: var(--player-pink);
+}
+
+.board-cell.ai {
+  background: rgba(9, 132, 227, 0.15);
+  color: var(--ai-blue);
+  border-color: var(--ai-blue);
+}
+
+.board-cell.system {
+  background: rgba(0, 210, 211, 0.15);
+  color: var(--accent-cyan);
+  border-color: var(--accent-cyan);
+}
+
+.board-cell.demo-p1 {
+  background: rgba(9, 132, 227, 0.18);
+  color: #74b9ff;
+  border-color: #0984e3;
+  box-shadow: 0 0 10px rgba(9, 132, 227, 0.35);
+}
+
+.board-cell.demo-p2 {
+  background: rgba(253, 203, 110, 0.18);
+  color: #ffeaa7;
+  border-color: #fdcb6e;
+  box-shadow: 0 0 10px rgba(253, 203, 110, 0.35);
+}
+
+.board-cell.cross-pivot {
+  background: rgba(254, 202, 87, 0.25) !important;
+  color: var(--accent-gold) !important;
+  border-color: var(--accent-gold) !important;
+  box-shadow: 0 0 16px rgba(254, 202, 87, 0.4);
+  transform: scale(1.06);
+  z-index: 10;
+}
+
+.board-cell .cell-ruby {
+  font-size: 0.55rem;
+  line-height: 1;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+/* 棋盤指引氣泡 (浮動在出招字旁) */
+.board-bubble {
+  position: absolute;
+  background: #fdf5d3;
+  color: #3e2723;
+  border: 2px solid #e0a96d;
+  border-radius: 12px;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  max-width: 220px;
+  line-height: 1.35;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+  z-index: 20;
+  pointer-events: none;
+  animation: toastFadeIn 0.3s ease;
+}
+
+/* 棋盤氣泡箭頭 (朝向字格) */
+.board-bubble::before {
+  content: "";
+  position: absolute;
+  width: 0;
+  height: 0;
+  border-style: solid;
+}
+
+.board-bubble.arrow-left::before {
+  left: -8px;
+  top: 12px;
+  border-width: 6px 8px 6px 0;
+  border-color: transparent #e0a96d transparent transparent;
+}
+
+.board-bubble.arrow-right::before {
+  right: -8px;
+  top: 12px;
+  border-width: 6px 0 6px 8px;
+  border-color: transparent transparent transparent #e0a96d;
+}
+
+.board-bubble.arrow-up::before {
+  top: -8px;
+  left: 24px;
+  border-width: 0 6px 8px 6px;
+  border-color: transparent transparent #e0a96d transparent;
+}
+
+.board-bubble.arrow-down::before {
+  bottom: -8px;
+  left: 24px;
+  border-width: 8px 6px 0 6px;
+  border-color: #e0a96d transparent transparent transparent;
+}
+
+/* ==========================================
+   同音不同字樞紐呈現系統 (A: 合璧雙字磚 / B: 雙星音律橋 / C: 太極翻轉牌)
+   ========================================== */
+
+/* 基礎通用高亮 */
+.board-cell.cross-pivot-homo {
+  z-index: 15;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* 方案 A：合璧雙字磚 (Split Diagonal Tile) */
+.board-cell.cross-pivot-homo.style-tile {
+  background: linear-gradient(135deg, rgba(232, 67, 147, 0.28) 46%, rgba(254, 202, 87, 0.45) 46%, rgba(254, 202, 87, 0.45) 54%, rgba(9, 132, 227, 0.28) 54%) !important;
+  border: 1.5px solid var(--accent-gold) !important;
+  box-shadow: 0 0 18px rgba(254, 202, 87, 0.5);
+  transform: scale(1.08);
+}
+
+.homo-tile-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.92rem;
+  font-weight: 900;
+  line-height: 1;
+  gap: 1px;
+}
+
+.homo-tile-box .prev-char {
+  color: var(--player-pink);
+}
+
+.homo-tile-box .homo-slash {
+  font-size: 0.72rem;
+  color: var(--accent-gold);
+  margin: 0 1px;
+}
+
+.homo-tile-box .next-char {
+  color: var(--ai-blue);
+}
+
+/* 方案 B：雙星音律橋 (Dual-Star Sound Bridge) */
+.board-cell.cross-pivot-homo.style-bridge {
+  background: #141923 !important;
+  border: 1.5px solid #2ed573 !important;
+  box-shadow: 0 0 18px rgba(46, 213, 115, 0.45);
+  transform: scale(1.1);
+  padding: 2px;
+}
+
+.homo-bridge-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0 2px;
+  box-sizing: border-box;
+}
+
+.homo-bridge-box .bead {
+  width: 17px;
+  height: 17px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.homo-bridge-box .bead-prev {
+  background: rgba(232, 67, 147, 0.3);
+  color: var(--player-pink);
+  border: 1px solid var(--player-pink);
+}
+
+.homo-bridge-box .bead-next {
+  background: rgba(9, 132, 227, 0.3);
+  color: var(--ai-blue);
+  border: 1px solid var(--ai-blue);
+}
+
+.homo-bridge-box .bridge-link {
+  flex: 1;
+  height: 2px;
+  background: linear-gradient(to right, var(--player-pink), #2ed573, var(--ai-blue));
+  position: relative;
+  margin: 0 2px;
+}
+
+.homo-bridge-box .bridge-link::after {
+  content: "🔗";
+  position: absolute;
+  top: -7px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.52rem;
+}
+
+/* 方案 C：太極翻轉與滑動多維動態系統 (左右翻轉 / 上下翻轉 / 縱向滑動 / 橫向滑動) */
+.board-cell.cross-pivot-homo.style-flip {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  perspective: 600px;
+  cursor: pointer;
+  overflow: visible;
+}
+
+.flip-card-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  text-align: center;
+  border-radius: 6px;
+  box-shadow: 0 0 16px rgba(254, 202, 87, 0.45);
+}
+
+/* 1. 左右太極翻轉 (Horizontal Flip) */
+.flip-card-inner.anim-flip-y {
+  transform-style: preserve-3d;
+  animation: autoFlipY 5.5s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+}
+
+.anim-flip-y .flip-card-back {
+  transform: rotateY(180deg);
+}
+
+@keyframes autoFlipY {
+  0%, 36% { transform: rotateY(0deg); }
+  48%, 86% { transform: rotateY(180deg); }
+  98%, 100% { transform: rotateY(360deg); }
+}
+
+/* 2. 上下乾坤翻轉 (Vertical Flip) */
+.flip-card-inner.anim-flip-x {
+  transform-style: preserve-3d;
+  animation: autoFlipX 5.5s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+}
+
+.anim-flip-x .flip-card-back {
+  transform: rotateX(180deg);
+}
+
+@keyframes autoFlipX {
+  0%, 36% { transform: rotateX(0deg); }
+  48%, 86% { transform: rotateX(180deg); }
+  98%, 100% { transform: rotateX(360deg); }
+}
+
+/* 3. 縱向行雲滑動 (Vertical Slide Reveal) */
+.flip-card-inner.anim-slide-y {
+  overflow: hidden;
+  border: 1.5px solid var(--accent-gold);
+}
+
+.anim-slide-y .flip-card-front {
+  animation: autoSlideFrontY 5.5s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+}
+
+.anim-slide-y .flip-card-back {
+  transform: translateY(100%);
+  animation: autoSlideBackY 5.5s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+}
+
+@keyframes autoSlideFrontY {
+  0%, 36% { transform: translateY(0); }
+  48%, 86% { transform: translateY(-100%); }
+  98%, 100% { transform: translateY(0); }
+}
+
+@keyframes autoSlideBackY {
+  0%, 36% { transform: translateY(100%); }
+  48%, 86% { transform: translateY(0); }
+  98%, 100% { transform: translateY(100%); }
+}
+
+/* 4. 橫向流光滑動 (Horizontal Slide Reveal) */
+.flip-card-inner.anim-slide-x {
+  overflow: hidden;
+  border: 1.5px solid var(--accent-gold);
+}
+
+.anim-slide-x .flip-card-front {
+  animation: autoSlideFrontX 5.5s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+}
+
+.anim-slide-x .flip-card-back {
+  transform: translateX(100%);
+  animation: autoSlideBackX 5.5s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+}
+
+@keyframes autoSlideFrontX {
+  0%, 36% { transform: translateX(0); }
+  48%, 86% { transform: translateX(-100%); }
+  98%, 100% { transform: translateX(0); }
+}
+
+@keyframes autoSlideBackX {
+  0%, 36% { transform: translateX(100%); }
+  48%, 86% { transform: translateX(0); }
+  98%, 100% { transform: translateX(100%); }
+}
+
+/* 滑鼠懸停或點擊暫停時定格，便於玩家靜心細賞首尾雙字 */
+.board-cell.cross-pivot-homo.style-flip:hover .flip-card-inner,
+.board-cell.cross-pivot-homo.style-flip:hover .flip-card-front,
+.board-cell.cross-pivot-homo.style-flip:hover .flip-card-back,
+.board-cell.cross-pivot-homo.style-flip.paused .flip-card-inner,
+.board-cell.cross-pivot-homo.style-flip.paused .flip-card-front,
+.board-cell.cross-pivot-homo.style-flip.paused .flip-card-back {
+  animation-play-state: paused !important;
+}
+
+.flip-card-front, .flip-card-back {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: 1.5px solid var(--accent-gold);
+}
+
+.flip-card-front {
+  background: rgba(9, 132, 227, 0.3);
+  color: var(--ai-blue);
+}
+
+.flip-card-back {
+  background: rgba(232, 67, 147, 0.3);
+  color: var(--player-pink);
+}
+
+.flip-badge {
+  position: absolute;
+  top: 1px;
+  right: 2px;
+  font-size: 0.5rem;
+  color: var(--accent-gold);
+  line-height: 1;
+}
+
+/* 結構化對戰流轉表格 (Table View · 100% 彈性高度 · 內部平滑捲動) */
+.table-stream-viewport {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  overflow-y: auto;
+  border: 1px solid var(--bg-card-border);
+  border-radius: var(--radius-md);
+  background: #11141c;
+}
+
+.flow-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.flow-table th {
+  background: #191f2c;
+  color: var(--text-muted);
+  padding: 6px 10px;
+  font-size: 0.8rem;
+  border-bottom: 1px solid var(--bg-card-border);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.flow-table td {
+  padding: 6px 10px;
+  font-size: 0.82rem;
+  border-bottom: 1px solid #1a202d;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.flow-table tr:hover td {
+  background: #1f2738;
+}
+
+.flow-table tr.selected td {
+  background: rgba(0, 210, 211, 0.15);
+  color: #fff;
+  border-bottom-color: var(--accent-cyan);
+}
+
+/* 實時心戰對白條 (底部常駐元件 · flex-shrink: 0) */
+.live-banter-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: #181d28;
+  border: 1px solid var(--bg-card-border);
+  border-left: 3px solid var(--accent-gold);
+  border-radius: var(--radius-md);
+  padding: 6px 12px;
+  margin-top: 6px;
+  flex-shrink: 0;
+}
+
+.banter-speaker-icon {
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.banter-text {
+  flex: 1;
+  font-size: 0.86rem;
+  color: var(--accent-gold);
+  line-height: 1.35;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  font-family: var(--font-sans);
+  display: flex;
+  flex-direction: column;
+}
+
+header {
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--bg-card-border);
+  padding: 8px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand h1 {
+  font-size: 1.25rem;
+  background: linear-gradient(135deg, var(--accent-cyan), var(--accent-gold));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.badge {
+  font-size: 0.75rem;
+  background: rgba(0, 210, 211, 0.15);
+  color: var(--accent-cyan);
+  padding: 3px 8px;
+  border-radius: 20px;
+  border: 1px solid rgba(0, 210, 211, 0.3);
+}
+
+.nav-tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.tab-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  padding: 6px 14px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.tab-btn.active {
+  background: rgba(254, 202, 87, 0.15);
+  color: var(--accent-gold);
+  border-color: rgba(254, 202, 87, 0.4);
+}
+
+main {
+  flex: 1;
+  min-height: 0;
+  max-width: 1440px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* 雙雄演示 擂台舞台兩欄排版 (R-UI/UX 空間幾何接管) */
+.demo-arena-grid {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+@media (max-width: 900px) {
+  .demo-arena-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.demo-stage-card {
+  background: var(--bg-card);
+  border: 1px solid var(--bg-card-border);
+  border-radius: var(--radius-lg);
+  padding: 10px 12px;
+}
+
+.demo-p-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: #19202e;
+  border: 1px solid transparent;
+  transition: all 0.3s;
+}
+
+.demo-p-box.active {
+  border-color: var(--accent-gold);
+  background: #252b3d;
+  box-shadow: 0 0 12px rgba(254, 202, 87, 0.2);
+}
+
+.tab-pane {
+  display: none;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.tab-pane.active {
+  display: flex;
+}
+
+/* Controls Bar */
+.control-bar {
+  background: var(--bg-card);
+  border: 1px solid var(--bg-card-border);
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* HUD 戰鬥儀表 */
+.hud-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg-card);
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--bg-card-border);
+  flex-shrink: 0;
+}
+
+.control-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+select, input, button {
+  background: #222736;
+  border: 1px solid var(--bg-card-border);
+  color: var(--text-main);
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  font-size: 0.9rem;
+  outline: none;
+  white-space: nowrap;
+}
+
+select:focus, input:focus {
+  border-color: var(--accent-cyan);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #0984e3, #00cec9);
+  color: #fff;
+  border: none;
+  font-weight: bold;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.btn-primary:hover {
+  opacity: 0.9;
+}
+
+.btn-secondary {
+  background: linear-gradient(135deg, #2d3748, #4a5568);
+  color: #f7fafc;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+  background: linear-gradient(135deg, #4a5568, #718096);
+  border-color: rgba(255, 255, 255, 0.32);
+}
+
+.btn-accent {
+  background: linear-gradient(135deg, #e17055, #d63031);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.btn-accent:hover {
+  opacity: 0.9;
+}
+
+.btn-takeover {
+  background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+  color: #fff;
+  border: none;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 8px 16px;
+  transition: opacity 0.2s;
+}
+
+.btn-takeover:hover {
+  opacity: 0.9;
+}
+
+/* Sidebar Dashboard (左側目標與典故卡牌 · 內部自適應分流) */
+.sidebar-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.target-card {
+  background: linear-gradient(145deg, #1c2333, #151a26);
+  border: 1px solid var(--bg-card-border);
+  border-radius: var(--radius-lg);
+  padding: 10px 14px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.target-char {
+  font-size: 2.8rem;
+  font-weight: 900;
+  color: var(--accent-cyan);
+  text-shadow: 0 0 20px rgba(0, 210, 211, 0.4);
+  margin: 2px 0;
+  line-height: 1.1;
+}
+
+#scorer-card {
+  flex-shrink: 0;
+}
+
+.story-card {
+  background: var(--bg-card);
+  border: 1px solid var(--bg-card-border);
+  border-radius: var(--radius-lg);
+  padding: 10px 14px;
+  flex: 1;
+  min-height: 60px;
+  overflow-y: auto;
+}
+
+.story-title {
+  font-weight: bold;
+  color: var(--accent-gold);
+  margin-bottom: 6px;
+  font-size: 0.95rem;
+}
+
+.story-body {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+/* 軍師錦囊快捷列 (flex-shrink: 0 常駐鎖定) */
+#hint-action-bar {
+  flex-shrink: 0;
+  margin-top: 6px;
+}
+
+/* 底部出招列 (flex-shrink: 0 永不被擠出視窗) */
+.input-dock {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+  flex-shrink: 0;
+}
+
+.input-dock input {
+  flex: 1;
+  font-size: 1rem;
+  padding: 8px 14px;
+}
+
+/* 詞海手冊表格容器彈性高度自適應 */
+#tab-learned > div {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* Tables */
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--bg-card-border);
+  font-size: 0.9rem;
+}
+
+th {
+  color: var(--text-muted);
+  background: #181d28;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Badges */
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.78rem;
+  font-weight: bold;
+}
+.badge-exact {
+  background: rgba(46, 213, 115, 0.15);
+  color: #2ed573;
+  border: 1px solid rgba(46, 213, 115, 0.4);
+}
+.badge-homo {
+  background: rgba(0, 210, 211, 0.15);
+  color: #00d2d3;
+  border: 1px solid rgba(0, 210, 211, 0.4);
+}
+.badge-danger {
+  background: rgba(255, 71, 87, 0.15);
+  color: #ff4757;
+  border: 1px solid rgba(255, 71, 87, 0.4);
+}
+
+/* ========================================== */
+/* 「字戀中……」呼吸動態徽章 */
+/* ========================================== */
+.badge-status-romance {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 107, 129, 0.15);
+  color: var(--player-pink, #ff6b81);
+  border: 1px solid rgba(255, 107, 129, 0.4);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.78rem;
+  font-weight: bold;
+  animation: romancePulse 2s infinite ease-in-out;
+}
+
+@keyframes romancePulse {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 107, 129, 0.4); }
+  50% { transform: scale(1.05); box-shadow: 0 0 8px 2px rgba(255, 107, 129, 0.3); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 107, 129, 0); }
+}
+
+/* ========================================== */
+/* Splash Screen：您今天字戀了沒？ */
+/* ========================================== */
+.splash-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: radial-gradient(circle at center, #182030 0%, #0a0d14 85%);
+  z-index: 99999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  opacity: 1;
+  transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.6s;
+  cursor: pointer;
+}
+
+.splash-overlay.fade-out {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.splash-card {
+  max-width: 580px;
+  width: 90%;
+  background: rgba(20, 26, 38, 0.92);
+  border: 2px solid rgba(241, 196, 15, 0.45);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 40px rgba(241, 196, 15, 0.15);
+  border-radius: 16px;
+  padding: 40px 32px 32px;
+  text-align: center;
+  position: relative;
+  backdrop-filter: blur(12px);
+  animation: splashZoomIn 0.5s ease-out;
+}
+
+@keyframes splashZoomIn {
+  from { opacity: 0; transform: scale(0.92) translateY(12px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.splash-seal {
+  position: absolute;
+  top: -24px;
+  right: 28px;
+  background: #c0392b;
+  color: #fff;
+  width: 52px;
+  height: 52px;
+  border-radius: 8px;
+  border: 2px solid #e74c3c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-serif, serif);
+  font-weight: bold;
+  font-size: 1.1rem;
+  line-height: 1.1;
+  box-shadow: 0 4px 12px rgba(192, 57, 43, 0.5);
+  transform: rotate(6deg);
+}
+
+.splash-title {
+  font-size: 2.2rem;
+  font-weight: 900;
+  letter-spacing: 2px;
+  color: #fff;
+  text-shadow: 0 2px 10px rgba(241, 196, 15, 0.4);
+  margin-bottom: 6px;
+  font-family: var(--font-serif, "Noto Serif TC", serif);
+}
+
+.splash-subtitle {
+  font-size: 0.95rem;
+  color: var(--accent-gold);
+  letter-spacing: 1.5px;
+  margin-bottom: 24px;
+}
+
+.splash-quote-box {
+  background: rgba(10, 14, 22, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-left: 3px solid var(--accent-cyan);
+  border-radius: 10px;
+  padding: 18px 20px;
+  margin-bottom: 28px;
+  text-align: left;
+}
+
+.splash-quote-tag {
+  font-size: 0.85rem;
+  font-weight: bold;
+  color: var(--accent-cyan);
+  margin-bottom: 8px;
+}
+
+.splash-quote-text {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: #e2e8f0;
+  font-style: italic;
+  font-family: var(--font-serif, serif);
+}
+
+.splash-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-splash-enter {
+  background: linear-gradient(135deg, #f1c40f 0%, #e67e22 100%);
+  color: #111;
+  font-weight: bold;
+  font-size: 1.05rem;
+  padding: 10px 36px;
+  border: none;
+  border-radius: 24px;
+  cursor: pointer;
+  box-shadow: 0 4px 18px rgba(241, 196, 15, 0.4);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.btn-splash-enter:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(241, 196, 15, 0.6);
+}
+
+.splash-tip {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+/* ========================================== */
+/* 勝利結算彈窗：您這個完美字戀狂！ */
+/* ========================================== */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.78);
+  z-index: 99990;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  backdrop-filter: blur(8px);
+  animation: modalFadeIn 0.3s ease-out;
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-card.victory-card {
+  max-width: 640px;
+  width: min(640px, 94vw);
+  background: linear-gradient(160deg, #1d2536 0%, #111622 100%);
+  border: 2px solid var(--accent-gold);
+  border-radius: 18px;
+  padding: 38px 28px 28px;
+  text-align: center;
+  position: relative;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.9), 0 0 50px rgba(241, 196, 15, 0.25);
+  animation: vicPopIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes vicPopIn {
+  from { opacity: 0; transform: scale(0.85) translateY(20px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.victory-seal-stamp {
+  position: absolute;
+  top: 18px;
+  right: 20px;
+  background: transparent;
+  color: #e74c3c;
+  border: 3px solid #e74c3c;
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-family: var(--font-serif, serif);
+  font-weight: 900;
+  font-size: 0.95rem;
+  letter-spacing: 2px;
+  transform: rotate(12deg);
+  opacity: 0.88;
+  box-shadow: inset 0 0 6px rgba(231, 76, 60, 0.3);
+  text-shadow: 0 0 2px rgba(231, 76, 60, 0.5);
+  pointer-events: none;
+}
+
+.victory-crown {
+  font-size: 3rem;
+  margin-bottom: 4px;
+  animation: crownFloat 3s infinite ease-in-out;
+}
+
+@keyframes crownFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+.victory-title {
+  font-size: 2.1rem;
+  font-weight: 900;
+  color: var(--accent-gold);
+  font-family: var(--font-serif, "Noto Serif TC", serif);
+  letter-spacing: 1.5px;
+  text-shadow: 0 2px 14px rgba(241, 196, 15, 0.5);
+  margin-bottom: 6px;
+}
+
+.victory-subtitle {
+  font-size: 0.95rem;
+  color: #cbd5e1;
+  margin-bottom: 22px;
+  line-height: 1.5;
+}
+
+.victory-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 14px 10px;
+  margin-bottom: 20px;
+}
+
+.victory-stat-box .stat-lbl {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+  white-space: nowrap;
+}
+
+.victory-stat-box .stat-val {
+  font-size: 1.15rem;
+  font-weight: bold;
+  color: var(--accent-cyan);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 2px;
+}
+
+.victory-badge-pill {
+  display: inline-block;
+  background: rgba(241, 196, 15, 0.15);
+  color: var(--accent-gold);
+  border: 1px solid rgba(241, 196, 15, 0.4);
+  border-radius: 20px;
+  padding: 6px 20px;
+  font-weight: bold;
+  font-size: 0.95rem;
+  margin-bottom: 24px;
+  white-space: nowrap;
+}
+
+/* ========================================== */
+/* rud() 按鍵內文字排版與自適應流式律 (Typography Word-Block Flow) */
+/* ========================================== */
+.victory-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  align-items: stretch;
+  width: 100%;
+}
+
+.vic-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 11px 16px;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  flex: 1 1 0;
+  min-width: fit-content;
+  min-height: 48px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  transition: transform 0.16s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.16s ease, filter 0.16s ease;
+}
+
+.vic-action-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45);
+  filter: brightness(1.1);
+}
+
+.vic-action-btn:active {
+  transform: translateY(0);
+}
+
+.vic-btn-icon {
+  font-size: 1.1rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.vic-btn-label {
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.vic-btn-sub {
+  font-size: 0.82em;
+  font-weight: 500;
+  opacity: 0.88;
+  letter-spacing: 0.2px;
+  margin-left: 1px;
+}
+
+@media (max-width: 580px) {
+  .modal-card.victory-card {
+    padding: 30px 16px 20px;
+    width: 95%;
+  }
+
+  .victory-title {
+    font-size: 1.65rem;
+  }
+
+  .victory-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .victory-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .vic-action-btn {
+    width: 100%;
+    flex: none;
+    min-height: 44px;
+  }
+}
+

@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>字戀 (WordChain) - 文壇縱橫對弈 · 漢字聲韻博弈</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- 非侵入式優雅 Toast 容器 (100% 杜絕彈跳視窗與輸入法跑位) -->
+  <div id="toast-container"></div>
+
+  <!-- ========================================== -->
+  <!-- 開場 Splash 畫面：您今天字戀了沒？ -->
+  <!-- ========================================== -->
+  <div id="splash-screen" class="splash-overlay">
+    <div class="splash-card">
+      <div class="splash-seal">字戀</div>
+      <h1 class="splash-title">您今天字戀了沒？</h1>
+      <div class="splash-subtitle">《字戀》WordChain —— 沉醉詞海 · 戀字成癡</div>
+      
+      <div class="splash-quote-box" id="splash-quote-box">
+        <div class="splash-quote-tag" id="splash-quote-tag">🍶 太白醉墨</div>
+        <p class="splash-quote-text" id="splash-quote-text">「仰天大笑出門去，我輩豈是蓬蒿人！今日且隨太白，一同字戀三千場！」</p>
+      </div>
+
+      <div class="splash-actions">
+        <button id="btn-enter-game" class="btn-splash-enter">入陣字戀 ➔</button>
+        <span class="splash-tip">按任意鍵或點擊任意處進入</span>
+      </div>
+    </div>
+  </div>
+
+  <header>
+    <div class="brand">
+      <span style="font-size:1.8rem;">📜</span>
+      <div>
+        <h1>字戀 <span style="font-size:0.9rem; font-weight:normal; letter-spacing:1px; color:var(--accent-gold);">WordChain</span></h1>
+        <div style="font-size:0.75rem; color:var(--text-muted);">文壇縱橫交錯棋盤 · 臺灣正體聲韻對弈 · <span style="color:var(--accent-gold); font-weight:bold;">您今天字戀了沒？</span></div>
+      </div>
+      <span class="badge" id="loading-status">詞庫載入中...</span>
+    </div>
+    <nav class="nav-tabs">
+      <button class="tab-btn active" data-target="tab-battle">⚔️ 人機對決</button>
+      <button class="tab-btn" data-target="tab-demo">🎭 雙雄演示秀</button>
+      <button class="tab-btn" data-target="tab-learned">📖 詞海手冊</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- TAB 1: 人機對決 -->
+    <section id="tab-battle" class="tab-pane active">
+      <div class="control-bar">
+        <div class="control-group">
+          <label>對手：</label>
+          <select id="select-persona">
+            <option value="ji_xiaolan">🧐 紀曉嵐 (毒舌博學)</option>
+            <option value="li_bai">🍶 李白 (豪放詩仙)</option>
+            <option value="bao_zheng">⚖️ 包拯 (鐵面判官)</option>
+          </select>
+        </div>
+        <div class="control-group">
+          <label>難度：</label>
+          <select id="select-diff">
+            <option value="easy">寬宏 (易)</option>
+            <option value="normal" selected>旗鼓 (中)</option>
+            <option value="hard">絕殺 (難)</option>
+          </select>
+        </div>
+        <div class="control-group">
+          <input type="checkbox" id="chk-homo" checked>
+          <label for="chk-homo">同音字接龍</label>
+        </div>
+        <div class="control-group">
+          <input type="checkbox" id="chk-strict-tone" checked>
+          <label for="chk-strict-tone">嚴格同調</label>
+        </div>
+        <div class="control-group" id="group-homo-style">
+          <label>同音呈現：</label>
+          <select id="select-homo-style" title="同音不同字樞紐格的呈現方式">
+            <option value="tile" selected>方案 A：合璧雙字磚</option>
+            <option value="bridge">方案 B：雙星音律橋</option>
+            <option value="flip">方案 C：太極翻轉牌 (慢速自旋)</option>
+          </select>
+        </div>
+        <div class="control-group">
+          <label>限時：</label>
+          <select id="select-time-limit">
+            <option value="0">無限制</option>
+            <option value="60">60 秒</option>
+            <option value="30" selected>30 秒 (預設)</option>
+            <option value="15">15 秒</option>
+            <option value="10">10 秒 (極速)</option>
+          </select>
+        </div>
+        <div style="margin-left:auto; display:flex; gap:8px;">
+          <button id="btn-new-game" class="btn-primary" title="立題後等候閣下首招接龍，出第一招後正式起鐘計時">開始新局</button>
+          <button id="btn-hint" class="btn-secondary" style="border:1px solid var(--accent-gold); color:var(--accent-gold);">💡 軍師錦囊</button>
+          <button id="btn-surrender" class="btn-accent">認輸</button>
+        </div>
+      </div>
+
+      <!-- HUD 戰鬥儀表 (氣血條、積分與動態計時) -->
+      <div class="hud-bar">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span id="lbl-player-score" style="font-weight:bold; color:var(--player-pink);">👤 閣下: 100 HP | 積分: 0</span>
+          <span class="badge-status-romance" id="badge-player-status">字戀中……</span>
+          <div style="width:120px; height:10px; background:#222; border-radius:5px; overflow:hidden;">
+            <div id="bar-player-hp" style="width:100%; height:100%; background:var(--player-pink); transition:width 0.3s;"></div>
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span id="lbl-timer" style="font-weight:bold; font-size:1.1rem; color:var(--accent-gold);">⏱️ 30s (等候首招)</span>
+          <div style="width:80px; height:8px; background:#222; border-radius:4px; overflow:hidden;">
+            <div id="bar-timer" style="width:100%; height:100%; background:var(--accent-gold); transition:width 1s linear;"></div>
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="width:120px; height:10px; background:#222; border-radius:5px; overflow:hidden;">
+            <div id="bar-ai-hp" style="width:100%; height:100%; background:var(--ai-blue); transition:width 0.3s;"></div>
+          </div>
+          <span id="lbl-ai-score" style="font-weight:bold; color:var(--ai-blue);">🧐 紀曉嵐: 100 HP | 積分: 0</span>
+        </div>
+      </div>
+
+      <div class="battle-grid">
+        <!-- 左側：焦點與檢視卡牌區 -->
+        <div class="sidebar-panel">
+          <div class="target-card">
+            <div style="font-size:0.85rem; color:var(--text-muted);">當前目標接龍字</div>
+            <div class="target-char" id="target-char">空</div>
+            <div id="target-info" style="font-size:0.85rem; color:var(--accent-gold);">上一詞：天馬行空</div>
+            <div id="target-radar" style="font-size:0.85rem; font-weight:bold; color:var(--accent-cyan); margin-top:4px;">【出度雷達】🟢 汪洋大海</div>
+          </div>
+
+          <div class="target-card" id="scorer-card" style="text-align:left; padding:12px 14px;">
+            <div style="font-size:0.9rem; font-weight:bold; color:var(--accent-cyan);" id="scorer-title">⚖️ 計分員即時評點 (裁判戰報)</div>
+            <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;" id="scorer-detail">咬合：開局立題 | 速度：0.0s | 詞格：4字</div>
+            <div style="font-size:0.8rem; color:var(--text-muted); margin-top:3px;" id="scorer-radar">雷達：🟢初始陣勢 | 等待選手接龍走棋</div>
+            <div style="font-size:0.85rem; font-weight:bold; color:var(--accent-gold); margin-top:4px;" id="scorer-summary">✨ 得分：+0 分 | 💥 傷害：0 HP</div>
+          </div>
+
+          <div class="story-card">
+            <div class="story-title" id="story-title">📖 成語典故小卡</div>
+            <div class="story-body" id="story-body">正在載入成語背景典故...</div>
+          </div>
+        </div>
+
+        <!-- 右側：二維交錯字陣棋盤 (Cross-Word Arena Board) 與對戰流轉 -->
+        <div class="arena-board-container">
+          <!-- 棋盤視圖切換與標題 -->
+          <div class="board-header">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-weight:bold; color:var(--accent-gold);">🔀 文壇縱橫字陣</span>
+              <span style="font-size:0.75rem; color:var(--text-muted);">（二維交錯咬合 · 隨落子動態衍生）</span>
+            </div>
+            <div class="view-toggles">
+              <button class="view-btn active" id="btn-view-board" title="字陣棋盤視圖">盤 棋盤</button>
+              <button class="view-btn" id="btn-view-table" title="歷史流轉表">表 紀錄表</button>
+            </div>
+          </div>
+
+          <!-- 1. 縱橫交錯字陣棋盤 (二維格線走棋世界) -->
+          <div class="cross-board-viewport" id="cross-board-viewport">
+            <div class="cross-board-grid" id="cross-board-grid">
+              <!-- 動態生成格子與文字 -->
+            </div>
+          </div>
+
+          <!-- 2. 結構化對弈流轉表 (點擊任意輪次即時覆盤回放裁判評點) -->
+          <div class="table-stream-viewport" id="table-stream-viewport" style="display:none;">
+            <table class="flow-table">
+              <thead>
+                <tr>
+                  <th style="width:48px; text-align:center;">輪次</th>
+                  <th style="width:90px; text-align:center;">對弈者</th>
+                  <th>出招詞彙</th>
+                  <th style="width:160px;">首尾音讀</th>
+                  <th style="width:105px; text-align:center;">定級/模式</th>
+                  <th style="width:65px; text-align:center;">耗時</th>
+                  <th style="width:80px; text-align:center;">積分變化</th>
+                </tr>
+              </thead>
+              <tbody id="flow-table-body">
+                <!-- 動態插入 -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- 即時心戰對白氣泡 (心理戰與 AI 幽默嘲諷) -->
+          <div class="live-banter-card" id="live-banter-card">
+            <span class="banter-speaker-icon" id="banter-icon">💬</span>
+            <span class="banter-text" id="live-banter-text">紀曉嵐：請閣下先出招，且看今日誰能稱霸詞海！</span>
+          </div>
+
+          <!-- 軍師獻策 1/2/3/4 快捷出招列 -->
+          <div id="hint-action-bar" style="display:none; background:rgba(30, 34, 42, 0.95); padding:6px 12px; border-radius:var(--radius-md); border:1px solid var(--accent-gold);">
+            <div style="font-size:0.85rem; font-weight:bold; color:var(--accent-gold); margin-bottom:4px;">💡 軍師快捷錦囊 (按鍵盤 1~4 / Alt+1~4 或點擊按鈕直接出招)：</div>
+            <div id="hint-btn-group" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
+          </div>
+
+          <!-- 底部出招列 (輸入框 + 出招按鈕) -->
+          <div class="input-dock">
+            <input type="text" id="input-word" placeholder="請輸入成語或詞彙 (支援同音字接龍)..." autocomplete="off">
+            <button id="btn-submit" class="btn-primary" style="padding:0 24px;">出招 (Enter)</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: 雙雄演示秀 -->
+    <section id="tab-demo" class="tab-pane">
+      <div class="control-bar">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-weight:bold; color:var(--accent-gold);">🎭 AI 雙雄相聲博弈秀</span>
+          <span class="badge-status-romance" id="badge-demo-status" style="display:none;">雙雄字戀中……</span>
+        </div>
+        <span style="font-size:0.85rem; color:var(--text-muted);">（觀摩雙 AI 唇槍舌劍，隨時可按右側按鈕接管戰局！）</span>
+        <div style="margin-left:auto; display:flex; gap:8px;">
+          <button id="btn-start-demo" class="btn-primary">開始演示</button>
+          <button id="btn-export-demo-log" class="btn-secondary" title="匯出雙雄對戰完整 Log 供 Gemma 審查分析">📥 匯出對戰 Log</button>
+          <button id="btn-takeover" class="btn-takeover">⚔️ 換我來接！(接管戰局)</button>
+        </div>
+      </div>
+
+      <div class="battle-grid demo-arena-grid">
+        <!-- 左側：舞台沙盤面板 -->
+        <div class="sidebar-panel">
+          <!-- 雙雄對照卡 -->
+          <div class="demo-stage-card">
+            <div style="font-size:0.95rem; font-weight:bold; color:var(--accent-gold); margin-bottom:12px;">🎭 文壇擂台 · 雙雄對局狀態</div>
+            <div class="demo-p-box active" id="demo-p1-box" style="margin-bottom:8px;">
+              <span style="font-weight:bold; color:var(--accent-cyan);" id="demo-p1-title">👤 甲相：紀曉嵐</span>
+              <span style="font-size:0.8rem; color:#00e676;" id="demo-p1-status">【主動出招】</span>
+            </div>
+            <div class="demo-p-box" id="demo-p2-box">
+              <span style="font-weight:bold; color:#fdcb6e;" id="demo-p2-title">👤 乙相：李白</span>
+              <span style="font-size:0.8rem; color:var(--text-muted);" id="demo-p2-status">【凝思接招】</span>
+            </div>
+          </div>
+
+          <!-- 擂台核心字卡 -->
+          <div class="target-card">
+            <div style="font-size:0.85rem; color:var(--text-muted);">🎯 擂台當前字卡</div>
+            <div class="target-char" id="demo-target-char">空</div>
+            <div style="font-size:0.95rem; font-weight:bold; margin-bottom:4px;" id="demo-target-word">當前詞：天馬行空</div>
+            <div style="font-size:0.85rem; color:var(--text-muted);" id="demo-target-phonetic">注音：ㄎㄨㄥ | 拼音：kōng</div>
+          </div>
+
+          <!-- 文宗裁判實時點評 -->
+          <div class="demo-stage-card" style="flex:1;">
+            <div style="font-size:0.9rem; font-weight:bold; color:var(--accent-cyan); margin-bottom:6px;" id="demo-referee-title">⚖️ 文宗裁判實時點評</div>
+            <div style="font-size:0.85rem; color:var(--text-muted); line-height:1.5;" id="demo-referee-body">點擊上方「開始演示」，兩位大文豪將在此展開接龍對弈與即興吐槽！</div>
+          </div>
+        </div>
+
+        <!-- 右側：雙雄二維縱橫字陣棋盤 (Crossword Arena Board) 與流轉表 -->
+        <div class="arena-board-container">
+          <!-- 棋盤視圖切換與標題 -->
+          <div class="board-header">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-weight:bold; color:var(--accent-gold);">🎭 雙雄縱橫字陣</span>
+              <span style="font-size:0.75rem; color:var(--text-muted);">（紀曉嵐 藍 × 李白 琥珀金 · 二維交鋒咬合）</span>
+            </div>
+            <div class="view-toggles">
+              <button class="view-btn active" id="btn-demo-view-board" title="字陣棋盤視圖">盤 棋盤</button>
+              <button class="view-btn" id="btn-demo-view-table" title="歷史流轉表">表 紀錄表</button>
+            </div>
+          </div>
+
+          <!-- 1. 雙雄二維字陣棋盤 -->
+          <div class="cross-board-viewport" id="demo-board-viewport">
+            <div class="cross-board-grid" id="demo-board-grid">
+              <!-- 動態生成格子與文字 -->
+            </div>
+          </div>
+
+          <!-- 2. 雙雄歷史流轉表 -->
+          <div class="table-stream-viewport" id="demo-table-viewport" style="display:none;">
+            <table class="flow-table">
+              <thead>
+                <tr>
+                  <th style="width:48px; text-align:center;">輪次</th>
+                  <th style="width:95px; text-align:center;">對弈者</th>
+                  <th>出招詞彙</th>
+                  <th style="width:160px;">首尾音讀</th>
+                  <th style="width:105px; text-align:center;">咬合模式</th>
+                  <th style="width:65px; text-align:center;">耗時</th>
+                </tr>
+              </thead>
+              <tbody id="demo-table-body">
+                <!-- 動態插入 -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- 即時心戰對白氣泡 -->
+          <div class="live-banter-card" id="demo-live-banter-card">
+            <span class="banter-speaker-icon" id="demo-banter-icon">🎭</span>
+            <span class="banter-text" id="demo-live-banter-text">點擊上方「開始演示」，兩位大文豪將在此展開接龍對弈與即興吐槽！</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: 詞海手冊 -->
+    <section id="tab-learned" class="tab-pane">
+      <div class="control-bar">
+        <span style="font-weight:bold; color:var(--accent-cyan);">📖 玩家親授詞海手冊</span>
+        <span style="font-size:0.85rem; color:var(--text-muted);">（玩家在對局中出過的非標準自創新詞將保存在此，AI 未來將學以致用！）</span>
+      </div>
+
+      <div style="background:var(--bg-card); border-radius:var(--radius-lg); border:1px solid var(--bg-card-border); overflow:hidden;">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:140px;">詞彙</th>
+              <th>釋義 / 來源</th>
+              <th style="width:100px; text-align:center;">使用次數</th>
+              <th style="width:140px;">收錄時間</th>
+            </tr>
+          </thead>
+          <tbody id="learned-table-body">
+            <!-- 動態插入 -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- ========================================== -->
+  <!-- 勝利結算彈窗：您這個完美字戀狂！ -->
+  <!-- ========================================== -->
+  <div id="modal-victory" class="modal-overlay" style="display:none;">
+    <div class="modal-card victory-card">
+      <div class="victory-seal-stamp">字戀狂認證</div>
+      <div class="victory-crown">👑</div>
+      <h2 class="victory-title">您這個完美字戀狂！</h2>
+      <div class="victory-subtitle" id="victory-subtitle">滿腹經綸，才高八斗；紀曉嵐甘拜下風！</div>
+
+      <div class="victory-stats-grid">
+        <div class="victory-stat-box">
+          <div class="stat-lbl">對弈回合</div>
+          <div class="stat-val" id="vic-rounds">12</div>
+        </div>
+        <div class="victory-stat-box">
+          <div class="stat-lbl">最長詞格</div>
+          <div class="stat-val" id="vic-longest">四字成語</div>
+        </div>
+        <div class="victory-stat-box">
+          <div class="stat-lbl">極速出招</div>
+          <div class="stat-val" id="vic-speed">0.8s</div>
+        </div>
+        <div class="victory-stat-box">
+          <div class="stat-lbl">累積戰分</div>
+          <div class="stat-val" id="vic-score">1520</div>
+        </div>
+      </div>
+
+      <div class="victory-badge-pill" id="vic-rank-pill">🏅 榮譽頭銜：絕代字戀宗師</div>
+
+      <div class="victory-actions">
+        <button id="btn-vic-again" class="btn-primary vic-action-btn" title="再戰一局，繼續字戀">
+          <span class="vic-btn-icon">🔁</span>
+          <span class="vic-btn-label">再戰一局</span>
+          <span class="vic-btn-sub">(繼續字戀)</span>
+        </button>
+        <button id="btn-vic-share" class="btn-secondary vic-action-btn" title="複製戰報，宣揚字戀">
+          <span class="vic-btn-icon">📋</span>
+          <span class="vic-btn-label">複製戰報</span>
+          <span class="vic-btn-sub">(宣揚字戀)</span>
+        </button>
+        <button id="btn-vic-close" class="btn-accent vic-action-btn" title="檢視終局字陣棋盤">
+          <span class="vic-btn-icon">👁️</span>
+          <span class="vic-btn-label">檢視盤面</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="zhuyin_data.js"></script>
+  <script src="lexicon_data.js"></script>
+  <script src="story_data.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
