@@ -1156,10 +1156,14 @@ class WordChainWeb {
             specialStr = `🎵 聲韻特賞：${this.lastHomoBadge}\n`;
           }
         }
-        const text = `📜【字戀 (WordChain) 勝戰捷報】\n` +
-          `我以「${rank.replace('🏅 榮譽頭銜：', '').trim()}」之姿橫掃文壇，讓大文豪甘拜下風！\n` +
+        const isWin = (this.lastIsPlayerWinner !== false);
+        const persona = PERSONAS[this.currentPersona] || PERSONAS.ji_xiaolan;
+        const text = `📜【字戀 (WordChain) 文壇論道捷報】\n` +
+          (isWin
+            ? `我以「${rank.replace('🏅 榮譽頭銜：', '').trim()}」之姿橫掃文壇，讓大文豪甘拜下風！\n`
+            : `我與大文豪「${persona.name}」在文壇縱橫論道，雖敗猶榮！\n`) +
           specialStr +
-          `• 累積戰分：${this.playerScore} 分\n` +
+          `• 終局戰分：閣下 ${this.playerScore} 分 🆚 ${persona.name} ${this.aiScore} 分 (${isWin ? '🏆 完勝' : '⚖️ 惜敗'})\n` +
           `• 對弈回合：${this.roundCount} 輪\n` +
           `• 終局題目：【${this.battleCurrentWord}】\n` +
           `🔮 職業神算：${career.title}\n` +
@@ -1364,7 +1368,58 @@ class WordChainWeb {
     }
   }
 
-  showVictoryModal(reason = "氣血耗盡") {
+  // ==========================================
+  // 4.0 終局勝負裁決：文壇論道，總分定乾坤
+  // ==========================================
+  endBattle(reason = "ai_hp_zero") {
+    this.stopTimer();
+    this.clearHintBar();
+
+    const persona = PERSONAS[this.currentPersona] || PERSONAS.ji_xiaolan;
+
+    // 1. 殘存氣血轉換紅利 (每剩 1 HP 換算 +2 積分，體現防守生存優勢)
+    const pBonus = Math.max(0, this.playerHp * 2);
+    const aiBonus = Math.max(0, this.aiHp * 2);
+    this.playerScore += pBonus;
+    this.aiScore += aiBonus;
+    this.updateHUD();
+
+    // 2. 文壇論道以「文采總積分」裁定真勝負
+    const isPlayerWinner = (this.playerScore >= this.aiScore);
+
+    // 3. 戰報與心戰即時更新
+    if (isPlayerWinner) {
+      if (reason === "player_hp_zero") {
+        this.updateLiveBanter("🏆", `文壇大捷！閣下雖力竭鳴金，然文采驚絕天下（${this.playerScore}分 🆚 ${this.aiScore}分），技壓 ${persona.name}，榮膺勝者！`);
+        showToast(`🎉 終局結算！閣下總分 ${this.playerScore} 技壓 ${persona.name}（${this.aiScore}分），文壇大捷！`, "success", 5000);
+      } else if (reason === "ai_hp_zero") {
+        this.updateLiveBanter("🏆", `戰局分曉！${persona.name} 氣血耗盡，閣下威震詞海（${this.playerScore}分 🆚 ${this.aiScore}分），大獲全勝！`);
+        showToast(`🎉 恭喜！對手氣血耗盡，閣下以 ${this.playerScore} 分大獲全勝！`, "success", 5000);
+      } else if (reason === "ai_resigned") {
+        this.updateLiveBanter("🏆", `才高八斗！${persona.name} 辭窮認輸，閣下總分 ${this.playerScore} 傲視群雄！`);
+        showToast(`🎉 恭喜！AI 辭窮認輸，閣下獲勝！`, "success", 5000);
+      } else {
+        this.updateLiveBanter("🏆", `文壇大捷！閣下總分 ${this.playerScore} 技壓 ${persona.name}（${this.aiScore}分）！`);
+        showToast("🎉 終局結算，閣下勝出！", "success", 5000);
+      }
+    } else {
+      if (reason === "player_hp_zero") {
+        this.updateLiveBanter("💀", `戰局分曉！閣下氣血耗盡，${persona.name} 總分 ${this.aiScore} 略勝一籌（閣下 ${this.playerScore} 分）！`);
+        showToast(`💀 戰局告終！${persona.name} 以 ${this.aiScore} 分險勝，閣下雖敗猶榮！`, "warning", 5000);
+      } else if (reason === "surrender") {
+        this.updateLiveBanter("🏳️", `閣下認輸：山高水長，來日方長！${persona.name} 總分 ${this.aiScore} 勝出！`);
+        showToast(`閣下認輸，${persona.name} 抱拳回禮！`, "warning", 5000);
+      } else {
+        this.updateLiveBanter("⚖️", `終局鳴金！${persona.name} 總分 ${this.aiScore} 險勝一籌！`);
+        showToast(`戰局告終，${persona.name} 略勝一籌！`, "info", 5000);
+      }
+    }
+
+    // 4. 喚起終局結算榮譽彈窗
+    this.showVictoryModal(reason, isPlayerWinner);
+  }
+
+  showVictoryModal(reason = "氣血耗盡", isPlayerWinner = true) {
     const modal = document.getElementById("modal-victory");
     if (!modal) return;
 
@@ -1408,11 +1463,40 @@ class WordChainWeb {
     else if (this.playerScore >= 800) rankTitle = "🏆 絕代 · 詞宗字戀聖手";
     else if (this.playerScore >= 400) rankTitle = "🏅 傲世 · 一代字戀宗師";
 
+    const sealEl = document.getElementById("vic-seal-stamp");
+    const crownEl = document.getElementById("vic-crown");
+    const titleEl = document.getElementById("vic-title");
     const subEl = document.getElementById("victory-subtitle");
-    if (subEl) {
-      subEl.innerText = (reason === "辭窮認輸")
-        ? `才高八斗，封死生路；${persona.name} 辭窮認輸！`
-        : `滿腹經綸，威震文壇；${persona.name} 氣血耗盡，甘拜下風！`;
+    const vsEl = document.getElementById("vic-score-vs");
+
+    if (sealEl) sealEl.innerText = isPlayerWinner ? "字戀狂認證" : "文壇風雅印";
+    if (crownEl) crownEl.innerText = isPlayerWinner ? "👑" : "🎖️";
+
+    let victoryTitleText = "您這個完美字戀狂！";
+    let victorySubtitleText = "";
+
+    if (isPlayerWinner) {
+      if (reason === "player_hp_zero") {
+        victoryTitleText = "文采冠絕 · 逆轉乾坤！";
+        victorySubtitleText = `閣下雖力竭鳴金，然文采驚天地泣鬼神，總分 ${this.playerScore} 技壓 ${persona.name}（${this.aiScore}分），大獲全勝！`;
+      } else if (reason === "ai_resigned") {
+        victoryTitleText = "詞窮絕殺 · 孤篇橫絕！";
+        victorySubtitleText = `才高八斗，封死生路；${persona.name} 辭窮認輸，甘拜下風！（閣下 ${this.playerScore} 分 🆚 對手 ${this.aiScore} 分）`;
+      } else {
+        victoryTitleText = "您這個完美字戀狂！";
+        victorySubtitleText = `滿腹經綸，威震文壇；${persona.name} 氣血耗盡，甘拜下風！（閣下 ${this.playerScore} 分 🆚 對手 ${this.aiScore} 分）`;
+      }
+    } else {
+      victoryTitleText = "風雅交鋒 · 惜敗名士";
+      victorySubtitleText = `雙方激戰文壇，${persona.name} 總分 ${this.aiScore} 略勝一籌（閣下 ${this.playerScore} 分），閣下雖敗猶榮！`;
+    }
+
+    if (titleEl) titleEl.innerText = victoryTitleText;
+    if (subEl) subEl.innerText = victorySubtitleText;
+
+    if (vsEl) {
+      const outcomeTag = isPlayerWinner ? "🏆 閣下勝出" : "⚖️ 名士勝出";
+      vsEl.innerHTML = `👤 閣下 <b>${this.playerScore}</b> 分 🆚 ${persona.icon} ${persona.name} <b>${this.aiScore}</b> 分 (${outcomeTag})`;
     }
 
     const rEl = document.getElementById("vic-rounds");
@@ -1487,9 +1571,12 @@ class WordChainWeb {
     this.lastRankTitle = rankTitle;
     this.lastHomoBadge = badgeText;
     this.lastBadgeType = badgeType;
+    this.lastIsPlayerWinner = isPlayerWinner;
+    this.lastVictoryTitle = victoryTitleText;
+    this.lastVictorySubtitle = victorySubtitleText;
 
     modal.style.display = "flex";
-    this.updateRomanceStatus("victory");
+    this.updateRomanceStatus(isPlayerWinner ? "victory" : "defeat");
   }
 
   // ==========================================
@@ -1576,7 +1663,8 @@ class WordChainWeb {
     drawCorner(44, height - 44, 1, -1);
     drawCorner(width - 44, height - 44, -1, -1);
 
-    // 4. 右上角朱紅斜角官印：「字戀狂認證」
+    // 4. 右上角朱紅斜角官印
+    const isWin = (this.lastIsPlayerWinner !== false);
     ctx.save();
     ctx.translate(width - 130, 95);
     ctx.rotate(12 * Math.PI / 180);
@@ -1589,26 +1677,26 @@ class WordChainWeb {
     ctx.font = "bold 18px 'Noto Serif TC', serif, sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText("字 戀 狂 認 證", 0, 0);
+    ctx.fillText(isWin ? "字 戀 狂 認 證" : "文 壇 名 士 印", 0, 0);
     ctx.restore();
 
     // 5. 頂部皇冠與大標題
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.font = "56px 'Segoe UI Emoji', sans-serif";
-    ctx.fillText("👑", width / 2, 120);
+    ctx.fillText(isWin ? "👑" : "🎖️", width / 2, 120);
 
     ctx.font = "900 46px 'Noto Serif TC', serif, sans-serif";
     ctx.fillStyle = "#f1c40f";
     ctx.shadowColor = "rgba(241, 196, 15, 0.6)";
     ctx.shadowBlur = 18;
-    ctx.fillText("您這個完美字戀狂！", width / 2, 195);
+    ctx.fillText(this.lastVictoryTitle || "您這個完美字戀狂！", width / 2, 195);
     ctx.shadowBlur = 0;
 
     const persona = PERSONAS[this.currentPersona] || PERSONAS.ji_xiaolan;
     ctx.font = "500 20px 'Noto Sans TC', sans-serif";
     ctx.fillStyle = "#cbd5e1";
-    ctx.fillText(`滿腹經綸，威震文壇；${persona.name} 氣血耗盡，甘拜下風！`, width / 2, 250);
+    ctx.fillText(this.lastVictorySubtitle || `滿腹經綸，威震文壇；${persona.name} 氣血耗盡，甘拜下風！`, width / 2, 250);
 
     // 6. 戰績儀表盒 (4 欄統計)
     const boxX = 60;
@@ -1626,7 +1714,7 @@ class WordChainWeb {
       { lbl: "對弈回合", val: `${this.roundCount} 輪` },
       { lbl: "最長詞格", val: this.lastLongestWord || `${this.battleCurrentWord} (4字)` },
       { lbl: "極速出招", val: this.lastSpeedStr || "1.0s" },
-      { lbl: "累積戰分", val: `${this.playerScore} 分` }
+      { lbl: "終局戰分", val: `${this.playerScore} vs ${this.aiScore}` }
     ];
 
     const colW = boxW / 4;
@@ -2075,7 +2163,7 @@ class WordChainWeb {
     showToast("答題超時！自損 50 HP，扣除 30 積分！軍師強行接管！", "warning");
 
     if (this.playerHp <= 0) {
-      showToast("💀 氣血耗盡，閣下落敗！", "error");
+      this.endBattle("player_hp_zero");
       return;
     }
 
@@ -3478,14 +3566,15 @@ class WordChainWeb {
 
     if (tailScore === 0) {
       pts += 100;
-      dmg += 80;
     } else if (tailScore <= 3) {
       pts += 40;
-      dmg += 30;
     } else if (tailScore <= 8) {
       pts += 15;
-      dmg += 10;
     }
+
+    // 【文采化劍氣】出招傷害直接與文采得分掛鉤（基礎 15 + 得分 * 0.3）
+    // 確保原字直咬、諧音雙關、長句名篇等高分妙招爆發出重創級傷害，文采即戰力！
+    dmg = Math.max(20, Math.round(15 + pts * 0.3));
     this.aiHp = Math.max(0, this.aiHp - dmg);
 
     this.playerScore += pts;
@@ -3556,9 +3645,7 @@ class WordChainWeb {
     input.value = "";
 
     if (this.aiHp <= 0) {
-      this.updateLiveBanter("🏆", "戰局分曉！對手氣血耗盡，閣下威震詞海，大獲全勝！");
-      showToast("🎉 恭喜！對手氣血耗盡，閣下獲勝！", "success", 5000);
-      this.showVictoryModal("氣血耗盡");
+      this.endBattle("ai_hp_zero");
       return;
     }
 
@@ -3576,9 +3663,7 @@ class WordChainWeb {
     const persona = PERSONAS[this.currentPersona] || PERSONAS.ji_xiaolan;
 
     if (!entries || entries.length === 0) {
-      this.updateLiveBanter("🏳️", `${persona.name}：閣下才華冠絕，老夫窮途末路，甘拜下風！`);
-      showToast("🎉 恭喜！AI 辭窮認輸，閣下獲勝！", "success", 5000);
-      this.showVictoryModal("辭窮認輸");
+      this.endBattle("ai_resigned");
       return;
     }
 
@@ -3623,27 +3708,25 @@ class WordChainWeb {
     const aiHead = getHeadChar(chosenWord);
     const lastTail = getTailChar(this.battleCurrentWord);
 
-    // AI 評分與傷害
-    let aiPts = 100;
-    let aiDmg = 20; // 基礎出招傷害
-    if (aiHead === lastTail) aiPts += 50;
-    else aiPts += 25;
+    // AI 評分與傷害 (文采化為劍氣)
+    let aiPts = 80;
+    if (aiHead === lastTail) aiPts += 40;
+    else aiPts += 20;
 
-    if (chosenWord.length >= 6) { aiPts += 45; aiDmg += 15; }
-    else if (chosenWord.length >= 5) { aiPts += 35; aiDmg += 10; }
-    else if (chosenWord.length === 4) { aiPts += 20; }
+    if (chosenWord.length >= 6) { aiPts += 40; }
+    else if (chosenWord.length >= 5) { aiPts += 30; }
+    else if (chosenWord.length === 4) { aiPts += 15; }
 
     const aiTailScore = chosenEntry[2] || 0;
     if (aiTailScore === 0) {
-      aiPts += 100;
-      aiDmg += 80;
+      aiPts += 80;
     } else if (aiTailScore <= 3) {
-      aiPts += 40;
-      aiDmg += 30;
+      aiPts += 35;
     } else if (aiTailScore <= 8) {
       aiPts += 15;
-      aiDmg += 10;
     }
+
+    const aiDmg = Math.max(15, Math.round(15 + aiPts * 0.25));
     this.playerHp = Math.max(0, this.playerHp - aiDmg);
 
     this.aiScore += aiPts;
@@ -3672,8 +3755,7 @@ class WordChainWeb {
     this.updateLiveBanter(persona.icon, `${persona.name}打出【${chosenWord}】(+${aiPts}分 · ${matchDesc}) ——「${banter}」`);
 
     if (this.playerHp <= 0) {
-      this.updateLiveBanter("💀", `戰局分曉！閣下氣血耗盡，${persona.name} 險勝一籌！`);
-      showToast("💀 閣下氣血耗盡，敗北！", "error", 5000);
+      this.endBattle("player_hp_zero");
       return;
     }
 
@@ -3756,13 +3838,8 @@ class WordChainWeb {
   }
 
   handleSurrender() {
-    this.stopTimer();
-    this.clearHintBar();
     this.playerScore = Math.max(0, this.playerScore - 50);
-    this.updateHUD();
-    const p = PERSONAS[this.currentPersona];
-    this.updateLiveBanter("🏳️", "閣下認輸：甘拜下風，技不如人，來日再戰！");
-    showToast(`閣下認輸，${p.name} 哈哈大笑：「承讓承讓！」`, "warning");
+    this.endBattle("surrender");
   }
 
   // ==========================================
