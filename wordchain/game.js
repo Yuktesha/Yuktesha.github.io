@@ -42,6 +42,28 @@ function getCharZhuyin(char) {
   return "";
 }
 
+/**
+ * 取得詞彙語境中的首字精確注音（優先自 WORD_OVERRIDES 提取，杜絕多音字在詞彙中發音失真）
+ */
+function getWordHeadZhuyin(word) {
+  if (!word) return "";
+  if (window.WORD_OVERRIDES && window.WORD_OVERRIDES[word] && window.WORD_OVERRIDES[word].h) {
+    return window.WORD_OVERRIDES[word].h;
+  }
+  return getCharZhuyin(word[0]);
+}
+
+/**
+ * 取得詞彙語境中的尾字精確注音（優先自 WORD_OVERRIDES 提取，如「口吃」尾字為ㄐㄧˊ）
+ */
+function getWordTailZhuyin(word) {
+  if (!word) return "";
+  if (window.WORD_OVERRIDES && window.WORD_OVERRIDES[word] && window.WORD_OVERRIDES[word].t) {
+    return window.WORD_OVERRIDES[word].t;
+  }
+  return getCharZhuyin(word[word.length - 1]);
+}
+
 function getCharAllReadings(char) {
   if (window.ZHUYIN_MAP && window.ZHUYIN_MAP[char]) {
     const entry = window.ZHUYIN_MAP[char];
@@ -82,28 +104,72 @@ function getBaseZhuyin(zhuyin) {
   return zhuyin.replace(/[ˊˇˋ˙]/g, "");
 }
 
-function checkPhoneticMatch(targetChar, headChar, allowHomo = true, strictTone = true) {
+function checkPhoneticMatch(targetChar, headChar, allowHomo = true, strictTone = true, targetWord = "", headWord = "") {
   if (!targetChar || !headChar) {
     return { match: false, reason: "字元無效！" };
   }
 
+  // 1. 同字直咬 (Exact character match)
   if (targetChar === headChar) {
-    const primaryZh = getCharZhuyin(targetChar);
-    return { match: true, isExact: true, desc: "👑同字直咬", matchingZhuyin: primaryZh, targetZhuyin: primaryZh };
+    const tZh = targetWord ? getWordTailZhuyin(targetWord) : getCharZhuyin(targetChar);
+    const hZh = headWord ? getWordHeadZhuyin(headWord) : getCharZhuyin(headChar);
+    const displayZh = hZh || tZh;
+    return { match: true, isExact: true, desc: "👑同字直咬", matchingZhuyin: displayZh, targetZhuyin: displayZh };
   }
 
   if (!allowHomo) {
     return { match: false, reason: `本局設定「僅限同字直咬」，首字必須為「${targetChar}」！` };
   }
 
-  const targetReadings = getCharAllReadings(targetChar);
-  const headReadings = getCharAllReadings(headChar);
+  // 2. 詞彙語境讀音比對 (Contextual Word Phonetics - 具體詞彙發音最優先)
+  const actualTargetZh = targetWord ? getWordTailZhuyin(targetWord) : getCharZhuyin(targetChar);
+  const actualHeadZh = headWord ? getWordHeadZhuyin(headWord) : getCharZhuyin(headChar);
 
-  // 若兩字均有注音讀音資料 (全面支援破音字/多音字交叉對比)
+  if (actualTargetZh && actualHeadZh) {
+    const tBase = getBaseZhuyin(actualTargetZh);
+    const hBase = getBaseZhuyin(actualHeadZh);
+    const tTone = parseZhuyinTone(actualTargetZh);
+    const hTone = parseZhuyinTone(actualHeadZh);
+
+    if (tBase && hBase && tBase === hBase) {
+      if (tTone === hTone) {
+        return {
+          match: true,
+          isExact: false,
+          desc: `🎵同音同調 (${headChar}:${actualHeadZh} ⇋ ${targetChar}:${actualTargetZh})`,
+          matchingZhuyin: actualHeadZh,
+          targetZhuyin: actualTargetZh
+        };
+      } else if (!strictTone) {
+        return {
+          match: true,
+          isExact: false,
+          desc: `🎶同音通押 (${headChar}:${actualHeadZh} ⇋ ${targetChar}:${actualTargetZh})`,
+          matchingZhuyin: actualHeadZh,
+          targetZhuyin: actualTargetZh
+        };
+      } else {
+        return {
+          match: false,
+          reason: `開啟「嚴格同調」！「${targetChar}」為第 ${tTone} 聲 (${actualTargetZh})，而「${headChar}」為第 ${hTone} 聲 (${actualHeadZh})，聲調不符！`
+        };
+      }
+    } else if (targetWord && headWord) {
+      // 兩造均為具體詞彙且語境讀音不符，直接判定不相符，嚴禁偷換破音字讀音！
+      return {
+        match: false,
+        reason: `首字「${headChar}」(${actualHeadZh}) 與目標「${targetChar}」(${actualTargetZh}) 聲韻不合！`
+      };
+    }
+  }
+
+  // 3. 多音字比對 (僅當未傳入具體詞彙時，方允許在修剪後之單字讀音庫中探索)
+  const targetReadings = targetWord && actualTargetZh ? [[actualTargetZh, '']] : getCharAllReadings(targetChar);
+  const headReadings = headWord && actualHeadZh ? [[actualHeadZh, '']] : getCharAllReadings(headChar);
+
   if (targetReadings.length > 0 && headReadings.length > 0) {
     let toneMismatchCandidate = null;
 
-    // 優先 1：尋找「同音同調」完美咬合 (Exact tone & base match)
     for (const [tZh, tPy] of targetReadings) {
       const tBase = getBaseZhuyin(tZh);
       const tTone = parseZhuyinTone(tZh);
@@ -127,7 +193,6 @@ function checkPhoneticMatch(targetChar, headChar, allowHomo = true, strictTone =
       }
     }
 
-    // 次選 2：若未開嚴格同調，且有同音異調者通押 (Different tone match)
     if (!strictTone && toneMismatchCandidate) {
       const { tZh, hZh } = toneMismatchCandidate;
       return {
@@ -139,7 +204,6 @@ function checkPhoneticMatch(targetChar, headChar, allowHomo = true, strictTone =
       };
     }
 
-    // 若開了嚴格同調且只找到異調
     if (strictTone && toneMismatchCandidate) {
       const { tZh, tTone, hZh, hTone } = toneMismatchCandidate;
       return {
@@ -149,12 +213,12 @@ function checkPhoneticMatch(targetChar, headChar, allowHomo = true, strictTone =
     }
   }
 
-  // 備援：拼音比對 (正規化去除音標，古典罕見字寬容相容)
+  // 4. 備援拼音比對
   const targetPyNorm = normalizePinyin(getCharPinyin(targetChar));
   const headPyNorm = normalizePinyin(getCharPinyin(headChar));
   if (targetPyNorm && headPyNorm && targetPyNorm === headPyNorm) {
-    const tZh = getCharZhuyin(targetChar);
-    const hZh = getCharZhuyin(headChar);
+    const tZh = actualTargetZh || getCharZhuyin(targetChar);
+    const hZh = actualHeadZh || getCharZhuyin(headChar);
     if (strictTone && tZh && hZh) {
       if (parseZhuyinTone(tZh) !== parseZhuyinTone(hZh)) {
         return { match: false, reason: `開啟「嚴格同調」！聲調不符！` };
@@ -169,8 +233,8 @@ function checkPhoneticMatch(targetChar, headChar, allowHomo = true, strictTone =
     };
   }
 
-  const primaryTargetZh = getCharZhuyin(targetChar);
-  const primaryHeadZh = getCharZhuyin(headChar);
+  const primaryTargetZh = actualTargetZh || getCharZhuyin(targetChar);
+  const primaryHeadZh = actualHeadZh || getCharZhuyin(headChar);
   const headInfo = primaryHeadZh ? `「${headChar}」(${primaryHeadZh})` : `「${headChar}」`;
   const targetInfo = primaryTargetZh ? `「${targetChar}」(${primaryTargetZh})` : `「${targetChar}」`;
 
@@ -1610,7 +1674,7 @@ class WordChainWeb {
     }
 
     const tail = getTailChar(this.battleCurrentWord);
-    const entries = this.getScoredEntries(tail, this.allowHomophone, false);
+    const entries = this.getScoredEntries(tail, this.allowHomophone, false, this.battleCurrentWord);
     if (entries.length > 0) {
       const bail = entries[0][0];
       this.battleUsedWords.add(bail);
@@ -1794,7 +1858,7 @@ class WordChainWeb {
         const c = startCol + i;
         const ch = chars[i];
         const zh = getCharZhuyin(ch);
-        boardMap.set(`${r},${c}`, { char: ch, speaker: speakerType, zhuyin: zh, isPivot: false });
+        boardMap.set(`${r},${c}`, { char: ch, speaker: speakerType, zhuyin: zh, isPivot: false, word: word });
         placedCoords.push({ row: r, col: c, char: ch, isPivot: false });
       }
       if (isDemo) {
@@ -1820,12 +1884,14 @@ class WordChainWeb {
           isHomoPivot = true;
           prevData.isHomo = true;
           prevData.prevChar = prevChar;
+          prevData.prevWord = prevData.word || "";
           prevData.char = chars[0];
           prevData.nextChar = chars[0];
-          const matchResult = checkPhoneticMatch(prevChar, chars[0], true, false);
+          const matchResult = checkPhoneticMatch(prevChar, chars[0], true, false, prevData.word, word);
           if (matchResult && matchResult.matchingZhuyin) {
             prevData.matchingZhuyin = matchResult.matchingZhuyin;
           }
+          prevData.word = word;
         }
         prevData.isPivot = true;
       }
@@ -1841,7 +1907,7 @@ class WordChainWeb {
           const c = prevTail.col;
           const ch = chars[i];
           const zh = getCharZhuyin(ch);
-          boardMap.set(`${r},${c}`, { char: ch, speaker: speakerType, zhuyin: zh, isPivot: false });
+          boardMap.set(`${r},${c}`, { char: ch, speaker: speakerType, zhuyin: zh, isPivot: false, word: word });
           placedCoords.push({ row: r, col: c, char: ch, isPivot: false, speaker: speakerType });
         }
         if (isDemo) {
@@ -1859,7 +1925,7 @@ class WordChainWeb {
           const c = prevTail.col + i;
           const ch = chars[i];
           const zh = getCharZhuyin(ch);
-          boardMap.set(`${r},${c}`, { char: ch, speaker: speakerType, zhuyin: zh, isPivot: false });
+          boardMap.set(`${r},${c}`, { char: ch, speaker: speakerType, zhuyin: zh, isPivot: false, word: word });
           placedCoords.push({ row: r, col: c, char: ch, isPivot: false, speaker: speakerType });
         }
         if (isDemo) {
@@ -2528,7 +2594,7 @@ class WordChainWeb {
   renderHomoCell(cell, cellData) {
     const prevC = cellData.prevChar;
     const nextC = cellData.char;
-    const matchCheck = (prevC && nextC) ? checkPhoneticMatch(prevC, nextC, true, false) : null;
+    const matchCheck = (prevC && nextC) ? checkPhoneticMatch(prevC, nextC, true, false, cellData.prevWord, cellData.word) : null;
     const sharedZh = cellData.matchingZhuyin || (matchCheck && matchCheck.matchingZhuyin) || getCharZhuyin(nextC) || getCharZhuyin(prevC) || "—";
     const speaker = cellData.speaker || "player";
 
@@ -2626,8 +2692,8 @@ class WordChainWeb {
 
     const headC = getHeadChar(word);
     const tailC = getTailChar(word);
-    const headZh = getCharZhuyin(headC) || "—";
-    const tailZh = getCharZhuyin(tailC) || "—";
+    const headZh = getWordHeadZhuyin(word) || "—";
+    const tailZh = getWordTailZhuyin(word) || "—";
 
     const isP = speaker.includes("閣下") || speaker.includes("軍師");
     const speakerColor = isP ? "var(--player-pink)" : "var(--ai-blue)";
@@ -2752,42 +2818,47 @@ class WordChainWeb {
   // ==========================================
   // 10. 詞庫查詢 (高雅典故過濾、同音咬合與嚴格音調)
   // ==========================================
-  getScoredEntries(tailChar, allowHomo = true, isDemo = false) {
+  getScoredEntries(tailChar, allowHomo = true, isDemo = false, currentWord = "") {
     if (!this.lexicon || !tailChar) return [];
     let entries = [...((this.lexicon[tailChar] && this.lexicon[tailChar].w) || [])];
 
     if (allowHomo) {
-      const targetReadings = getCharAllReadings(tailChar);
+      const actualTargetZh = currentWord ? getWordTailZhuyin(currentWord) : getCharZhuyin(tailChar);
+      const targetBases = actualTargetZh ? [getBaseZhuyin(actualTargetZh)] : getCharAllReadings(tailChar).map(r => getBaseZhuyin(r[0]));
+      const targetTones = actualTargetZh ? [parseZhuyinTone(actualTargetZh)] : getCharAllReadings(tailChar).map(r => parseZhuyinTone(r[0]));
+
       for (const [hc, data] of Object.entries(this.lexicon)) {
         if (hc === tailChar || !data.w) continue;
+
+        // 快速剪枝：檢查首字 hc 之有效讀音是否有任何一個與目標基音相符
         const headReadings = getCharAllReadings(hc);
-        let matched = false;
-
-        if (targetReadings.length > 0 && headReadings.length > 0) {
-          for (const [tZh] of targetReadings) {
-            const tBase = getBaseZhuyin(tZh);
-            const tTone = parseZhuyinTone(tZh);
-            for (const [hZh] of headReadings) {
-              const hBase = getBaseZhuyin(hZh);
-              const hTone = parseZhuyinTone(hZh);
-              if (tBase && hBase && tBase === hBase) {
-                if (!this.strictTone || tTone === hTone) {
-                  matched = true;
-                  break;
-                }
-              }
+        let charMayMatch = false;
+        for (const [hZh] of headReadings) {
+          const hb = getBaseZhuyin(hZh);
+          const ht = parseZhuyinTone(hZh);
+          for (let i = 0; i < targetBases.length; i++) {
+            if (hb === targetBases[i] && (!this.strictTone || ht === targetTones[i])) {
+              charMayMatch = true;
+              break;
             }
-            if (matched) break;
           }
-        } else {
-          const targetPy = getCharPinyin(tailChar).toLowerCase();
-          if (data.py && data.py.toLowerCase() === targetPy) {
-            matched = true;
-          }
+          if (charMayMatch) break;
         }
+        if (!charMayMatch) continue;
 
-        if (matched) {
-          entries.push(...data.w);
+        // 精準詞彙層級過濾：候選詞在語境中的首字發音必須真正符合目標尾音！
+        for (const wordEntry of data.w) {
+          const candWord = wordEntry[0];
+          const candHeadZh = getWordHeadZhuyin(candWord);
+          const hBase = getBaseZhuyin(candHeadZh);
+          const hTone = parseZhuyinTone(candHeadZh);
+
+          for (let i = 0; i < targetBases.length; i++) {
+            if (hBase === targetBases[i] && (!this.strictTone || hTone === targetTones[i])) {
+              entries.push(wordEntry);
+              break;
+            }
+          }
         }
       }
     }
@@ -2859,8 +2930,8 @@ class WordChainWeb {
     const targetChar = getTailChar(this.battleCurrentWord);
     const headChar = getHeadChar(word);
 
-    // 聲韻咬合判定
-    const check = checkPhoneticMatch(targetChar, headChar, this.allowHomophone, this.strictTone);
+    // 聲韻咬合判定 (含詞彙語境注音比對)
+    const check = checkPhoneticMatch(targetChar, headChar, this.allowHomophone, this.strictTone, this.battleCurrentWord, word);
     if (!check.match) {
       showToast(check.reason, "error");
       return;
@@ -3027,7 +3098,7 @@ class WordChainWeb {
   // ==========================================
   aiTurn() {
     const tailChar = getTailChar(this.battleCurrentWord);
-    const entries = this.getScoredEntries(tailChar, this.allowHomophone, false);
+    const entries = this.getScoredEntries(tailChar, this.allowHomophone, false, this.battleCurrentWord);
     const persona = PERSONAS[this.currentPersona] || PERSONAS.ji_xiaolan;
 
     if (!entries || entries.length === 0) {
@@ -3145,7 +3216,7 @@ class WordChainWeb {
   // ==========================================
   handleHint() {
     const tailChar = getTailChar(this.battleCurrentWord);
-    const entries = this.getScoredEntries(tailChar, this.allowHomophone, false);
+    const entries = this.getScoredEntries(tailChar, this.allowHomophone, false, this.battleCurrentWord);
     if (!entries || entries.length === 0) {
       this.clearHintBar();
       this.updateScorerCard(this.roundCount, "💡 軍師", "局勢兇險", "無生路", "0.0s", "0字", "💀絕殺", "敵方已封死所有生門", 0, 0);
@@ -3348,7 +3419,7 @@ class WordChainWeb {
     const currentKey = (this.demoTurn === 1) ? this.demoP1 : this.demoP2;
     const persona = PERSONAS[currentKey];
     const tailChar = getTailChar(this.demoCurrentWord);
-    const entries = this.getScoredEntries(tailChar, true, true);
+    const entries = this.getScoredEntries(tailChar, true, true, this.demoCurrentWord);
 
     if (!entries || entries.length === 0) {
       const refTitle = document.getElementById("demo-referee-title");
@@ -3370,8 +3441,8 @@ class WordChainWeb {
     const nextWord = chosen[0];
     const headC = getHeadChar(nextWord);
 
-    // 嚴格聲韻一致性守護 (Sanity Guard)：百分之百杜絕任何跨輪次錯咬
-    const matchCheck = checkPhoneticMatch(tailChar, headC, true, false);
+    // 嚴格聲韻一致性守護 (Sanity Guard)：百分之百杜絕任何跨輪次錯咬 (含語境注音比對)
+    const matchCheck = checkPhoneticMatch(tailChar, headC, true, false, this.demoCurrentWord, nextWord);
     if (!matchCheck.match) {
       console.error(`🚨 雙雄演示攔截到不匹配落子：尾字「${tailChar}」與首字「${headC}」不符！詞目：${nextWord}`);
       return;
@@ -3399,8 +3470,8 @@ class WordChainWeb {
       round: this.demoRound,
       speaker: `${persona.icon} ${persona.name}`,
       word: nextWord,
-      headZh: getCharZhuyin(headC) || "—",
-      tailZh: getCharZhuyin(getTailChar(nextWord)) || "—",
+      headZh: getWordHeadZhuyin(nextWord) || "—",
+      tailZh: getWordTailZhuyin(nextWord) || "—",
       mode: matchDesc,
       appraisal: appraisal,
       banter: banter,
@@ -3424,8 +3495,8 @@ class WordChainWeb {
 
     const headC = getHeadChar(word);
     const tailC = getTailChar(word);
-    const headZh = getCharZhuyin(headC) || "—";
-    const tailZh = getCharZhuyin(tailC) || "—";
+    const headZh = getWordHeadZhuyin(word) || "—";
+    const tailZh = getWordTailZhuyin(word) || "—";
 
     const isP1 = speaker.includes("紀曉嵐");
     const speakerColor = isP1 ? "var(--ai-blue)" : speaker.includes("李白") ? "#fdcb6e" : "var(--accent-gold)";
