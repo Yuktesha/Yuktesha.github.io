@@ -1093,73 +1093,104 @@ select:focus, input:focus {
 }
 
 /* ========================================================= */
-/* 📍 左下角整合式資訊儀表板 (Integrated Dashboard HUD)        */
-/* R-UI/UX 空間幾何接管：左下角常駐浮動玻璃卡 · 支援一鍵最小化   */
+/* 📖 右上角典故與縮放整合卡 (Wisdom & Zoom Dock)            */
+/* 整合縮放控制與成語典故，動態自適應高度，支援自由拖曳與一鍵收合 */
 /* ========================================================= */
-.integrated-dashboard-hud {
+.wisdom-zoom-dock {
   position: absolute;
-  bottom: 14px;
-  left: 14px;
-  width: 290px;
+  top: 44px;
+  right: 14px;
+  width: 320px;
   max-width: calc(100% - 28px);
-  max-height: 380px;
-  background: rgba(18, 24, 38, 0.88);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(18, 24, 38, 0.92);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 215, 0, 0.25);
   border-radius: var(--radius-lg);
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.65), 0 0 16px rgba(0, 206, 201, 0.12);
-  z-index: 40;
-  padding: 10px 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.65), 0 0 16px rgba(255, 215, 0, 0.1);
+  z-index: 45;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  overflow: hidden;
+  transition: box-shadow 0.2s, border-color 0.2s;
+  user-select: none;
 }
 
-.integrated-dashboard-hud:hover {
-  background: rgba(18, 24, 38, 0.95);
-  border-color: rgba(0, 206, 201, 0.35);
+.wisdom-zoom-dock.is-dragging {
+  cursor: grabbing !important;
+  opacity: 0.95;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8), 0 0 24px rgba(255, 215, 0, 0.35);
+  border-color: var(--accent-gold);
 }
 
-.integrated-dashboard-hud.minimized {
-  max-height: 48px;
-  width: auto;
-  min-width: 160px;
-  padding: 6px 12px;
-  background: rgba(18, 24, 38, 0.92);
+.wisdom-zoom-dock:hover {
+  border-color: rgba(255, 215, 0, 0.45);
+}
+
+.wisdom-dock-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  gap: 8px;
+  touch-action: none;
+}
+
+.wisdom-drag-handle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
+  font-weight: bold;
+  color: var(--accent-gold);
+  cursor: grab;
+  flex-shrink: 0;
+  padding: 2px 4px;
+}
+
+.wisdom-drag-handle:hover {
+  color: #fff;
+}
+
+.zoom-controls-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.zoom-controls-row .zoom-btn {
+  width: 26px;
+  height: 26px;
+  font-size: 0.85rem;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-bright);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.15s;
+}
+
+.zoom-controls-row .zoom-btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: var(--accent-gold);
+}
+
+.zoom-controls-row .zoom-level {
+  font-size: 0.75rem;
+  font-weight: bold;
+  color: var(--accent-gold);
+  padding: 0 4px;
+  min-width: 38px;
+  text-align: center;
   cursor: pointer;
 }
 
-.integrated-dashboard-hud.minimized .story-card,
-.integrated-dashboard-hud.minimized .hud-target-meta,
-.integrated-dashboard-hud.minimized .demo-p-mini-row {
-  display: none !important;
-}
-
-.integrated-dashboard-hud.minimized .hud-card-header {
-  margin-bottom: 0;
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.hud-card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-bottom: 4px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.hud-card-title {
-  font-size: 0.82rem;
-  font-weight: bold;
-  color: var(--accent-gold);
-  letter-spacing: 0.5px;
-}
-
-.btn-hud-minimize {
+.btn-wisdom-minimize {
   background: transparent;
   border: none;
   color: var(--text-muted);
@@ -1168,116 +1199,154 @@ select:focus, input:focus {
   line-height: 1;
   padding: 2px 6px;
   border-radius: 4px;
-  transition: all 0.2s;
+  transition: color 0.2s;
+  flex-shrink: 0;
 }
 
-.btn-hud-minimize:hover {
-  color: var(--accent-cyan);
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.hud-target-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.hud-target-row .target-char {
-  font-size: 2.6rem;
-  font-weight: 900;
-  color: var(--accent-cyan);
-  text-shadow: 0 0 16px rgba(0, 210, 211, 0.4);
-  line-height: 1;
-  margin: 0;
-  min-width: 48px;
-  text-align: center;
-}
-
-.hud-target-meta {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  flex: 1;
-  min-width: 0;
-}
-
-.hud-prev-word, .target-word {
-  font-size: 0.82rem;
+.btn-wisdom-minimize:hover {
   color: var(--accent-gold);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-.hud-radar-pill, .target-phonetic {
-  font-size: 0.78rem;
-  font-weight: bold;
-  color: var(--accent-cyan);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.wisdom-content {
+  padding: 8px 10px;
+  user-select: text;
 }
 
-/* 雙雄甲乙迷你對局狀態列 */
-.demo-p-mini-row {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 2px;
+.wisdom-zoom-dock.minimized .wisdom-content {
+  display: none !important;
 }
 
-.demo-p-mini-row .demo-p-box {
-  flex: 1;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: rgba(10, 14, 22, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 4px;
-  padding: 3px 6px;
-  font-size: 0.75rem;
+.wisdom-zoom-dock.minimized {
+  width: auto;
 }
 
-.demo-p-mini-row .demo-p-box.active {
-  border-color: var(--accent-cyan);
-  background: rgba(0, 210, 211, 0.12);
+.wisdom-zoom-dock.minimized .wisdom-dock-header {
+  border-bottom: none;
 }
 
-/* 典故小卡 (整合至左下角儀表板內部) */
-.integrated-dashboard-hud .story-card {
-  background: rgba(10, 14, 22, 0.6);
+.wisdom-content .story-card {
+  background: rgba(10, 14, 22, 0.55);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-md);
   padding: 8px 10px;
-  flex: 1;
-  min-height: 50px;
-  max-height: 160px;
-  overflow-y: auto;
 }
 
-.integrated-dashboard-hud .story-title,
-.integrated-dashboard-hud .referee-title {
-  font-size: 0.82rem;
+.wisdom-content .story-title {
+  font-size: 0.85rem;
   font-weight: bold;
   color: var(--accent-gold);
-  margin-bottom: 4px;
+  margin-bottom: 6px;
+  letter-spacing: 0.3px;
 }
 
-.integrated-dashboard-hud .story-body,
-.integrated-dashboard-hud .referee-body {
+.wisdom-content .story-body {
+  font-size: 0.82rem;
+  color: #dcdde1;
+  line-height: 1.5;
+  max-height: min(420px, 50vh);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 215, 0, 0.3) transparent;
+  padding-right: 4px;
+}
+
+.wisdom-content .story-body::-webkit-scrollbar {
+  width: 4px;
+}
+
+.wisdom-content .story-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 215, 0, 0.3);
+  border-radius: 2px;
+}
+
+/* ========================================================= */
+/* 🎯 左下角極簡目標膠囊 (Mini Target Capsule)                 */
+/* 體積極小 (小於 3% 畫面)，顯示目標字、前詞與出度雷達，不擋棋盤   */
+/* ========================================================= */
+.mini-target-capsule {
+  position: absolute;
+  bottom: 82px;
+  left: 14px;
+  z-index: 39;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(18, 24, 38, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 206, 201, 0.35);
+  border-radius: 24px;
+  padding: 5px 14px 5px 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5), 0 0 10px rgba(0, 206, 201, 0.15);
+  user-select: none;
+  transition: transform 0.2s, box-shadow 0.2s;
+  max-width: calc(100% - 28px);
+}
+
+.mini-target-capsule:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 14px rgba(0, 206, 201, 0.25);
+  border-color: var(--accent-cyan);
+}
+
+.mini-target-capsule .target-char {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0, 206, 201, 0.28) 0%, rgba(10, 14, 22, 0.9) 100%);
+  border: 2px solid var(--accent-cyan);
+  color: #fff;
+  font-size: 1.35rem;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 12px rgba(0, 206, 201, 0.4);
+  flex-shrink: 0;
+}
+
+.mini-target-capsule .capsule-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.mini-target-capsule .target-prev-word {
   font-size: 0.78rem;
-  color: var(--text-muted);
-  line-height: 1.4;
+  font-weight: 600;
+  color: var(--text-bright);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mini-target-capsule .target-radar-pill {
+  font-size: 0.72rem;
+  font-weight: bold;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 相容性相應樣式 */
+.integrated-dashboard-hud {
+  position: absolute;
+  bottom: 14px;
+  left: 14px;
+  z-index: 40;
 }
 
 /* ========================================================= */
 /* ⌨️ 中下方視覺焦點區 (Action Dock Container)                */
-/* 氣泡、軍師錦囊、出招列集中於視覺焦點正前方                   */
+/* 氣泡、軍師錦囊、出招列居中對齊於玩家視覺焦點前方               */
 /* ========================================================= */
 .action-dock-container {
   position: absolute;
   bottom: 14px;
-  left: 318px;
-  right: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(720px, calc(100% - 28px));
   z-index: 38;
   display: flex;
   flex-direction: column;
@@ -1289,10 +1358,19 @@ select:focus, input:focus {
   pointer-events: auto; /* 元件內部恢復點擊 */
 }
 
-.action-dock-container.demo-dock {
-  left: 318px;
-  right: 14px;
-  bottom: 14px;
+.action-dock-container .demo-dock-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  background: rgba(22, 28, 42, 0.92);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 215, 0, 0.35);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
 }
 
 /* 實時心戰對白氣泡 (視覺焦點核心元件) */
@@ -2071,29 +2149,27 @@ th {
     padding: 1px 5px;
   }
 
-  /* 5. 行動端適配：左下角 HUD 與底部行動列 */
-  .integrated-dashboard-hud {
-    position: absolute;
-    bottom: 78px;
-    left: 8px;
-    width: auto;
-    max-width: calc(100% - 16px);
-    max-height: 240px;
-    padding: 6px 10px;
-    z-index: 42;
+  /* 5. 行動端適配：右上角典故視窗、左下角膠囊與底部行動列 */
+  .wisdom-zoom-dock {
+    top: 40px;
+    right: 8px;
+    width: min(280px, calc(100% - 16px));
   }
-  .integrated-dashboard-hud.minimized {
-    max-height: 40px;
-    padding: 4px 8px;
+  .mini-target-capsule {
+    bottom: 84px;
+    left: 8px;
+    padding: 4px 10px 4px 6px;
+    max-width: calc(100% - 16px);
+  }
+  .mini-target-capsule .target-char {
+    width: 32px;
+    height: 32px;
+    font-size: 1.15rem;
   }
   .action-dock-container {
-    left: 8px;
-    right: 8px;
-    bottom: 8px;
-  }
-  .action-dock-container.demo-dock {
-    left: 8px;
-    right: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100% - 16px);
     bottom: 8px;
   }
 

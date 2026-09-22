@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>字戀 (WordChain) - 文壇縱橫對弈 · 漢字聲韻博弈</title>
-  <link rel="stylesheet" href="style.css?v=2.9">
+  <link rel="stylesheet" href="style.css?v=3.0">
   <style>
     /* 防快取滯後：預設隱藏次級與精簡文字，交由 CSS media query 精確接管 */
     .status-text-med, .status-text-short, .tab-text-short, .btn-text-short, .fs-text-short { display: none; }
@@ -74,7 +74,14 @@
     <!-- TAB 1: 人機對決 -->
     <section id="tab-battle" class="tab-pane active">
       <div class="control-bar">
-        <div class="control-group">
+        <div class="control-group" id="group-game-mode">
+          <label>模式：</label>
+          <select id="select-game-mode" style="border-color:var(--accent-gold); font-weight:bold; color:var(--accent-gold);">
+            <option value="battle" selected>⚔️ 閣下親征</option>
+            <option value="demo">🎭 雙雄相聲</option>
+          </select>
+        </div>
+        <div class="control-group" id="group-persona">
           <label>對手：</label>
           <select id="select-persona">
             <option value="ji_xiaolan">🧐 紀曉嵐 (毒舌博學)</option>
@@ -174,13 +181,24 @@
             </div>
           </div>
 
-          <!-- 浮動縮放控制器 (右上角) -->
-          <div class="board-zoom-hud" id="zoom-hud-battle">
-            <div class="zoom-drag-handle" title="按住可自由拖曳移動縮放控制器">⠿</div>
-            <button class="zoom-btn" id="btn-zoom-in" title="放大字陣 (滾輪向前)">➕</button>
-            <span class="zoom-level" id="zoom-val-battle" title="目前縮放比例 (點擊重設 100%)">100%</span>
-            <button class="zoom-btn" id="btn-zoom-out" title="縮小字陣 (滾輪向後)">➖</button>
-            <button class="zoom-btn zoom-reset" id="btn-zoom-reset" title="重設視角至 100% 居中">🎯</button>
+          <!-- 浮動成語典故小箋 & 縮放控制器 (右上角整合式 Dock · 支援一鍵收合與自由拖曳) -->
+          <div class="wisdom-zoom-dock" id="wisdom-zoom-dock">
+            <div class="wisdom-dock-header">
+              <div class="wisdom-drag-handle" id="wisdom-drag-handle" title="按住可自由拖曳移動">⠿ 典故觀瞻</div>
+              <div class="zoom-controls-row" id="zoom-hud-battle">
+                <button class="zoom-btn" id="btn-zoom-in" title="放大字陣 (滾輪向前)">➕</button>
+                <span class="zoom-level" id="zoom-val-battle" title="目前縮放比例 (點擊重設 100%)">100%</span>
+                <button class="zoom-btn" id="btn-zoom-out" title="縮小字陣 (滾輪向後)">➖</button>
+                <button class="zoom-btn zoom-reset" id="btn-zoom-reset" title="重設視角至 100% 居中">🎯</button>
+              </div>
+              <button class="btn-wisdom-minimize" id="btn-toggle-wisdom-dock" title="收合/展開典故視窗">▾</button>
+            </div>
+            <div class="wisdom-content" id="wisdom-content">
+              <div class="story-card" id="story-card-compact">
+                <div class="story-title" id="story-title">📖 成語典故</div>
+                <div class="story-body" id="story-body">正在載入成語背景典故...</div>
+              </div>
+            </div>
           </div>
 
           <!-- 2. 結構化對弈流轉表 (點擊任意輪次即時覆盤回放裁判評點) -->
@@ -203,30 +221,19 @@
             </table>
           </div>
 
-          <!-- 📍 左下角整合式資訊儀表板 (極簡毛玻璃浮動卡 · 支援一鍵最小化) -->
-          <div class="integrated-dashboard-hud" id="integrated-hud-battle">
-            <div class="hud-card-header">
-              <span class="hud-card-title">🎯 接龍目標</span>
-              <button class="btn-hud-minimize" id="btn-toggle-hud-battle" title="收合/展開儀表板">▾</button>
+          <!-- 📍 左下角極簡目標膠囊 (Mini Target Capsule · 輕巧不擋盤) -->
+          <div class="mini-target-capsule" id="mini-target-capsule">
+            <div class="target-char" id="target-char" title="當前接龍目標字">空</div>
+            <div class="capsule-meta">
+              <div id="target-info" class="target-prev-word">上一詞：天馬行空</div>
+              <div id="target-radar" class="target-radar-pill">【出度雷達】🟢 汪洋大海</div>
             </div>
-            
-            <!-- 目標字與出度徽章 -->
-            <div class="hud-target-row">
-              <div class="target-char" id="target-char">空</div>
-              <div class="hud-target-meta">
-                <div id="target-info" class="hud-prev-word">上一詞：天馬行空</div>
-                <div id="target-radar" class="hud-radar-pill">【出度雷達】🟢 汪洋大海</div>
-              </div>
-            </div>
+          </div>
 
-            <!-- 成語典故小箋 (古典雅緻風格) -->
-            <div class="story-card" id="story-card-compact">
-              <div class="story-title" id="story-title">📖 成語典故</div>
-              <div class="story-body" id="story-body">正在載入成語背景典故...</div>
-            </div>
-
-            <!-- 隱形相容性節點 (保留 DOM ID 供原有邏輯寫入，避免破壞性報錯) -->
-            <div id="scorer-card" style="display:none;">
+          <!-- 隱形相容性節點 (保留舊 DOM ID 供原有邏輯寫入，避免破壞性報錯) -->
+          <div id="integrated-hud-battle" style="display:none;">
+            <button id="btn-toggle-hud-battle"></button>
+            <div id="scorer-card">
               <div id="scorer-title"></div>
               <div id="scorer-detail"></div>
               <div id="scorer-radar"></div>
@@ -234,8 +241,8 @@
             </div>
           </div>
 
-          <!-- 中下方視覺焦點區：心戰對白氣泡 + 軍師錦囊 + 出招列 -->
-          <div class="action-dock-container">
+          <!-- 中下方視覺焦點區：心戰對白氣泡 + 軍師錦囊 + 出招列/演示列 -->
+          <div class="action-dock-container" id="action-dock-container">
             <!-- 即時心戰對白氣泡 (心理戰、出招得分與反饋的核心視覺焦點) -->
             <div class="live-banter-card" id="live-banter-card">
               <span class="banter-speaker-icon" id="banter-icon">💬</span>
@@ -248,143 +255,66 @@
               <div id="hint-btn-group" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
             </div>
 
-            <!-- 底部出招列 (輸入框 + 出招按鈕) -->
-            <div class="input-dock">
+            <!-- 底部人機出招列 (輸入框 + 出招按鈕) -->
+            <div class="input-dock" id="input-dock-human">
               <input type="text" id="input-word" placeholder="請輸入成語或詞彙 (支援同音字接龍)..." autocomplete="off">
               <button id="btn-submit" class="btn-primary" style="padding:0 24px;">出招 (Enter)</button>
+            </div>
+
+            <!-- 底部雙雄演示控制列 (切換至演示模式時動態顯現) -->
+            <div class="demo-dock-bar" id="demo-dock-bar" style="display:none;">
+              <button id="btn-start-demo" class="btn-primary">
+                <span class="btn-text-full">開始演示</span>
+                <span class="btn-text-short">開始</span>
+              </button>
+              <button id="btn-takeover" class="btn-takeover" title="隨時介入戰局，由您接招！">
+                <span class="btn-text-full">⚔️ 換我來接！</span>
+                <span class="btn-text-short">⚔️ 接管</span>
+              </button>
+              <button id="btn-demo-fullscreen" class="btn-secondary" title="開啟全螢幕沉浸觀戰，亦可充當文壇字陣動態螢幕保護程式">
+                <span class="fs-text-full">🖥️ 全螢幕觀戰</span>
+                <span class="fs-text-short">🖥️ 全螢幕</span>
+              </button>
+              <button id="btn-export-demo-log" class="btn-secondary" title="匯出雙雄對戰完整 Log 供 Gemma 審查分析">
+                <span class="btn-text-full">📥 匯出 Log</span>
+                <span class="btn-text-short">📥 Log</span>
+              </button>
             </div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- TAB 2: 雙雄演示秀 -->
-    <section id="tab-demo" class="tab-pane">
-      <div class="control-bar">
-        <div style="display:flex; align-items:center; gap:8px;">
-          <span style="font-weight:bold; color:var(--accent-gold);">🎭 AI 雙雄相聲博弈秀</span>
-          <span class="badge-status-romance" id="badge-demo-status" style="display:none;">雙雄字戀中……</span>
-        </div>
-        <span style="font-size:0.85rem; color:var(--text-muted);">（觀摩雙 AI 唇槍舌劍，隨時可按右側按鈕接管戰局！）</span>
-        <div class="demo-actions-bar" style="margin-left:auto; display:flex; gap:6px; flex-wrap:wrap;">
-          <button id="btn-start-demo" class="btn-primary">
-            <span class="btn-text-full">開始演示</span>
-            <span class="btn-text-short">開始</span>
-          </button>
-          <button id="btn-demo-fullscreen" class="btn-secondary" title="開啟全螢幕沉浸觀戰，亦可充當文壇字陣動態螢幕保護程式">
-            <span class="fs-text-full">🖥️ 全螢幕觀戰</span>
-            <span class="fs-text-short">🖥️ 全螢幕</span>
-          </button>
-          <button id="btn-export-demo-log" class="btn-secondary" title="匯出雙雄對戰完整 Log 供 Gemma 審查分析">
-            <span class="btn-text-full">📥 匯出 Log</span>
-            <span class="btn-text-short">📥 Log</span>
-          </button>
-          <button id="btn-takeover" class="btn-takeover">
-            <span class="btn-text-full">⚔️ 換我來接！</span>
-            <span class="btn-text-short">⚔️ 接管</span>
-          </button>
-        </div>
+    <!-- TAB 2 相容層 (保留所有原有 DOM ID 確保既有邏輯 100% 相容不報錯) -->
+    <section id="tab-demo" class="tab-pane" style="display:none;">
+      <div id="badge-demo-status" style="display:none;"></div>
+      <button id="btn-demo-view-board" style="display:none;"></button>
+      <button id="btn-demo-view-table" style="display:none;"></button>
+      <div id="demo-board-viewport" style="display:none;">
+        <div id="demo-board-grid"></div>
       </div>
-
-      <div class="battle-grid demo-arena-grid">
-        <!-- 主舞台容器 (全幅 100% 空間接管) -->
-        <div class="arena-board-container">
-          <!-- 棋盤視圖切換與標題 -->
-          <div class="board-header">
-            <div style="display:flex; align-items:center; gap:8px;">
-              <span style="font-weight:bold; color:var(--accent-gold);">🎭 雙雄縱橫字陣</span>
-              <span style="font-size:0.75rem; color:var(--text-muted);">（紀曉嵐 藍 × 李白 琥珀金 · 二維交鋒咬合）</span>
-            </div>
-            <div class="view-toggles">
-              <button class="view-btn active" id="btn-demo-view-board" title="字陣棋盤視圖">
-                <span class="view-btn-full">棋盤</span>
-                <span class="view-btn-short">盤</span>
-              </button>
-              <button class="view-btn" id="btn-demo-view-table" title="歷史流轉表">
-                <span class="view-btn-full">紀錄表</span>
-                <span class="view-btn-short">表</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- 1. 雙雄二維字陣棋盤 (全景最大化) -->
-          <div class="cross-board-viewport" id="demo-board-viewport">
-            <div class="cross-board-grid" id="demo-board-grid">
-              <!-- 動態生成格子與文字 -->
-            </div>
-          </div>
-
-          <!-- 浮動縮放控制器 (右上角) -->
-          <div class="board-zoom-hud" id="zoom-hud-demo">
-            <div class="zoom-drag-handle" title="按住可自由拖曳移動縮放控制器">⠿</div>
-            <button class="zoom-btn" id="btn-demo-zoom-in" title="放大字陣 (滾輪向前)">➕</button>
-            <span class="zoom-level" id="zoom-val-demo" title="目前縮放比例 (點擊重設 100%)">100%</span>
-            <button class="zoom-btn" id="btn-demo-zoom-out" title="縮小字陣 (滾輪向後)">➖</button>
-            <button class="zoom-btn zoom-reset" id="btn-demo-zoom-reset" title="重設視角至 100% 居中">🎯</button>
-          </div>
-
-          <!-- 2. 雙雄歷史流轉表 -->
-          <div class="table-stream-viewport" id="demo-table-viewport" style="display:none;">
-            <table class="flow-table">
-              <thead>
-                <tr>
-                  <th style="width:48px; text-align:center;">輪次</th>
-                  <th style="width:95px; text-align:center;">對弈者</th>
-                  <th>出招詞彙</th>
-                  <th style="width:160px;">首尾音讀</th>
-                  <th style="width:105px; text-align:center;">咬合模式</th>
-                  <th style="width:65px; text-align:center;">耗時</th>
-                </tr>
-              </thead>
-              <tbody id="demo-table-body">
-                <!-- 動態插入 -->
-              </tbody>
-            </table>
-          </div>
-
-          <!-- 📍 左下角整合式資訊儀表板 (雙雄演示版) -->
-          <div class="integrated-dashboard-hud" id="integrated-hud-demo">
-            <div class="hud-card-header">
-              <span class="hud-card-title">🎭 文壇雙雄對局</span>
-              <button class="btn-hud-minimize" id="btn-toggle-hud-demo" title="收合/展開儀表板">▾</button>
-            </div>
-
-            <!-- 雙雄對局甲乙相迷你列 -->
-            <div class="demo-p-mini-row">
-              <div class="demo-p-box active" id="demo-p1-box">
-                <span class="p-name p1-name" id="demo-p1-title">👤 甲相：紀曉嵐</span>
-                <span class="p-status p1-status" id="demo-p1-status">【主動出招】</span>
-              </div>
-              <div class="demo-p-box" id="demo-p2-box">
-                <span class="p-name p2-name" id="demo-p2-title">👤 乙相：李白</span>
-                <span class="p-status p2-status" id="demo-p2-status">【凝思接招】</span>
-              </div>
-            </div>
-
-            <!-- 擂台核心字卡 -->
-            <div class="hud-target-row">
-              <div class="target-char" id="demo-target-char">空</div>
-              <div class="hud-target-meta">
-                <div class="target-word" id="demo-target-word">當前詞：天馬行空</div>
-                <div class="target-phonetic" id="demo-target-phonetic">注音：ㄎㄨㄥ | 拼音：kōng</div>
-              </div>
-            </div>
-
-            <!-- 文宗裁判實時點評 -->
-            <div class="story-card" style="margin-top:4px;">
-              <div class="referee-title" id="demo-referee-title">⚖️ 文宗裁判實時點評</div>
-              <div class="referee-body" id="demo-referee-body">點擊上方「開始演示」，兩位大文豪將在此展開接龍對弈與即興吐槽！</div>
-            </div>
-          </div>
-
-          <!-- 中下方視覺焦點區：對白氣泡 -->
-          <div class="action-dock-container demo-dock">
-            <div class="live-banter-card" id="demo-live-banter-card">
-              <span class="banter-speaker-icon" id="demo-banter-icon">🎭</span>
-              <span class="banter-text" id="demo-live-banter-text">點擊上方「開始演示」，兩位大文豪將在此展開接龍對弈與即興吐槽！</span>
-            </div>
-          </div>
-        </div>
+      <div id="zoom-hud-demo" style="display:none;">
+        <button id="btn-demo-zoom-in"></button>
+        <span id="zoom-val-demo"></span>
+        <button id="btn-demo-zoom-out"></button>
+        <button id="btn-demo-zoom-reset"></button>
+      </div>
+      <div id="demo-table-viewport" style="display:none;">
+        <table><tbody id="demo-table-body"></tbody></table>
+      </div>
+      <div id="integrated-hud-demo" style="display:none;">
+        <button id="btn-toggle-hud-demo"></button>
+        <div id="demo-p1-box"><span id="demo-p1-title"></span><span id="demo-p1-status"></span></div>
+        <div id="demo-p2-box"><span id="demo-p2-title"></span><span id="demo-p2-status"></span></div>
+        <div id="demo-target-char"></div>
+        <div id="demo-target-word"></div>
+        <div id="demo-target-phonetic"></div>
+        <div id="demo-referee-title"></div>
+        <div id="demo-referee-body"></div>
+      </div>
+      <div id="demo-live-banter-card" style="display:none;">
+        <span id="demo-banter-icon"></span>
+        <span id="demo-live-banter-text"></span>
       </div>
     </section>
 
@@ -537,10 +467,10 @@
     </div>
   </div>
 
-  <script src="zhuyin_data.js?v=2.9"></script>
-  <script src="lexicon_data.js?v=2.9"></script>
-  <script src="story_data.js?v=2.9"></script>
-  <script src="career_database.js?v=2.9"></script>
-  <script src="game.js?v=2.9"></script>
+  <script src="zhuyin_data.js?v=3.0"></script>
+  <script src="lexicon_data.js?v=3.0"></script>
+  <script src="story_data.js?v=3.0"></script>
+  <script src="career_database.js?v=3.0"></script>
+  <script src="game.js?v=3.0"></script>
 </body>
 </html>

@@ -596,29 +596,38 @@ class WordChainWeb {
   }
 
   initDOM() {
-    // 導航標籤頁切換
+    // 導航標籤頁切換 (人機對決、雙雄演示秀共用單一棋盤舞台，依模式無縫切換)
     document.querySelectorAll(".tab-btn").forEach(btn => {
       btn.addEventListener("click", () => {
-        document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
-        document.querySelectorAll(".tab-pane").forEach(p => p.classList.remove("active"));
-        btn.classList.add("active");
         const target = btn.getAttribute("data-target");
-        const targetPane = document.getElementById(target);
-        if (targetPane) targetPane.classList.add("active");
-
-        if (target === "tab-demo") {
-          // 切換至雙雄演示：暫停人機對決倒數計時，避免在背景逾時強行出招
-          this.stopTimer();
-        } else if (target === "tab-battle") {
-          // 切換回人機對決：若已起手且戰局仍在進行，才恢復計時
-          if (this.hasPlayerStarted && this.playerHp > 0 && this.aiHp > 0 && !this.timerId) {
-            this.startTimer();
-          }
+        if (target === "tab-battle") {
+          this.setGameMode("battle");
+        } else if (target === "tab-demo") {
+          this.setGameMode("demo");
         } else if (target === "tab-learned") {
+          document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+          document.querySelectorAll(".tab-pane").forEach(p => p.classList.remove("active"));
+          btn.classList.add("active");
+          const targetPane = document.getElementById("tab-learned");
+          if (targetPane) targetPane.classList.add("active");
+          this.stopTimer();
+          if (this.isDemoRunning) {
+            if (this.demoTimer) clearInterval(this.demoTimer);
+            this.demoTimer = null;
+            this.isDemoRunning = false;
+          }
           this.renderLearnedTable();
         }
       });
     });
+
+    // 模式下拉選單 (閣下親征 vs 雙雄相聲)
+    const selGameMode = document.getElementById("select-game-mode");
+    if (selGameMode) {
+      selGameMode.addEventListener("change", (e) => {
+        this.setGameMode(e.target.value);
+      });
+    }
 
     // 棋盤視圖切換 (盤 棋盤 vs 表 紀錄表 - 人機對決)
     const btnViewBoard = document.getElementById("btn-view-board");
@@ -642,7 +651,7 @@ class WordChainWeb {
       });
     }
 
-    // 棋盤視圖切換 (盤 棋盤 vs 表 紀錄表 - 雙雄演示)
+    // 棋盤視圖切換 (雙雄演示相容)
     const btnDemoViewBoard = document.getElementById("btn-demo-view-board");
     const btnDemoViewTable = document.getElementById("btn-demo-view-table");
     const demoBoardViewport = document.getElementById("demo-board-viewport");
@@ -650,36 +659,35 @@ class WordChainWeb {
 
     if (btnDemoViewBoard && btnDemoViewTable) {
       btnDemoViewBoard.addEventListener("click", () => {
-        btnDemoViewBoard.classList.add("active");
-        btnDemoViewTable.classList.remove("active");
-        if (demoBoardViewport) demoBoardViewport.style.display = "block";
-        if (demoTableViewport) demoTableViewport.style.display = "none";
+        if (btnViewBoard) btnViewBoard.click();
       });
-
       btnDemoViewTable.addEventListener("click", () => {
-        btnDemoViewTable.classList.add("active");
-        btnDemoViewBoard.classList.remove("active");
-        if (demoBoardViewport) demoBoardViewport.style.display = "none";
-        if (demoTableViewport) demoTableViewport.style.display = "block";
+        if (btnViewTable) btnViewTable.click();
       });
     }
 
-    // 📍 左下角整合式資訊儀表板：最小化與展開切換
+    // 📖 右上角成語典故視窗：收合/展開與自由拖曳 (支援點擊標題收合與 handle 拖曳)
+    const btnToggleWisdom = document.getElementById("btn-toggle-wisdom-dock");
+    const wisdomDock = document.getElementById("wisdom-zoom-dock");
+    if (btnToggleWisdom && wisdomDock) {
+      btnToggleWisdom.addEventListener("click", (e) => {
+        e.stopPropagation();
+        wisdomDock.classList.toggle("minimized");
+        btnToggleWisdom.innerText = wisdomDock.classList.contains("minimized") ? "▴" : "▾";
+        btnToggleWisdom.title = wisdomDock.classList.contains("minimized") ? "展開典故視窗" : "收合典故視窗";
+      });
+    }
+    if (wisdomDock) {
+      this.makeDraggable(wisdomDock, "wordchain_wisdom_dock_pos", ".wisdom-drag-handle");
+    }
+
+    // 📍 左下角整合式資訊儀表板相容切換
     const btnToggleHudBattle = document.getElementById("btn-toggle-hud-battle");
     const hudBattlePanel = document.getElementById("integrated-hud-battle");
     if (btnToggleHudBattle && hudBattlePanel) {
       btnToggleHudBattle.addEventListener("click", (e) => {
         e.stopPropagation();
         hudBattlePanel.classList.toggle("minimized");
-        btnToggleHudBattle.innerText = hudBattlePanel.classList.contains("minimized") ? "▴" : "▾";
-        btnToggleHudBattle.title = hudBattlePanel.classList.contains("minimized") ? "展開儀表板" : "收合儀表板";
-      });
-      hudBattlePanel.addEventListener("click", () => {
-        if (hudBattlePanel.classList.contains("minimized")) {
-          hudBattlePanel.classList.remove("minimized");
-          btnToggleHudBattle.innerText = "▾";
-          btnToggleHudBattle.title = "收合儀表板";
-        }
       });
     }
 
@@ -689,26 +697,14 @@ class WordChainWeb {
       btnToggleHudDemo.addEventListener("click", (e) => {
         e.stopPropagation();
         hudDemoPanel.classList.toggle("minimized");
-        btnToggleHudDemo.innerText = hudDemoPanel.classList.contains("minimized") ? "▴" : "▾";
-        btnToggleHudDemo.title = hudDemoPanel.classList.contains("minimized") ? "展開儀表板" : "收合儀表板";
-      });
-      hudDemoPanel.addEventListener("click", () => {
-        if (hudDemoPanel.classList.contains("minimized")) {
-          hudDemoPanel.classList.remove("minimized");
-          btnToggleHudDemo.innerText = "▾";
-          btnToggleHudDemo.title = "收合儀表板";
-        }
       });
     }
 
     // 視窗即攝影鏡頭：啟用字陣畫布按住攀移與光學縮放 (Camera Pan & Zoom)
     this.setupViewportPan(boardViewport);
-    this.setupViewportPan(demoBoardViewport);
+    if (demoBoardViewport) this.setupViewportPan(demoBoardViewport);
 
-    // 縮放 HUD 按鈕綁定與自由拖曳 (人機對決)
-    const hudBattle = document.getElementById("zoom-hud-battle");
-    if (hudBattle) this.makeDraggable(hudBattle, "wordchain_zoom_hud_battle");
-
+    // 縮放 HUD 按鈕綁定 (已整合至右上角智慧卡)
     const btnZoomIn = document.getElementById("btn-zoom-in");
     const btnZoomOut = document.getElementById("btn-zoom-out");
     const btnZoomReset = document.getElementById("btn-zoom-reset");
@@ -975,6 +971,59 @@ class WordChainWeb {
         const modal = document.getElementById("modal-victory");
         if (modal) modal.style.display = "none";
       });
+    }
+  }
+
+  // ==========================================
+  // 4.1 模式切換管理 (人機對決 vs 雙雄演示 共用單一擂台)
+  // ==========================================
+  setGameMode(mode) {
+    this.gameMode = mode; // 'battle' | 'demo'
+    const sel = document.getElementById("select-game-mode");
+    if (sel && sel.value !== mode) sel.value = mode;
+
+    // 導航標籤高亮同步
+    document.querySelectorAll(".tab-btn").forEach(b => {
+      const target = b.getAttribute("data-target");
+      if ((mode === "battle" && target === "tab-battle") || (mode === "demo" && target === "tab-demo")) {
+        b.classList.add("active");
+      } else if (target !== "tab-learned") {
+        b.classList.remove("active");
+      }
+    });
+
+    const humanDock = document.getElementById("input-dock-human");
+    const demoDock = document.getElementById("demo-dock-bar");
+    const hintBar = document.getElementById("hint-action-bar");
+    const personaGroup = document.getElementById("group-persona");
+
+    if (mode === "demo") {
+      if (humanDock) humanDock.style.display = "none";
+      if (demoDock) demoDock.style.display = "flex";
+      if (hintBar) hintBar.style.display = "none";
+      if (personaGroup) personaGroup.style.display = "none";
+      this.stopTimer();
+      if (!this.isDemoRunning) {
+        this.startDemo();
+      }
+    } else {
+      if (humanDock) humanDock.style.display = "flex";
+      if (demoDock) demoDock.style.display = "none";
+      if (personaGroup) personaGroup.style.display = "flex";
+      if (this.isDemoRunning) {
+        if (this.demoTimer) clearInterval(this.demoTimer);
+        this.demoTimer = null;
+        this.isDemoRunning = false;
+        const btn = document.getElementById("btn-start-demo");
+        if (btn) {
+          const full = btn.querySelector(".btn-text-full");
+          const short = btn.querySelector(".btn-text-short");
+          if (full && short) { full.innerText = "開始演示"; short.innerText = "開始"; }
+          else { btn.innerText = "開始演示"; }
+        }
+      }
+      const inputEl = document.getElementById("input-word");
+      if (inputEl) setTimeout(() => inputEl.focus(), 100);
     }
   }
 
@@ -2286,7 +2335,7 @@ class WordChainWeb {
   // ==========================================
   // 6.8 自由拖曳縮放控制器 (Draggable Zoom HUD)
   // ==========================================
-  makeDraggable(el, storageKey) {
+  makeDraggable(el, storageKey, handleSelector = null) {
     if (!el || el._dragInitialized) return;
     el._dragInitialized = true;
 
@@ -2296,8 +2345,8 @@ class WordChainWeb {
       if (saved) {
         const { left, top } = JSON.parse(saved);
         if (typeof left === "number" && typeof top === "number") {
-          const maxLeft = Math.max(10, window.innerWidth - 70);
-          const maxTop = Math.max(10, window.innerHeight - 180);
+          const maxLeft = Math.max(10, window.innerWidth - (el.offsetWidth || 120));
+          const maxTop = Math.max(10, window.innerHeight - (el.offsetHeight || 120));
           el.style.left = `${Math.min(maxLeft, Math.max(10, left))}px`;
           el.style.top = `${Math.min(maxTop, Math.max(10, top))}px`;
           el.style.right = "auto";
@@ -2314,6 +2363,10 @@ class WordChainWeb {
     let initialTop = 0;
 
     const onPointerDown = (e) => {
+      // 若指定了 handleSelector，且點擊目標不在 handle 內，則不啟動拖曳 (避免阻礙內部文字選取與滾動)
+      if (handleSelector && !e.target.closest(handleSelector)) return;
+      if (e.target.tagName === "BUTTON" || e.target.closest("button")) return;
+
       isDown = true;
       isDragging = false;
       startX = e.clientX;
@@ -2334,8 +2387,10 @@ class WordChainWeb {
       }
       if (isDragging) {
         e.preventDefault();
-        const curLeft = Math.min(window.innerWidth - 65, Math.max(8, initialLeft + dx));
-        const curTop = Math.min(window.innerHeight - 170, Math.max(8, initialTop + dy));
+        const maxL = Math.max(10, window.innerWidth - (el.offsetWidth || 80) - 10);
+        const maxT = Math.max(10, window.innerHeight - (el.offsetHeight || 60) - 10);
+        const curLeft = Math.min(maxL, Math.max(8, initialLeft + dx));
+        const curTop = Math.min(maxT, Math.max(8, initialTop + dy));
         el.style.left = `${curLeft}px`;
         el.style.top = `${curTop}px`;
         el.style.right = "auto";
@@ -3370,12 +3425,26 @@ class WordChainWeb {
       else { btn.innerText = "暫停演示"; }
     }
 
-    // 清空雙雄 demo 棋盤與流轉表
+    // 清空共用棋盤與流轉表 (人機與雙雄共用單一棋盤)
+    this.boardMap.clear();
+    const grid = document.getElementById("cross-board-grid");
+    if (grid) grid.innerHTML = "";
+    const flowTbody = document.getElementById("flow-table-body");
+    if (flowTbody) flowTbody.innerHTML = "";
+
+    // 亦清空相容層節點
     this.demoBoardMap.clear();
     const demoGrid = document.getElementById("demo-board-grid");
     if (demoGrid) demoGrid.innerHTML = "";
     const demoTbody = document.getElementById("demo-table-body");
     if (demoTbody) demoTbody.innerHTML = "";
+
+    this.lastTailCoord = { row: 1, col: 1 };
+    this.lastDirection = 'horizontal';
+    this.minRow = 1;
+    this.maxRow = 1;
+    this.minCol = 1;
+    this.maxCol = 1;
 
     this.demoLastTailCoord = { row: 1, col: 1 };
     this.demoLastDirection = 'horizontal';
@@ -3385,16 +3454,23 @@ class WordChainWeb {
     this.demoMaxCol = 1;
     this.demoRound = 1;
     this.demoTurn = 1;
+    this.roundCount = 1;
 
     // 優選高雅成語立題
     const starters = ["天馬行空", "開門見山", "海闊天空", "乘風破浪", "萬古流芳", "浩然正氣"];
     this.demoCurrentWord = starters[Math.floor(Math.random() * starters.length)];
+    this.battleCurrentWord = this.demoCurrentWord;
     this.demoUsedWords = new Set([this.demoCurrentWord]);
+    this.battleUsedWords = new Set([this.demoCurrentWord]);
 
-    // 在 demo 棋盤落初始子
-    this.placeWordOnBoard(this.demoCurrentWord, "system", "🚩 系統立題 · 雙雄演示開鑼！", false, true, true);
+    // 在棋盤落初始子
+    this.placeWordOnBoard(this.demoCurrentWord, "system", "🚩 系統立題 · 雙雄演示開鑼！", false, true, false);
+    this.appendFlowTableRow(1, "🚩 系統立題", this.demoCurrentWord, "初始陣勢", 0.0, 0);
     this.appendDemoFlowTableRow(1, "🚩 系統立題", this.demoCurrentWord, "初始陣勢", 0.0);
+    this.updateTargetCard(this.demoCurrentWord);
+    this.updateStoryCard(this.demoCurrentWord);
     this.updateDemoStageCards(this.demoCurrentWord, "系統開局", "🚩 系統出題 · 初始陣勢", "天馬行空開局，雙雄對決即將開鑼！");
+    this.updateLiveBanter("🚩", `系統立題【${this.demoCurrentWord}】，雙雄對決正式開擂！`);
     this.updateLiveBanter("🚩", `系統立題【${this.demoCurrentWord}】，雙雄對決正式開擂！`, true);
 
     // 登錄雙雄對戰 Log 首輪紀錄
@@ -3496,10 +3572,11 @@ class WordChainWeb {
 
     const speakerType = (this.demoTurn === 1) ? "demo-p1" : "demo-p2";
 
-    // 2D 棋盤落子 (啟用空間避障氣泡)
-    this.placeWordOnBoard(nextWord, speakerType, `${persona.name}：${banter}`, false, false, true);
+    // 2D 棋盤落子 (共用 cross-board-grid 棋盤)
+    this.placeWordOnBoard(nextWord, speakerType, `${persona.name}：${banter}`, false, false, false);
 
     // 雙雄歷史流轉表追加
+    this.appendFlowTableRow(this.demoRound, `${persona.icon} ${persona.name}`, nextWord, matchDesc, 1.2, 0);
     this.appendDemoFlowTableRow(this.demoRound, `${persona.icon} ${persona.name}`, nextWord, matchDesc, 1.2);
 
     // 登錄雙雄對戰 Log
@@ -3517,6 +3594,9 @@ class WordChainWeb {
     });
 
     // 更新狀態卡與即時心戰對白
+    this.updateTargetCard(nextWord);
+    this.updateStoryCard(nextWord);
+    this.updateLiveBanter(persona.icon, `${persona.name}打出【${nextWord}】(${matchDesc}) ——「${banter}」`);
     this.updateDemoStageCards(nextWord, persona.name, appraisal, banter);
     this.updateLiveBanter(persona.icon, `${persona.name}打出【${nextWord}】(${matchDesc}) ——「${banter}」`, true);
 
@@ -3600,44 +3680,21 @@ class WordChainWeb {
       this.demoTimer = null;
       this.isDemoRunning = false;
       const btn = document.getElementById("btn-start-demo");
-      if (btn) btn.innerText = "開始演示";
+      if (btn) {
+        const full = btn.querySelector(".btn-text-full");
+        const short = btn.querySelector(".btn-text-short");
+        if (full && short) { full.innerText = "開始演示"; short.innerText = "開始"; }
+        else { btn.innerText = "開始演示"; }
+      }
     }
 
-    // 切換回 Tab 1 人機對決
-    const tabBattleBtn = document.querySelector('[data-target="tab-battle"]');
-    if (tabBattleBtn) tabBattleBtn.click();
+    // 切換回人機對決模式
+    this.setGameMode("battle");
 
-    // 完整繼承雙雄戰局盤面與詞語狀態！
-    this.boardMap = new Map(this.demoBoardMap);
-    this.lastTailCoord = { ...this.demoLastTailCoord };
-    this.lastDirection = this.demoLastDirection;
-    this.minRow = this.demoMinRow;
-    this.maxRow = this.demoMaxRow;
-    this.minCol = this.demoMinCol;
-    this.maxCol = this.demoMaxCol;
-    this.roundCount = this.demoRound;
-
+    // 棋盤本已共用，無縫承接盤面與題目！
     this.battleCurrentWord = this.demoCurrentWord;
     this.battleUsedWords = new Set(this.demoUsedWords);
-
-    // 將 demo-board-grid 內容遷移複製到 cross-board-grid
-    const grid = document.getElementById("cross-board-grid");
-    const demoGrid = document.getElementById("demo-board-grid");
-    if (grid && demoGrid) {
-      grid.innerHTML = demoGrid.innerHTML;
-      grid.style.width = demoGrid.style.width;
-      grid.style.height = demoGrid.style.height;
-      Array.from(grid.querySelectorAll("[id^='demo-cell-']")).forEach(el => {
-        el.id = el.id.replace("demo-cell-", "cell-");
-      });
-    }
-
-    // 將 demo 流轉表同步到 Tab 1 流轉表
-    const flowTbody = document.getElementById("flow-table-body");
-    const demoTbody = document.getElementById("demo-table-body");
-    if (flowTbody && demoTbody) {
-      flowTbody.innerHTML = demoTbody.innerHTML;
-    }
+    this.roundCount = this.demoRound;
 
     // 更新各狀態卡片
     this.updateTargetCard(this.battleCurrentWord);
@@ -3646,8 +3703,15 @@ class WordChainWeb {
     this.updateScorerCard(this.roundCount, "⚡ 戰局接管", this.battleCurrentWord, "接管戰局", "0.0s", `${this.battleCurrentWord.length}字`, "🟢戰局轉折", "等待閣下出招", 0, 0);
 
     this.updateRomanceStatus("player");
+    this.hasPlayerStarted = true;
     this.startTimer();
     showToast(`⚔️ 閣下已強勢接管戰局！請接【${this.battleCurrentWord}】！`, "success", 3500);
+
+    const inputWord = document.getElementById("input-word");
+    if (inputWord) {
+      inputWord.value = "";
+      setTimeout(() => inputWord.focus(), 100);
+    }
   }
 
   // ==========================================
