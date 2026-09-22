@@ -121,7 +121,7 @@ function checkPhoneticMatch(targetChar, headChar, allowHomo = true, strictTone =
     return { match: false, reason: `本局設定「僅限同字直咬」，首字必須為「${targetChar}」！` };
   }
 
-  // 2. 詞彙語境讀音比對 (Contextual Word Phonetics - 具體詞彙發音最優先)
+  // 2. 詞彙語境讀音比對 (Contextual Word Phonetics - 具體詞彙發音優先)
   const actualTargetZh = targetWord ? getWordTailZhuyin(targetWord) : getCharZhuyin(targetChar);
   const actualHeadZh = headWord ? getWordHeadZhuyin(headWord) : getCharZhuyin(headChar);
 
@@ -140,7 +140,45 @@ function checkPhoneticMatch(targetChar, headChar, allowHomo = true, strictTone =
           matchingZhuyin: actualHeadZh,
           targetZhuyin: actualTargetZh
         };
-      } else if (!strictTone) {
+      }
+
+      // 基音相符但主音聲調不符：進一步檢查多音/破音字庫 (Polyphonic Tone Adaptation)
+      // 若首字未被強制指定相異詞義音讀，且其字典收錄了與目標同調之音讀，判定為合法同調破音字！
+      const hasHeadExplicit = !!(headWord && window.WORD_OVERRIDES && window.WORD_OVERRIDES[headWord] && window.WORD_OVERRIDES[headWord].h);
+      const hasTargetExplicit = !!(targetWord && window.WORD_OVERRIDES && window.WORD_OVERRIDES[targetWord] && window.WORD_OVERRIDES[targetWord].t);
+
+      if (!hasHeadExplicit) {
+        const headReadings = getCharAllReadings(headChar);
+        for (const [hZh] of headReadings) {
+          if (getBaseZhuyin(hZh) === tBase && parseZhuyinTone(hZh) === tTone) {
+            return {
+              match: true,
+              isExact: false,
+              desc: `🎵同音同調 (${headChar}:${hZh} ⇋ ${targetChar}:${actualTargetZh})`,
+              matchingZhuyin: hZh,
+              targetZhuyin: actualTargetZh
+            };
+          }
+        }
+      }
+
+      if (!hasTargetExplicit) {
+        const targetReadings = getCharAllReadings(targetChar);
+        for (const [tZh] of targetReadings) {
+          if (getBaseZhuyin(tZh) === hBase && parseZhuyinTone(tZh) === hTone) {
+            return {
+              match: true,
+              isExact: false,
+              desc: `🎵同音同調 (${headChar}:${actualHeadZh} ⇋ ${targetChar}:${tZh})`,
+              matchingZhuyin: actualHeadZh,
+              targetZhuyin: tZh
+            };
+          }
+        }
+      }
+
+      // 若兩者均無匹配之聲調
+      if (!strictTone) {
         return {
           match: true,
           isExact: false,
@@ -155,7 +193,63 @@ function checkPhoneticMatch(targetChar, headChar, allowHomo = true, strictTone =
         };
       }
     } else if (targetWord && headWord) {
-      // 兩造均為具體詞彙且語境讀音不符，直接判定不相符，嚴禁偷換破音字讀音！
+      // 兩造均為具體詞彙且基音不符
+      // 若首字未被強制鎖定音讀，檢查是否在首字多音字中有與目標基音完全匹配者
+      const hasHeadExplicit = !!(window.WORD_OVERRIDES && window.WORD_OVERRIDES[headWord] && window.WORD_OVERRIDES[headWord].h);
+      const hasTargetExplicit = !!(window.WORD_OVERRIDES && window.WORD_OVERRIDES[targetWord] && window.WORD_OVERRIDES[targetWord].t);
+
+      let crossMatch = null;
+      if (!hasHeadExplicit) {
+        const headReadings = getCharAllReadings(headChar);
+        for (const [hZh] of headReadings) {
+          const hb = getBaseZhuyin(hZh);
+          const ht = parseZhuyinTone(hZh);
+          if (hb === tBase) {
+            if (ht === tTone) {
+              return {
+                match: true,
+                isExact: false,
+                desc: `🎵同音同調 (${headChar}:${hZh} ⇋ ${targetChar}:${actualTargetZh})`,
+                matchingZhuyin: hZh,
+                targetZhuyin: actualTargetZh
+              };
+            } else if (!strictTone && !crossMatch) {
+              crossMatch = { hZh, tZh: actualTargetZh };
+            }
+          }
+        }
+      }
+      if (!hasTargetExplicit) {
+        const targetReadings = getCharAllReadings(targetChar);
+        for (const [tZh] of targetReadings) {
+          const tb = getBaseZhuyin(tZh);
+          const tt = parseZhuyinTone(tZh);
+          if (tb === hBase) {
+            if (tt === hTone) {
+              return {
+                match: true,
+                isExact: false,
+                desc: `🎵同音同調 (${headChar}:${actualHeadZh} ⇋ ${targetChar}:${tZh})`,
+                matchingZhuyin: actualHeadZh,
+                targetZhuyin: tZh
+              };
+            } else if (!strictTone && !crossMatch) {
+              crossMatch = { hZh: actualHeadZh, tZh };
+            }
+          }
+        }
+      }
+
+      if (crossMatch && !strictTone) {
+        return {
+          match: true,
+          isExact: false,
+          desc: `🎶同音通押 (${headChar}:${crossMatch.hZh} ⇋ ${targetChar}:${crossMatch.tZh})`,
+          matchingZhuyin: crossMatch.hZh,
+          targetZhuyin: crossMatch.tZh
+        };
+      }
+
       return {
         match: false,
         reason: `首字「${headChar}」(${actualHeadZh}) 與目標「${targetChar}」(${actualTargetZh}) 聲韻不合！`
@@ -163,9 +257,9 @@ function checkPhoneticMatch(targetChar, headChar, allowHomo = true, strictTone =
     }
   }
 
-  // 3. 多音字比對 (僅當未傳入具體詞彙時，方允許在修剪後之單字讀音庫中探索)
-  const targetReadings = targetWord && actualTargetZh ? [[actualTargetZh, '']] : getCharAllReadings(targetChar);
-  const headReadings = headWord && actualHeadZh ? [[actualHeadZh, '']] : getCharAllReadings(headChar);
+  // 3. 多音字比對 (單字無詞彙語境時)
+  const targetReadings = getCharAllReadings(targetChar);
+  const headReadings = getCharAllReadings(headChar);
 
   if (targetReadings.length > 0 && headReadings.length > 0) {
     let toneMismatchCandidate = null;
@@ -2920,11 +3014,29 @@ class WordChainWeb {
           const hBase = getBaseZhuyin(candHeadZh);
           const hTone = parseZhuyinTone(candHeadZh);
 
+          let matched = false;
           for (let i = 0; i < targetBases.length; i++) {
-            if (hBase === targetBases[i] && (!this.strictTone || hTone === targetTones[i])) {
-              entries.push(wordEntry);
-              break;
+            if (hBase === targetBases[i]) {
+              if (!this.strictTone || hTone === targetTones[i]) {
+                matched = true;
+                break;
+              } else {
+                // 若單純聲調不同，檢查首字破音字庫中是否包含該同基音之聲調
+                const hasExplicit = window.WORD_OVERRIDES && window.WORD_OVERRIDES[candWord] && window.WORD_OVERRIDES[candWord].h;
+                if (!hasExplicit) {
+                  for (const [rZh] of headReadings) {
+                    if (getBaseZhuyin(rZh) === targetBases[i] && parseZhuyinTone(rZh) === targetTones[i]) {
+                      matched = true;
+                      break;
+                    }
+                  }
+                  if (matched) break;
+                }
+              }
             }
+          }
+          if (matched) {
+            entries.push(wordEntry);
           }
         }
       }

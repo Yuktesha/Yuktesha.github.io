@@ -465,6 +465,25 @@ def process_lexicon(data, cat_chengyu, mcb_tuple):
         if override:
             word_overrides[w] = override
 
+    # 手動權威多音字語境正音補遺 (防止辭典未收錄口語標準三聲如「籠絡」)
+    MANUAL_OVERRIDES = {
+        '籠絡': {'h': 'ㄌㄨㄥˇ'},
+        '籠統': {'h': 'ㄌㄨㄥˇ'},
+        '籠罩': {'h': 'ㄌㄨㄥˇ'},
+        '籠括': {'h': 'ㄌㄨㄥˇ'},
+        '籠蓋': {'h': 'ㄌㄨㄥˇ'},
+        '籠絆': {'h': 'ㄌㄨㄥˇ'},
+        '籠侗': {'h': 'ㄌㄨㄥˇ'},
+        '籠利': {'h': 'ㄌㄨㄥˇ'},
+        '包籠': {'t': 'ㄌㄨㄥˇ'},
+        '不受籠絡': {'t': 'ㄌㄨㄥˇ'}
+    }
+    for mw, mov in MANUAL_OVERRIDES.items():
+        if mw in word_overrides:
+            word_overrides[mw].update(mov)
+        else:
+            word_overrides[mw] = mov
+
     print(f"    共辨識出 {len(word_overrides):,} 條詞彙存在首/尾字特殊語境音讀（如「便宜」首字ㄆㄧㄢˊ、「口吃」尾字ㄐㄧˊ）")
 
     # 7. 圖論計算：尾字出度 (Outdegree Graph) 與戰略評分
