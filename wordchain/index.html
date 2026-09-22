@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>字戀 (WordChain) - 文壇縱橫對弈 · 漢字聲韻博弈</title>
-  <link rel="stylesheet" href="style.css?v=3.0">
+  <link rel="stylesheet" href="style.css?v=3.1">
   <style>
     /* 防快取滯後：預設隱藏次級與精簡文字，交由 CSS media query 精確接管 */
     .status-text-med, .status-text-short, .tab-text-short, .btn-text-short, .fs-text-short { display: none; }
@@ -185,6 +185,7 @@
           <div class="wisdom-zoom-dock" id="wisdom-zoom-dock">
             <div class="wisdom-dock-header">
               <div class="wisdom-drag-handle" id="wisdom-drag-handle" title="按住可自由拖曳移動">⠿ 典故觀瞻</div>
+              <span class="wisdom-mini-target" id="wisdom-mini-target" title="當前接龍目標字" style="display:none;">空</span>
               <div class="zoom-controls-row" id="zoom-hud-battle">
                 <button class="zoom-btn" id="btn-zoom-in" title="放大字陣 (滾輪向前)">➕</button>
                 <span class="zoom-level" id="zoom-val-battle" title="目前縮放比例 (點擊重設 100%)">100%</span>
@@ -194,6 +195,16 @@
               <button class="btn-wisdom-minimize" id="btn-toggle-wisdom-dock" title="收合/展開典故視窗">▾</button>
             </div>
             <div class="wisdom-content" id="wisdom-content">
+              <!-- 🎯 整合接龍目標橫幅 (原左下角元件，合併至此) -->
+              <div class="wisdom-target-banner">
+                <div class="target-char" id="target-char" title="當前接龍目標字">空</div>
+                <div class="wisdom-target-details">
+                  <div class="target-prev-word" id="target-info">上一詞：天馬行空</div>
+                  <div class="target-radar-pill" id="target-radar">【出度雷達】🟢 汪洋大海</div>
+                </div>
+              </div>
+
+              <!-- 📖 成語典故箋紙 -->
               <div class="story-card" id="story-card-compact">
                 <div class="story-title" id="story-title">📖 成語典故</div>
                 <div class="story-body" id="story-body">正在載入成語背景典故...</div>
@@ -221,16 +232,8 @@
             </table>
           </div>
 
-          <!-- 📍 左下角極簡目標膠囊 (Mini Target Capsule · 輕巧不擋盤) -->
-          <div class="mini-target-capsule" id="mini-target-capsule">
-            <div class="target-char" id="target-char" title="當前接龍目標字">空</div>
-            <div class="capsule-meta">
-              <div id="target-info" class="target-prev-word">上一詞：天馬行空</div>
-              <div id="target-radar" class="target-radar-pill">【出度雷達】🟢 汪洋大海</div>
-            </div>
-          </div>
-
           <!-- 隱形相容性節點 (保留舊 DOM ID 供原有邏輯寫入，避免破壞性報錯) -->
+          <div id="mini-target-capsule" style="display:none;"></div>
           <div id="integrated-hud-battle" style="display:none;">
             <button id="btn-toggle-hud-battle"></button>
             <div id="scorer-card">
@@ -467,10 +470,10 @@
     </div>
   </div>
 
-  <script src="zhuyin_data.js?v=3.0"></script>
-  <script src="lexicon_data.js?v=3.0"></script>
-  <script src="story_data.js?v=3.0"></script>
-  <script src="career_database.js?v=3.0"></script>
-  <script src="game.js?v=3.0"></script>
+  <script src="zhuyin_data.js?v=3.1"></script>
+  <script src="lexicon_data.js?v=3.1"></script>
+  <script src="story_data.js?v=3.1"></script>
+  <script src="career_database.js?v=3.1"></script>
+  <script src="game.js?v=3.1"></script>
 </body>
 </html>

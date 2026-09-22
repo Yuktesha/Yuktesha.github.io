@@ -2075,33 +2075,13 @@ class WordChainWeb {
       }
     });
 
-    // 清理舊氣泡：僅保留至多 1 個前輪氣泡淡化，其餘全部移除，杜絕遮擋堆疊
+    // 清理殘留舊氣泡 (對弈對白已全面精簡整合至中下方心戰氣泡，棋盤保持 100% 乾淨無遮擋)
     const oldBubbles = Array.from(grid.querySelectorAll(".board-bubble"));
-    while (oldBubbles.length > 1) {
-      const b = oldBubbles.shift();
+    oldBubbles.forEach(b => {
       if (b && b.parentNode) b.parentNode.removeChild(b);
-    }
-    if (oldBubbles.length === 1) {
-      oldBubbles[0].style.opacity = "0.28";
-      oldBubbles[0].style.pointerEvents = "none";
-    }
+    });
 
-    // 在當前落子處生成對弈氣泡 (透過 findClearBubblePosition 智能避開已佔格)
-    let bubblePos = null;
-    if (banterText) {
-      const isEven = isDemo ? (this.demoRound % 2 === 0) : (this.roundCount % 2 === 0);
-      const curDir = isDemo ? this.demoLastDirection : this.lastDirection;
-      bubblePos = this.findClearBubblePosition(boardMap, placedCoords, isEven, curDir);
-
-      const bubble = document.createElement("div");
-      bubble.className = `board-bubble ${bubblePos.arrowClass}`;
-      bubble.style.left = `${bubblePos.bLeft}px`;
-      bubble.style.top = `${bubblePos.bTop}px`;
-      bubble.innerText = banterText;
-      grid.appendChild(bubble);
-    }
-
-    // 平滑滾動視窗聚焦於最新落子與氣泡處 (預留 90px 舒適呼吸空間，徹底避免貼邊或切字)
+    // 平滑滾動視窗聚焦於最新落子字陣處 (預留 100px 舒適呼吸空間，徹底避免貼邊或切字)
     const viewport = document.getElementById(viewportId);
     if (viewport) {
       let minX = Math.min(...placedCoords.map(p => p.col * 44));
@@ -2109,15 +2089,8 @@ class WordChainWeb {
       let minY = Math.min(...placedCoords.map(p => p.row * 44));
       let maxY = Math.max(...placedCoords.map(p => (p.row + 1) * 44));
 
-      if (bubblePos) {
-        minX = Math.min(minX, bubblePos.bLeft);
-        maxX = Math.max(maxX, bubblePos.bLeft + 220);
-        minY = Math.min(minY, bubblePos.bTop);
-        maxY = Math.max(maxY, bubblePos.bTop + 56);
-      }
-
-      // 預留 90px 呼吸邊距
-      const PADDING = 90;
+      // 預留 100px 呼吸邊距
+      const PADDING = 100;
       const roiMinX = Math.max(0, minX - PADDING);
       const roiMaxX = maxX + PADDING;
       const roiMinY = Math.max(0, minY - PADDING);
@@ -2851,8 +2824,10 @@ class WordChainWeb {
     const targetCharEl = document.getElementById("target-char");
     const targetInfoEl = document.getElementById("target-info");
     const radarElem = document.getElementById("target-radar");
+    const miniTargetEl = document.getElementById("wisdom-mini-target");
 
     if (targetCharEl) targetCharEl.innerText = tail;
+    if (miniTargetEl) miniTargetEl.innerText = tail;
     if (targetInfoEl) targetInfoEl.innerText = `上一詞：${cleanWord}${zhuyinStr}${pinyinStr}`;
     if (radarElem) {
       radarElem.innerText = `【出度雷達】${tag} | ${desc}`;
