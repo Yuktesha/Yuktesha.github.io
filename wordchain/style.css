@@ -1003,6 +1003,25 @@ main {
   flex-shrink: 0;
 }
 
+.control-options-drawer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  flex: 1;
+}
+
+.control-actions-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-left: auto;
+}
+
+.btn-opt-toggle {
+  display: none;
+}
+
 /* HUD 戰鬥儀表 */
 .hud-bar {
   display: flex;
@@ -2165,201 +2184,358 @@ th {
   .btn-text-full, .fs-text-full { display: none !important; }
   .btn-text-short, .fs-text-short { display: inline !important; }
 
-  /* 2. 主容器自適應：自然向下展開，絕不截斷鎖死 */
+  /* ========================================================= */
+  /* 2. rud() 空間接管第一原理：全幅自適應主容器 (No Dead Void) */
+  /* ========================================================= */
+  html, body {
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden !important;
+  }
+
   main {
-    flex: 1 0 auto;
-    overflow: visible;
-    min-height: auto;
-    padding: 6px 6px 8px;
-    gap: 6px;
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+    padding: 4px 6px;
+    gap: 4px;
+    display: flex;
+    flex-direction: column;
   }
 
   .battle-grid, .demo-arena-grid {
     display: flex;
     flex-direction: column;
-    overflow: visible;
-    flex: none;
-    min-height: auto;
-    gap: 8px;
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    gap: 4px;
+    position: relative;
   }
 
-  /* 3. 控制面板折行與按鈕適配 */
+  /* 3. 控制面板：單行優先原則 + 抽屜式優雅折疊 */
   .control-bar {
-    padding: 4px 6px;
-    gap: 4px 6px;
+    padding: 3px 6px;
+    gap: 4px;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
   }
+
+  .control-actions-row {
+    display: flex;
+    gap: 4px;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    margin-left: 0;
+  }
+
+  .btn-opt-toggle {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 3px 7px !important;
+    font-size: 0.78rem !important;
+    border-radius: var(--radius-md);
+    border-color: var(--accent-gold);
+    color: var(--accent-gold);
+    flex-shrink: 0;
+  }
+
+  .btn-opt-toggle.active {
+    background: rgba(254, 202, 87, 0.25);
+    box-shadow: 0 0 8px rgba(254, 202, 87, 0.4);
+  }
+
+  .control-actions-row button {
+    padding: 3px 7px;
+    font-size: 0.76rem;
+    flex: 1;
+    white-space: nowrap;
+  }
+
+  .control-actions-row button.btn-primary {
+    flex: 1.4;
+    font-weight: bold;
+  }
+
+  .control-options-drawer {
+    display: none;
+    flex-wrap: wrap;
+    gap: 3px 6px;
+    padding-top: 4px;
+    border-top: 1px dashed var(--bg-card-border);
+    animation: drawerSlide 0.2s ease-out;
+  }
+
+  .control-options-drawer.open {
+    display: flex !important;
+  }
+
+  @keyframes drawerSlide {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
   .control-group {
-    font-size: 0.74rem;
+    font-size: 0.72rem;
     gap: 3px;
   }
-  select, input, button {
-    padding: 3px 6px;
-    font-size: 0.76rem;
-  }
-  .control-bar > div:last-child {
-    width: 100%;
-    justify-content: flex-end;
-    margin-top: 2px;
-  }
-  .control-bar button {
-    padding: 4px 10px;
-    font-size: 0.78rem;
+
+  select, input {
+    padding: 2px 4px;
+    font-size: 0.74rem;
   }
 
-  /* 4. HUD 戰鬥狀態儀表收斂 */
+  /* 4. HUD 戰鬥狀態儀表：單行貫穿收斂 */
   .hud-bar {
-    padding: 4px 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2px 6px;
+    min-height: 28px;
+    gap: 4px;
+    flex-shrink: 0;
   }
+
+  .hud-player-cell, .hud-ai-cell {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .hud-timer-cell {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    white-space: nowrap;
+  }
+
+  .hud-bar .badge-status-romance {
+    display: none !important;
+  }
+
+  .hud-hp-box {
+    width: 42px !important;
+    height: 6px !important;
+  }
+
+  .hud-timer-box {
+    width: 28px !important;
+    height: 5px !important;
+  }
+
   #lbl-player-score, #lbl-ai-score {
-    font-size: 0.8rem;
+    font-size: 0.72rem !important;
+    white-space: nowrap !important;
   }
+
   #lbl-timer {
-    font-size: 0.85rem;
-  }
-  .badge-status-romance {
-    font-size: 0.68rem;
-    padding: 1px 5px;
+    font-size: 0.75rem !important;
+    white-space: nowrap !important;
   }
 
-  /* 5. 行動端適配：右上角典故視窗、左下角膠囊與底部行動列 */
-  .wisdom-zoom-dock {
-    top: 40px;
-    right: 8px;
-    width: min(280px, calc(100% - 16px));
-  }
-  .mini-target-capsule {
-    bottom: 84px;
-    left: 8px;
-    padding: 4px 10px 4px 6px;
-    max-width: calc(100% - 16px);
-  }
-  .mini-target-capsule .target-char {
-    width: 32px;
-    height: 32px;
-    font-size: 1.15rem;
-  }
-  .action-dock-container {
-    left: 50%;
-    transform: translateX(-50%);
-    width: calc(100% - 16px);
-    bottom: 8px;
-  }
-
-  .demo-stage-title {
-    font-size: 0.82rem;
-    margin-bottom: 4px !important;
-    white-space: nowrap;
-  }
-
-  .demo-p-box {
-    padding: 3px 8px !important;
-    margin-bottom: 3px !important;
-    border-radius: 6px;
-  }
-  .demo-p-box:last-child {
-    margin-bottom: 0 !important;
-  }
-
-  .p-name {
-    font-size: 0.78rem;
-  }
-  .p-status {
-    font-size: 0.72rem;
-  }
-
-  .card-caption {
-    font-size: 0.72rem;
-  }
-  .target-char {
-    font-size: 1.35rem !important;
-    line-height: 1.1 !important;
-    margin: 1px 0 !important;
-  }
-  .target-word {
-    font-size: 0.78rem !important;
-    margin-bottom: 2px !important;
-    white-space: nowrap;
-  }
-  .target-phonetic {
-    font-size: 0.7rem !important;
-    white-space: nowrap;
-  }
-
-  .referee-title {
-    font-size: 0.78rem;
-    font-weight: bold;
-    color: var(--accent-cyan);
-    margin-bottom: 2px;
-  }
-  .referee-body {
-    font-size: 0.72rem;
-    line-height: 1.25;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-  #scorer-title, .story-title {
-    font-size: 0.78rem;
-    margin-bottom: 2px;
-  }
-  #scorer-detail, #scorer-radar, #scorer-summary, .story-body {
-    font-size: 0.7rem;
-    line-height: 1.25;
-  }
-
-  /* 6. 右側棋盤主舞台：保證行動端充足觀盤高度 */
+  /* 5. 棋盤主舞台：100% 空間接管，徹底消滅 320px 假高度限制與黑洞死區 */
   .arena-board-container {
-    padding: 6px 8px;
-    height: 320px;
-    min-height: 260px;
-    flex: none;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    height: 100% !important;
+    max-height: none !important;
+    padding: 4px;
+    overflow: hidden;
+    position: relative;
+    border-radius: var(--radius-md);
   }
+
+  .board-header {
+    padding: 1px 4px 3px;
+    margin-bottom: 2px;
+    flex-shrink: 0;
+  }
+
+  .board-header .board-subtitle {
+    display: none !important;
+  }
+
+  .view-btn {
+    padding: 2px 6px;
+    font-size: 0.72rem;
+  }
+
   .cross-board-viewport {
     flex: 1;
-    min-height: 180px;
-    padding: 8px;
+    min-height: 0;
+    height: 100%;
+    width: 100%;
+    padding: 4px;
+    border-radius: var(--radius-sm);
   }
 
-  /* 7. 縮放 HUD 控制器在窄螢幕更緊湊靠右 */
-  .board-zoom-hud {
-    top: 36px;
-    right: 8px;
-    padding: 2px;
+  /* 6. 右上角成語典故視窗 (Wisdom & Zoom Dock) 直版自適應優化 */
+  .wisdom-zoom-dock {
+    top: 32px;
+    right: 4px;
+    max-width: calc(100% - 8px);
+    z-index: 50;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   }
-  .zoom-btn {
-    width: 26px;
-    height: 26px;
-    font-size: 0.75rem;
+
+  .wisdom-zoom-dock.minimized {
+    width: auto;
+    background: rgba(18, 24, 38, 0.94);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6);
+    border-radius: 20px;
   }
-  .zoom-level {
-    font-size: 0.62rem;
+
+  .wisdom-zoom-dock.minimized .wisdom-dock-header {
+    padding: 2px 6px;
+    gap: 4px;
+  }
+
+  .wisdom-drag-handle {
+    font-size: 0.72rem;
     padding: 1px 2px;
   }
 
-  /* 8. 底部即時心戰與輸入出招列 */
-  .live-banter-card {
-    padding: 4px 8px;
-    margin-top: 4px;
-  }
-  .banter-speaker-icon {
-    font-size: 0.95rem;
-  }
-  .banter-text {
+  .wisdom-mini-target {
+    width: 20px;
+    height: 20px;
     font-size: 0.75rem;
-    line-height: 1.25;
   }
-  .input-dock {
-    margin-top: 4px;
+
+  .zoom-controls-row {
+    gap: 2px;
+  }
+
+  .zoom-btn {
+    width: 20px;
+    height: 20px;
+    font-size: 0.68rem;
+  }
+
+  .zoom-level {
+    font-size: 0.62rem;
+    padding: 0 1px;
+  }
+
+  .btn-wisdom-minimize {
+    width: 20px;
+    height: 20px;
+    font-size: 0.75rem;
+  }
+
+  .wisdom-zoom-dock:not(.minimized) {
+    width: min(320px, calc(100% - 12px));
+    max-height: 230px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.85);
+  }
+
+  .wisdom-zoom-dock:not(.minimized) .wisdom-content {
+    max-height: 180px;
+    overflow-y: auto;
+    padding: 4px 6px;
+  }
+
+  .wisdom-target-banner {
+    padding: 4px 6px;
     gap: 6px;
   }
-  .input-dock input {
-    font-size: 0.88rem;
-    padding: 6px 10px;
+
+  .wisdom-target-banner .target-char {
+    width: 28px;
+    height: 28px;
+    font-size: 1.05rem;
   }
+
+  .wisdom-target-details .target-prev-word {
+    font-size: 0.72rem;
+  }
+
+  .wisdom-target-details .target-radar-pill {
+    font-size: 0.68rem;
+    padding: 1px 4px;
+  }
+
+  .wisdom-content .story-card {
+    padding: 4px 6px;
+  }
+
+  .wisdom-content .story-title {
+    font-size: 0.74rem;
+  }
+
+  .wisdom-content .story-body {
+    font-size: 0.68rem;
+    max-height: 70px;
+  }
+
+  /* 7. 底部即時心戰與輸入出招列：浮動置底，不擠壓棋盤主視窗 */
+  .action-dock-container {
+    position: absolute;
+    bottom: calc(4px + env(safe-area-inset-bottom, 0px));
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100% - 8px);
+    max-width: 480px;
+    z-index: 40;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    pointer-events: none;
+  }
+
+  .action-dock-container > * {
+    pointer-events: auto;
+  }
+
+  .live-banter-card {
+    padding: 3px 6px;
+    margin-top: 0;
+    border-radius: var(--radius-md);
+  }
+
+  .banter-speaker-icon {
+    font-size: 0.82rem;
+  }
+
+  .banter-text {
+    font-size: 0.72rem;
+    line-height: 1.2;
+  }
+
+  .input-dock {
+    margin-top: 0;
+    gap: 4px;
+    display: flex;
+  }
+
+  .input-dock input {
+    font-size: 0.84rem;
+    padding: 5px 8px;
+    height: 34px;
+  }
+
   .input-dock button {
-    padding: 0 14px;
-    font-size: 0.88rem;
+    padding: 0 12px;
+    font-size: 0.82rem;
+    height: 34px;
+    white-space: nowrap;
+  }
+
+  .demo-dock-bar {
+    gap: 4px;
+  }
+
+  .demo-dock-bar button {
+    padding: 4px 8px;
+    font-size: 0.76rem;
   }
 }
 

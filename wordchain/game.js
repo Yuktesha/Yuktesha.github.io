@@ -764,15 +764,33 @@ class WordChainWeb {
     const btnToggleWisdom = document.getElementById("btn-toggle-wisdom-dock");
     const wisdomDock = document.getElementById("wisdom-zoom-dock");
     if (btnToggleWisdom && wisdomDock) {
+      // 在直版/行動端環境下，預設自動收合，保障棋盤 100% 開闊無遮擋 (rud 標準)
+      const isPortraitTerminal = (window.innerWidth <= 768 || window.innerHeight > window.innerWidth);
+      if (isPortraitTerminal) {
+        wisdomDock.classList.add("minimized");
+        btnToggleWisdom.innerText = "▾";
+        btnToggleWisdom.title = "展開典故視窗";
+      }
+
       btnToggleWisdom.addEventListener("click", (e) => {
         e.stopPropagation();
         wisdomDock.classList.toggle("minimized");
-        btnToggleWisdom.innerText = wisdomDock.classList.contains("minimized") ? "▴" : "▾";
+        btnToggleWisdom.innerText = wisdomDock.classList.contains("minimized") ? "▾" : "▴";
         btnToggleWisdom.title = wisdomDock.classList.contains("minimized") ? "展開典故視窗" : "收合典故視窗";
       });
     }
     if (wisdomDock) {
       this.makeDraggable(wisdomDock, "wordchain_wisdom_dock_pos", ".wisdom-drag-handle");
+    }
+
+    // ⚙️ 控制面板直版抽屜切換 (rud 行動自適應單行優先)
+    const btnToggleOptions = document.getElementById("btn-toggle-options");
+    const optionsDrawer = document.getElementById("control-options-drawer");
+    if (btnToggleOptions && optionsDrawer) {
+      btnToggleOptions.addEventListener("click", () => {
+        optionsDrawer.classList.toggle("open");
+        btnToggleOptions.classList.toggle("active", optionsDrawer.classList.contains("open"));
+      });
     }
 
     // 📍 左下角整合式資訊儀表板相容切換
@@ -2382,9 +2400,11 @@ class WordChainWeb {
     if (lastCoord) {
       const scale = viewport._zoomScale || 1.0;
       if (rounds <= 1) {
+        const targetX = (lastCoord.col * 44 + 22) * scale;
+        const targetY = (lastCoord.row * 44 + 22) * scale;
         viewport.scrollTo({
-          left: Math.max(0, (1 * 44 * scale) - 16),
-          top: Math.max(0, (1 * 44 * scale) - 16),
+          left: Math.max(0, targetX - viewport.clientWidth / 2),
+          top: Math.max(0, targetY - viewport.clientHeight / 3),
           behavior: "smooth"
         });
       } else {

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>字戀 (WordChain) - 文壇縱橫對弈 · 漢字聲韻博弈</title>
-  <link rel="stylesheet" href="style.css?v=3.2">
+  <link rel="stylesheet" href="style.css?v=3.3">
   <style>
     /* 防快取滯後：預設隱藏次級與精簡文字，交由 CSS media query 精確接管 */
     .status-text-med, .status-text-short, .tab-text-short, .btn-text-short, .fs-text-short { display: none; }
@@ -73,80 +73,89 @@
   <main>
     <!-- TAB 1: 人機對決 -->
     <section id="tab-battle" class="tab-pane active">
-      <div class="control-bar">
-        <div class="control-group" id="group-game-mode">
-          <label>模式：</label>
-          <select id="select-game-mode" style="border-color:var(--accent-gold); font-weight:bold; color:var(--accent-gold);">
-            <option value="battle" selected>⚔️ 閣下親征</option>
-            <option value="demo">🎭 雙雄相聲</option>
-          </select>
-        </div>
-        <div class="control-group" id="group-persona">
-          <label>對手：</label>
-          <select id="select-persona">
-            <option value="ji_xiaolan">🧐 紀曉嵐 (毒舌博學)</option>
-            <option value="li_bai">🍶 李白 (豪放詩仙)</option>
-            <option value="bao_zheng">⚖️ 包拯 (鐵面判官)</option>
-          </select>
-        </div>
-        <div class="control-group">
-          <label>難度：</label>
-          <select id="select-diff">
-            <option value="easy">寬宏 (易)</option>
-            <option value="normal" selected>旗鼓 (中)</option>
-            <option value="hard">絕殺 (難)</option>
-          </select>
-        </div>
-        <div class="control-group">
-          <input type="checkbox" id="chk-homo" checked>
-          <label for="chk-homo">同音字接龍</label>
-        </div>
-        <div class="control-group">
-          <input type="checkbox" id="chk-strict-tone" checked>
-          <label for="chk-strict-tone">嚴格同調</label>
-        </div>
-        <div class="control-group" id="group-homo-style">
-          <label>同音呈現：</label>
-          <select id="select-homo-style" title="同音不同字樞紐格的呈現方式">
-            <option value="tile" selected>合璧雙字磚</option>
-            <option value="bridge">雙星音律橋</option>
-            <option value="flip">太極翻轉牌</option>
-          </select>
-        </div>
-        <div class="control-group">
-          <label>限時：</label>
-          <select id="select-time-limit">
-            <option value="0">無限制</option>
-            <option value="60">60 秒</option>
-            <option value="30" selected>30 秒 (預設)</option>
-            <option value="15">15 秒</option>
-            <option value="10">10 秒 (極速)</option>
-          </select>
-        </div>
-        <div style="margin-left:auto; display:flex; gap:8px;">
+      <div class="control-bar" id="control-bar">
+        <!-- 核心操作剛需按鈕列 (永遠常駐單行) -->
+        <div class="control-actions-row">
+          <button id="btn-toggle-options" class="btn-secondary btn-opt-toggle" title="展開/收合設定面板">
+            <span class="opt-icon">⚙️</span>
+            <span class="btn-text-full">設定</span>
+          </button>
           <button id="btn-new-game" class="btn-primary" title="立題後等候閣下首招接龍，出第一招後正式起鐘計時">開始新局</button>
           <button id="btn-hint" class="btn-secondary" style="border:1px solid var(--accent-gold); color:var(--accent-gold);">💡 軍師錦囊</button>
           <button id="btn-surrender" class="btn-accent">認輸</button>
+        </div>
+
+        <!-- 次要設定群組抽屜 (桌面並排常駐 · 行動直版優雅抽屜式收合) -->
+        <div class="control-options-drawer" id="control-options-drawer">
+          <div class="control-group" id="group-game-mode">
+            <label>模式：</label>
+            <select id="select-game-mode" style="border-color:var(--accent-gold); font-weight:bold; color:var(--accent-gold);">
+              <option value="battle" selected>⚔️ 閣下親征</option>
+              <option value="demo">🎭 雙雄相聲</option>
+            </select>
+          </div>
+          <div class="control-group" id="group-persona">
+            <label>對手：</label>
+            <select id="select-persona">
+              <option value="ji_xiaolan">🧐 紀曉嵐 (毒舌博學)</option>
+              <option value="li_bai">🍶 李白 (豪放詩仙)</option>
+              <option value="bao_zheng">⚖️ 包拯 (鐵面判官)</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label>難度：</label>
+            <select id="select-diff">
+              <option value="easy">寬宏 (易)</option>
+              <option value="normal" selected>旗鼓 (中)</option>
+              <option value="hard">絕殺 (難)</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <input type="checkbox" id="chk-homo" checked>
+            <label for="chk-homo">同音字接龍</label>
+          </div>
+          <div class="control-group">
+            <input type="checkbox" id="chk-strict-tone" checked>
+            <label for="chk-strict-tone">嚴格同調</label>
+          </div>
+          <div class="control-group" id="group-homo-style">
+            <label>同音呈現：</label>
+            <select id="select-homo-style" title="同音不同字樞紐格的呈現方式">
+              <option value="tile" selected>合璧雙字磚</option>
+              <option value="bridge">雙星音律橋</option>
+              <option value="flip">太極翻轉牌</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label>限時：</label>
+            <select id="select-time-limit">
+              <option value="0">無限制</option>
+              <option value="60">60 秒</option>
+              <option value="30" selected>30 秒 (預設)</option>
+              <option value="15">15 秒</option>
+              <option value="10">10 秒 (極速)</option>
+            </select>
+          </div>
         </div>
       </div>
 
       <!-- HUD 戰鬥儀表 (氣血條、積分與動態計時) -->
       <div class="hud-bar">
-        <div style="display:flex; align-items:center; gap:10px;">
+        <div class="hud-player-cell" style="display:flex; align-items:center; gap:8px;">
           <span id="lbl-player-score" style="font-weight:bold; color:var(--player-pink);">👤 閣下: 100 HP | 積分: 0</span>
           <span class="badge-status-romance" id="badge-player-status">字戀中……</span>
-          <div style="width:120px; height:10px; background:#222; border-radius:5px; overflow:hidden;">
+          <div class="hud-bar-wrapper hud-hp-box" style="width:120px; height:10px; background:#222; border-radius:5px; overflow:hidden;">
             <div id="bar-player-hp" style="width:100%; height:100%; background:var(--player-pink); transition:width 0.3s;"></div>
           </div>
         </div>
-        <div style="display:flex; align-items:center; gap:8px;">
+        <div class="hud-timer-cell" style="display:flex; align-items:center; gap:8px;">
           <span id="lbl-timer" style="font-weight:bold; font-size:1.1rem; color:var(--accent-gold);">⏱️ 30s (等候首招)</span>
-          <div style="width:80px; height:8px; background:#222; border-radius:4px; overflow:hidden;">
+          <div class="hud-bar-wrapper hud-timer-box" style="width:80px; height:8px; background:#222; border-radius:4px; overflow:hidden;">
             <div id="bar-timer" style="width:100%; height:100%; background:var(--accent-gold); transition:width 1s linear;"></div>
           </div>
         </div>
-        <div style="display:flex; align-items:center; gap:10px;">
-          <div style="width:120px; height:10px; background:#222; border-radius:5px; overflow:hidden;">
+        <div class="hud-ai-cell" style="display:flex; align-items:center; gap:8px;">
+          <div class="hud-bar-wrapper hud-hp-box" style="width:120px; height:10px; background:#222; border-radius:5px; overflow:hidden;">
             <div id="bar-ai-hp" style="width:100%; height:100%; background:var(--ai-blue); transition:width 0.3s;"></div>
           </div>
           <span id="lbl-ai-score" style="font-weight:bold; color:var(--ai-blue);">🧐 紀曉嵐: 100 HP | 積分: 0</span>
@@ -160,7 +169,7 @@
           <div class="board-header">
             <div style="display:flex; align-items:center; gap:8px;">
               <span style="font-weight:bold; color:var(--accent-gold);">🔀 文壇縱橫字陣</span>
-              <span style="font-size:0.75rem; color:var(--text-muted);">（二維交錯咬合 · 隨落子動態衍生）</span>
+              <span class="board-subtitle" style="font-size:0.75rem; color:var(--text-muted);">（二維交錯咬合 · 隨落子動態衍生）</span>
             </div>
             <div class="view-toggles">
               <button class="view-btn active" id="btn-view-board" title="字陣棋盤視圖">
@@ -470,10 +479,10 @@
     </div>
   </div>
 
-  <script src="zhuyin_data.js?v=3.2"></script>
-  <script src="lexicon_data.js?v=3.2"></script>
-  <script src="story_data.js?v=3.2"></script>
-  <script src="career_database.js?v=3.2"></script>
-  <script src="game.js?v=3.2"></script>
+  <script src="zhuyin_data.js?v=3.3"></script>
+  <script src="lexicon_data.js?v=3.3"></script>
+  <script src="story_data.js?v=3.3"></script>
+  <script src="career_database.js?v=3.3"></script>
+  <script src="game.js?v=3.3"></script>
 </body>
 </html>
