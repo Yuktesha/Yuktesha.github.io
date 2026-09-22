@@ -664,6 +664,43 @@ class WordChainWeb {
       });
     }
 
+    // 📍 左下角整合式資訊儀表板：最小化與展開切換
+    const btnToggleHudBattle = document.getElementById("btn-toggle-hud-battle");
+    const hudBattlePanel = document.getElementById("integrated-hud-battle");
+    if (btnToggleHudBattle && hudBattlePanel) {
+      btnToggleHudBattle.addEventListener("click", (e) => {
+        e.stopPropagation();
+        hudBattlePanel.classList.toggle("minimized");
+        btnToggleHudBattle.innerText = hudBattlePanel.classList.contains("minimized") ? "▴" : "▾";
+        btnToggleHudBattle.title = hudBattlePanel.classList.contains("minimized") ? "展開儀表板" : "收合儀表板";
+      });
+      hudBattlePanel.addEventListener("click", () => {
+        if (hudBattlePanel.classList.contains("minimized")) {
+          hudBattlePanel.classList.remove("minimized");
+          btnToggleHudBattle.innerText = "▾";
+          btnToggleHudBattle.title = "收合儀表板";
+        }
+      });
+    }
+
+    const btnToggleHudDemo = document.getElementById("btn-toggle-hud-demo");
+    const hudDemoPanel = document.getElementById("integrated-hud-demo");
+    if (btnToggleHudDemo && hudDemoPanel) {
+      btnToggleHudDemo.addEventListener("click", (e) => {
+        e.stopPropagation();
+        hudDemoPanel.classList.toggle("minimized");
+        btnToggleHudDemo.innerText = hudDemoPanel.classList.contains("minimized") ? "▴" : "▾";
+        btnToggleHudDemo.title = hudDemoPanel.classList.contains("minimized") ? "展開儀表板" : "收合儀表板";
+      });
+      hudDemoPanel.addEventListener("click", () => {
+        if (hudDemoPanel.classList.contains("minimized")) {
+          hudDemoPanel.classList.remove("minimized");
+          btnToggleHudDemo.innerText = "▾";
+          btnToggleHudDemo.title = "收合儀表板";
+        }
+      });
+    }
+
     // 視窗即攝影鏡頭：啟用字陣畫布按住攀移與光學縮放 (Camera Pan & Zoom)
     this.setupViewportPan(boardViewport);
     this.setupViewportPan(demoBoardViewport);
@@ -3074,9 +3111,9 @@ class WordChainWeb {
 
     const persona = PERSONAS[this.currentPersona] || PERSONAS.ji_xiaolan;
     if (isHomoMove) {
-      this.updateLiveBanter("👤", `閣下：深得臺灣諧音真傳！同音妙接【${word}】！${persona.name} 亦為之絕倒！`);
+      this.updateLiveBanter("👤", `閣下打出【${word}】(+${pts}分 · ${matchDesc}) —— 深得臺灣諧音真傳！${persona.name} 亦為之絕倒！`);
     } else {
-      this.updateLiveBanter("👤", `閣下：${isPoetic ? '長歌當哭打出' : '筆力沉雄打出'}【${word}】，請接招！`);
+      this.updateLiveBanter("👤", `閣下打出【${word}】(+${pts}分 · ${matchDesc}) —— ${persona.name} 請接招！`);
     }
 
     input.value = "";
@@ -3198,7 +3235,7 @@ class WordChainWeb {
     this.updateScorerCard(this.roundCount, persona.name, chosenWord, matchDesc, "1.2s (敏捷)", `${chosenWord.length}字`, radarTag, strategy, aiPts, (this.playerHp <= 0 ? 100 : aiDmg));
     this.updateTargetCard(chosenWord);
     this.updateStoryCard(chosenWord);
-    this.updateLiveBanter(persona.icon, `${persona.name}：${banter}`);
+    this.updateLiveBanter(persona.icon, `${persona.name}打出【${chosenWord}】(+${aiPts}分 · ${matchDesc}) ——「${banter}」`);
 
     if (this.playerHp <= 0) {
       this.updateLiveBanter("💀", `戰局分曉！閣下氣血耗盡，${persona.name} 險勝一籌！`);
@@ -3481,7 +3518,7 @@ class WordChainWeb {
 
     // 更新狀態卡與即時心戰對白
     this.updateDemoStageCards(nextWord, persona.name, appraisal, banter);
-    this.updateLiveBanter(persona.icon, `${persona.name}：${banter}`, true);
+    this.updateLiveBanter(persona.icon, `${persona.name}打出【${nextWord}】(${matchDesc}) ——「${banter}」`, true);
 
     this.demoTurn = (this.demoTurn === 1) ? 2 : 1;
   }
