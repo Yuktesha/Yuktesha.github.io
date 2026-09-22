@@ -902,20 +902,16 @@ main {
   overflow: hidden;
 }
 
-/* 雙雄演示 擂台舞台兩欄排版 (R-UI/UX 空間幾何接管) */
+/* 雙雄演示 擂台舞台 (全幅最大化 · R-UI/UX 空間幾何接管) */
 .demo-arena-grid {
-  display: grid;
-  grid-template-columns: 340px 1fr;
-  gap: 12px;
+  display: flex;
+  flex-direction: column;
   flex: 1;
   min-height: 0;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
-}
-
-@media (max-width: 900px) {
-  .demo-arena-grid {
-    grid-template-columns: 1fr;
-  }
+  position: relative;
 }
 
 .demo-stage-card {
@@ -2410,32 +2406,14 @@ body.fullscreen-zen .control-bar {
     font-size: 0.74rem !important;
   }
 
-  /* 橫向模式剛需：雙欄並列，左側 240px 緊湊沙盤，右側主棋盤吃滿垂直高度！ */
+  /* 橫向模式：全幅接龍主舞台 */
   .battle-grid, .demo-arena-grid {
-    display: grid !important;
-    grid-template-columns: 240px 1fr !important;
-    flex-direction: row !important;
+    display: flex !important;
+    flex-direction: column !important;
     gap: 6px !important;
     height: calc(100vh - 78px) !important;
     min-height: 240px !important;
     overflow: hidden !important;
-  }
-
-  .sidebar-panel {
-    display: flex !important;
-    flex-direction: column !important;
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
-    max-height: 100% !important;
-    gap: 4px !important;
-    padding-bottom: 2px !important;
-  }
-
-  .target-card, #scorer-card, .story-card, .demo-stage-card {
-    min-width: 0 !important;
-    max-width: 100% !important;
-    padding: 4px 6px !important;
-    flex: none !important;
   }
 
   .arena-board-container {
