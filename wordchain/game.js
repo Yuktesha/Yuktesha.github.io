@@ -254,6 +254,11 @@ class WordChainWeb {
     // 右上角智慧卡拖曳與收合
     const wisdomDock = document.getElementById("wisdom-zoom-dock");
     const btnToggleWisdom = document.getElementById("btn-toggle-wisdom-dock");
+    const isSmallTerminal = (typeof window !== "undefined" && (window.innerWidth <= 768 || window.innerHeight <= 600));
+    if (wisdomDock && isSmallTerminal) {
+      wisdomDock.classList.add("minimized");
+      if (btnToggleWisdom) btnToggleWisdom.innerText = "▾";
+    }
     if (btnToggleWisdom && wisdomDock) {
       btnToggleWisdom.addEventListener("click", (e) => {
         e.stopPropagation();
@@ -379,6 +384,64 @@ class WordChainWeb {
     const btnExportDemoLog = document.getElementById("btn-export-demo-log");
     if (btnExportDemoLog) btnExportDemoLog.addEventListener("click", () => this.exportDemoLog());
 
+    // 全螢幕屏保觀戰控制
+    const btnDemoFullscreen = document.getElementById("btn-demo-fullscreen");
+    const btnZenExit = document.getElementById("btn-zen-exit");
+
+    const enterZenFullscreen = () => {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {
+          // 行動端或不支援原生全螢幕時，使用 CSS 類比滿版禪境模式
+          document.body.classList.add("fullscreen-zen");
+        });
+        if (!this.isDemoRunning) {
+          this.startDemo();
+        }
+        showToast("🖥️ 已進入全螢幕觀戰模式（雙雄字戀屏保中）", "info", 2500);
+      } else {
+        document.exitFullscreen().catch(() => {
+          document.body.classList.remove("fullscreen-zen");
+        });
+      }
+    };
+
+    if (btnDemoFullscreen) {
+      btnDemoFullscreen.addEventListener("click", () => enterZenFullscreen());
+    }
+
+    if (btnZenExit) {
+      btnZenExit.addEventListener("click", () => {
+        if (document.fullscreenElement) {
+          document.exitFullscreen().catch(() => {});
+        } else {
+          document.body.classList.remove("fullscreen-zen");
+          setTimeout(() => {
+            const vp = document.getElementById("cross-board-viewport");
+            if (vp) this.recenterViewport(vp, this.gameMode === "demo", false);
+          }, 120);
+        }
+      });
+    }
+
+    document.addEventListener("fullscreenchange", () => {
+      const isFS = !!document.fullscreenElement;
+      document.body.classList.toggle("fullscreen-zen", isFS);
+      if (btnDemoFullscreen) {
+        const fullSpan = btnDemoFullscreen.querySelector(".fs-text-full");
+        const shortSpan = btnDemoFullscreen.querySelector(".fs-text-short");
+        if (fullSpan && shortSpan) {
+          fullSpan.innerText = isFS ? "🪟 退出全螢幕" : "🖥️ 全螢幕觀戰";
+          shortSpan.innerText = isFS ? "🪟 退出" : "🖥️ 全螢幕";
+        } else {
+          btnDemoFullscreen.innerText = isFS ? "🪟 退出全螢幕" : "🖥️ 全螢幕觀戰";
+        }
+      }
+      setTimeout(() => {
+        const vp = document.getElementById("cross-board-viewport");
+        if (vp) this.recenterViewport(vp, this.gameMode === "demo", false);
+      }, 150);
+    });
+
     // 結算彈窗按鈕
     const btnVicAgain = document.getElementById("btn-vic-again");
     if (btnVicAgain) {
@@ -407,13 +470,19 @@ class WordChainWeb {
       });
     }
 
-    // 視窗縮放自動置中
+    // 橫轉直 / 直轉橫與視窗縮放自動置中
     window.addEventListener("resize", () => {
       setTimeout(() => {
-        const isDemoActive = (this.gameMode === "demo");
-        const vp = isDemoActive ? demoBoardViewport : boardViewport;
-        this.recenterViewport(vp, isDemoActive, false);
+        const vp = document.getElementById("cross-board-viewport");
+        if (vp) this.recenterViewport(vp, this.gameMode === "demo", false);
       }, 150);
+    });
+
+    window.addEventListener("orientationchange", () => {
+      setTimeout(() => {
+        const vp = document.getElementById("cross-board-viewport");
+        if (vp) this.recenterViewport(vp, this.gameMode === "demo", false);
+      }, 200);
     });
   }
 
@@ -568,7 +637,9 @@ class WordChainWeb {
     const bar = document.getElementById("bar-timer");
     if (lbl) {
       if (!this.hasPlayerStarted) {
-        lbl.innerText = (this.timeLimit > 0) ? `⏱️ ${this.timeLimit}s (等候首招)` : `⏱️ (等候首招)`;
+        const fullText = (this.timeLimit > 0) ? `⏱️ ${this.timeLimit}s (等候首招)` : `⏱️ (等候首招)`;
+        const compactText = (this.timeLimit > 0) ? `⏱️ ${this.timeLimit}s` : `⏱️ 等候`;
+        lbl.innerHTML = `<span class="hud-label-full">${fullText}</span><span class="hud-label-compact">${compactText}</span>`;
         lbl.style.color = "var(--accent-gold, #f1c40f)";
       } else {
         lbl.innerText = `⏱️ ${left}s`;
@@ -629,8 +700,18 @@ class WordChainWeb {
     const persona = PERSONAS[this.currentPersona] || PERSONAS.ji_xiaolan;
     const maxHp = this.maxHp || 1000;
 
-    if (pScoreEl) pScoreEl.innerText = `👤 閣下: ${this.playerHp} / ${maxHp} HP | 積分: ${this.playerScore}`;
-    if (aiScoreEl) aiScoreEl.innerText = `${persona.icon} ${persona.name}: ${this.aiHp} / ${maxHp} HP | 積分: ${this.aiScore}`;
+    if (pScoreEl) {
+      pScoreEl.innerHTML = `
+        <span class="hud-label-full">👤 閣下: ${this.playerHp} / ${maxHp} HP | 積分: ${this.playerScore}</span>
+        <span class="hud-label-compact">👤 ${this.playerHp} (${this.playerScore}分)</span>
+      `;
+    }
+    if (aiScoreEl) {
+      aiScoreEl.innerHTML = `
+        <span class="hud-label-full">${persona.icon} ${persona.name}: ${this.aiHp} / ${maxHp} HP | 積分: ${this.aiScore}</span>
+        <span class="hud-label-compact">${persona.icon} ${this.aiHp} (${this.aiScore}分)</span>
+      `;
+    }
     if (pBar) pBar.style.width = `${Math.max(0, Math.min(100, (this.playerHp / maxHp) * 100)).toFixed(1)}%`;
     if (aiBar) aiBar.style.width = `${Math.max(0, Math.min(100, (this.aiHp / maxHp) * 100)).toFixed(1)}%`;
   }

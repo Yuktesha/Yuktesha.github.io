@@ -22,7 +22,12 @@
 
   function is4KDisplay() {
     if (typeof window === 'undefined') return false;
-    return (window.innerWidth >= 2000 || window.innerHeight >= 1200);
+    return (window.innerWidth >= 2000 && window.innerHeight >= 1000);
+  }
+
+  function isSmallTerminal() {
+    if (typeof window === 'undefined') return false;
+    return (window.innerWidth <= 768 || window.innerHeight <= 600);
   }
 
   function getMaxZoom() {
@@ -30,7 +35,9 @@
   }
 
   function getDefaultScale() {
-    return is4KDisplay() ? 1.5 : 1.0;
+    if (is4KDisplay()) return 1.5;
+    if (isSmallTerminal()) return 0.95;
+    return 1.0;
   }
 
   function updateZoomHUD(viewport) {
@@ -223,8 +230,11 @@
     if (!el || el._dragInitialized) return;
     el._dragInitialized = true;
 
+    const isSmall = (typeof window !== 'undefined' && (window.innerWidth <= 768 || window.innerHeight <= 600));
+
     try {
-      const saved = localStorage.getItem(storageKey);
+      // 小型終端不套用歷史絕對座標，以避免遮擋中央主棋盤或溢出螢幕
+      const saved = !isSmall ? localStorage.getItem(storageKey) : null;
       if (saved) {
         const { left, top } = JSON.parse(saved);
         if (typeof left === "number" && typeof top === "number") {
@@ -303,6 +313,7 @@
 
   return {
     is4KDisplay,
+    isSmallTerminal,
     getMaxZoom,
     getDefaultScale,
     updateZoomHUD,

@@ -114,4 +114,41 @@ if (!(resExactPun.pts > resHomoPun.pts && resHomoPun.pts > resExact.pts && resEx
 }
 console.log("✓ Scoring hierarchy verified: 原字諧音 > 同音諧音哏 > 原字 > 同音 PERFECT!");
 
-console.log("\n=== ALL ARCHITECTURE TESTS PASSED! ===");
+console.log("\n=== [6] Testing Small Terminal & Fullscreen Zen Specifications ===");
+const assert = require('assert');
+const Viewport = require('../wordchain/js/viewport.js');
+
+// Test 6.1: Small terminal scale detection
+global.window = { innerWidth: 390, innerHeight: 844 }; // iPhone 12/13/14
+assert(Viewport.isSmallTerminal() === true, "Should identify iPhone as small terminal");
+assert(Viewport.is4KDisplay() === false, "iPhone is not 4K");
+assert(Viewport.getDefaultScale() === 0.95, "Small terminal default scale should be 0.95");
+
+// Test 6.2: 4K scale detection
+global.window = { innerWidth: 3840, innerHeight: 2160 };
+assert(Viewport.is4KDisplay() === true, "Should identify 3840x2160 as 4K");
+assert(Viewport.isSmallTerminal() === false, "4K is not small terminal");
+assert(Viewport.getDefaultScale() === 1.5, "4K default scale should be 1.5");
+
+// Test 6.3: Standard Desktop scale detection
+global.window = { innerWidth: 1920, innerHeight: 1080 };
+assert(Viewport.is4KDisplay() === false, "1080p is not 4K");
+assert(Viewport.isSmallTerminal() === false, "1080p is not small terminal");
+assert(Viewport.getDefaultScale() === 1.0, "Standard desktop scale should be 1.0");
+
+console.log("✓ Viewport scale resolution verified across Mobile (0.95x), Desktop (1.0x), and 4K (1.5x)");
+
+// Test 6.4: Check index.html and style.css for HUD labels and Fullscreen Zen
+const indexHtml = fs.readFileSync('wordchain/index.html', 'utf8');
+const styleCss = fs.readFileSync('wordchain/style.css', 'utf8');
+
+assert(indexHtml.includes('btn-zen-exit'), "index.html must have btn-zen-exit button");
+assert(indexHtml.includes('hud-label-full') && indexHtml.includes('hud-label-compact'), "index.html must have responsive hud-label spans");
+assert(styleCss.includes('body.fullscreen-zen header') && styleCss.includes('body.fullscreen-zen .control-bar'), "style.css must hide chrome in fullscreen-zen");
+assert(styleCss.includes('.hud-label-compact'), "style.css must have .hud-label-compact rules");
+assert(!styleCss.includes('.brand div div {'), "style.css must not hide brand div div");
+
+console.log("✓ Small Terminal UI & Fullscreen Zen rules verified in HTML & CSS!");
+
+console.log("\n=== ALL ARCHITECTURE & RESPONSIVE TESTS PASSED! ===");
+

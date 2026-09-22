@@ -1058,6 +1058,14 @@ main {
   flex-shrink: 0;
 }
 
+.hud-label-compact {
+  display: none;
+}
+
+.hud-label-full {
+  display: inline;
+}
+
 .control-group {
   display: flex;
   align-items: center;
@@ -2332,28 +2340,42 @@ th {
     font-size: 0.74rem;
   }
 
-  /* 4. HUD 戰鬥狀態儀表：單行貫穿收斂 */
+  /* 4. HUD 戰鬥狀態儀表：小型終端三欄收斂，左右兩翼對齊與緊湊血條 */
   .hud-bar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 2px 6px;
-    min-height: 28px;
-    gap: 4px;
-    flex-shrink: 0;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding: 3px 6px !important;
+    min-height: 28px !important;
+    gap: 4px !important;
+    flex-shrink: 0 !important;
   }
 
-  .hud-player-cell, .hud-ai-cell {
-    display: flex;
-    align-items: center;
-    gap: 4px;
+  .hud-player-cell {
+    display: flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    flex: 1 1 0 !important;
+    justify-content: flex-start !important;
+    min-width: 0 !important;
+  }
+
+  .hud-ai-cell {
+    display: flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    flex: 1 1 0 !important;
+    justify-content: flex-end !important;
+    min-width: 0 !important;
   }
 
   .hud-timer-cell {
-    display: flex;
-    align-items: center;
-    gap: 3px;
-    white-space: nowrap;
+    display: flex !important;
+    align-items: center !important;
+    gap: 3px !important;
+    flex: 0 0 auto !important;
+    justify-content: center !important;
+    white-space: nowrap !important;
   }
 
   .hud-bar .badge-status-romance {
@@ -2361,23 +2383,36 @@ th {
   }
 
   .hud-hp-box {
-    width: 42px !important;
-    height: 6px !important;
+    width: 28px !important;
+    height: 5px !important;
+    flex-shrink: 0 !important;
   }
 
   .hud-timer-box {
-    width: 28px !important;
-    height: 5px !important;
+    width: 20px !important;
+    height: 4px !important;
+    flex-shrink: 0 !important;
   }
 
   #lbl-player-score, #lbl-ai-score {
     font-size: 0.72rem !important;
     white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
   }
 
   #lbl-timer {
     font-size: 0.75rem !important;
     white-space: nowrap !important;
+  }
+
+  .hud-label-full {
+    display: none !important;
+  }
+
+  .hud-label-compact {
+    display: inline !important;
+    font-size: 0.72rem !important;
   }
 
   /* 5. 棋盤主舞台：100% 空間接管，徹底消滅 320px 假高度限制與黑洞死區 */
@@ -2420,10 +2455,10 @@ th {
 
   /* 6. 右上角成語典故視窗 (Wisdom & Zoom Dock) 直版自適應優化 */
   .wisdom-zoom-dock {
-    top: 32px;
-    right: 4px;
-    max-width: calc(100% - 8px);
-    z-index: 50;
+    top: 6px !important;
+    right: 6px !important;
+    max-width: calc(100% - 12px) !important;
+    z-index: 50 !important;
     transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
@@ -2581,8 +2616,17 @@ th {
 
 @media (max-width: 580px) {
   /* 品牌副標在極窄螢幕隱藏，保留核心 Title 與詞庫 Badge */
-  .brand div div {
-    display: none;
+  .brand-slogan {
+    display: none !important;
+  }
+  .brand-en {
+    display: none !important;
+  }
+  .brand h1 {
+    font-size: 1.05rem !important;
+  }
+  .brand-icon {
+    font-size: 1.25rem !important;
   }
 
   .modal-card.victory-card {
@@ -2618,123 +2662,124 @@ th {
 
 /* ==========================================
    全螢幕屏保禪境模式 (Fullscreen Zen Screensaver Mode)
+   完全乾淨純粹：只保留縱橫交錯棋盤與動態字陣（完美符合 Image 3）
    ========================================== */
 body.fullscreen-zen {
   overflow: hidden !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: var(--bg-main, #0b0f19) !important;
 }
 
-body.fullscreen-zen header {
-  display: none !important; /* 屏保模式下隱藏頂部標題列，將所有像素讓位給棋盤 */
+/* 隱藏全體頁首導航、工具列、儀表、對白與控制埠 */
+body.fullscreen-zen header,
+body.fullscreen-zen .control-bar,
+body.fullscreen-zen .hud-bar,
+body.fullscreen-zen .board-header,
+body.fullscreen-zen .wisdom-zoom-dock,
+body.fullscreen-zen .action-dock-container,
+body.fullscreen-zen .demo-dock-bar,
+body.fullscreen-zen .table-stream-viewport,
+body.fullscreen-zen #table-stream-viewport,
+body.fullscreen-zen #integrated-hud-battle,
+body.fullscreen-zen #integrated-hud-demo,
+body.fullscreen-zen .target-card,
+body.fullscreen-zen .demo-stage-card,
+body.fullscreen-zen #live-banter-card,
+body.fullscreen-zen #input-dock-human,
+body.fullscreen-zen #hint-action-bar,
+body.fullscreen-zen footer {
+  display: none !important;
 }
 
+/* 主容器接管 100% 視窗，零邊界零留白 */
 body.fullscreen-zen main {
-  padding: 4px 8px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  width: 100vw !important;
   height: 100vh !important;
+  max-width: 100vw !important;
   max-height: 100vh !important;
   display: flex !important;
   flex-direction: column !important;
   overflow: hidden !important;
+  background: transparent !important;
 }
 
-body.fullscreen-zen .control-bar {
-  padding: 3px 8px !important;
-  margin-bottom: 4px !important;
-  background: rgba(21, 25, 35, 0.85) !important;
-  backdrop-filter: blur(10px);
+body.fullscreen-zen .tab-pane {
+  padding: 0 !important;
+  margin: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
 }
 
-/* 橫向模式屏保 (Landscape / 寬屏): 全幅大畫布，左下角精緻 HUD */
-@media (min-width: 769px), (orientation: landscape) {
-  body.fullscreen-zen .demo-arena-grid {
-    flex: 1 1 0 !important;
-    height: calc(100vh - 46px) !important;
-    min-height: 0 !important;
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 8px !important;
-    overflow: hidden !important;
-  }
-
-  body.fullscreen-zen .arena-board-container {
-    height: 100% !important;
-    min-height: 0 !important;
-    flex: 1 1 0 !important;
-    padding: 6px 10px !important;
-  }
-
-  body.fullscreen-zen .cross-board-viewport {
-    height: 100% !important;
-    min-height: 0 !important;
-    flex: 1 1 0 !important;
-  }
-
-  body.fullscreen-zen .integrated-dashboard-hud {
-    bottom: 10px !important;
-    left: 10px !important;
-    background: rgba(16, 20, 32, 0.85) !important;
-  }
+body.fullscreen-zen .battle-grid,
+body.fullscreen-zen .demo-arena-grid {
+  padding: 0 !important;
+  margin: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-height: 100vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  border: none !important;
+  background: transparent !important;
 }
 
-/* 直向模式屏保 (Portrait / 手機直屏 橫轉直！): 單欄全幅，棋盤吃滿垂直剩餘高度！ */
-@media (max-width: 768px) and (orientation: portrait) {
-  body.fullscreen-zen .demo-arena-grid {
-    display: flex !important;
-    flex-direction: column !important;
-    flex: 1 1 0 !important;
-    height: calc(100vh - 46px) !important;
-    min-height: 0 !important;
-    gap: 6px !important;
-    overflow: hidden !important;
-  }
-
-  body.fullscreen-zen .arena-board-container {
-    height: 100% !important;
-    min-height: 0 !important;
-    flex: 1 1 0 !important;
-    padding: 6px 8px !important;
-  }
-
-  body.fullscreen-zen .cross-board-viewport {
-    height: 100% !important;
-    min-height: 0 !important;
-    flex: 1 1 0 !important;
-  }
-
-  body.fullscreen-zen .integrated-dashboard-hud {
-    bottom: 8px !important;
-    left: 8px !important;
-    max-width: calc(100% - 16px) !important;
-  }
+body.fullscreen-zen .arena-board-container {
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-height: 100vh !important;
+  flex: 1 1 100% !important;
 }
 
-  body.fullscreen-zen .target-card,
-  body.fullscreen-zen .demo-stage-card {
-    min-width: 175px !important;
-    max-width: 240px !important;
-    height: 100% !important;
-    flex: 0 0 auto !important;
-    box-sizing: border-box !important;
-    overflow: hidden !important;
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: center !important;
-    padding: 6px 10px !important;
-  }
+body.fullscreen-zen .cross-board-viewport {
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-height: 100vh !important;
+  flex: 1 1 100% !important;
+}
 
-  body.fullscreen-zen .arena-board-container {
-    flex: 1 1 0 !important;
-    height: auto !important;
-    min-height: 250px !important;
-    padding: 6px 8px !important;
-    display: flex !important;
-    flex-direction: column !important;
-  }
+/* 觀戰屏保專用半透明浮動退出鈕 (滑鼠移入或觸控時浮現) */
+.zen-exit-btn {
+  display: none;
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 99999;
+  background: rgba(15, 23, 42, 0.6);
+  color: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 20px;
+  padding: 5px 12px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  opacity: 0.2;
+  transition: opacity 0.3s ease, background 0.2s ease;
+}
 
-  body.fullscreen-zen .cross-board-viewport {
-    flex: 1 1 0 !important;
-    min-height: 180px !important;
-    height: 100% !important;
-  }
+.zen-exit-btn:hover, .zen-exit-btn:active {
+  opacity: 1;
+  background: rgba(15, 23, 42, 0.9);
+  color: #fff;
+  border-color: var(--accent-cyan);
+}
+
+body.fullscreen-zen .zen-exit-btn {
+  display: block !important;
 }
 
 /* ==========================================
