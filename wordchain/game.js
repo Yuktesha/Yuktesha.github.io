@@ -2548,7 +2548,15 @@ class WordChainWeb {
   setupViewportPan(viewport) {
     if (!viewport || viewport._panInitialized) return;
     viewport._panInitialized = true;
-    viewport._zoomScale = 1.0;
+    const is4K = (window.innerWidth >= 2000 || window.innerHeight >= 1200);
+    const initialScale = is4K ? 1.5 : 1.0;
+    viewport._zoomScale = initialScale;
+    const initialGrid = viewport.querySelector(".cross-board-grid");
+    if (initialGrid && initialScale !== 1.0) {
+      initialGrid.style.transform = `scale(${initialScale})`;
+      initialGrid.style.transformOrigin = "0 0";
+    }
+    this.updateZoomHUD(viewport);
 
     let isDown = false;
     let startX = 0;
@@ -2591,7 +2599,9 @@ class WordChainWeb {
       e.preventDefault();
       const oldScale = viewport._zoomScale || 1.0;
       const factor = e.deltaY < 0 ? 1.12 : 0.89;
-      const newScale = Math.min(2.2, Math.max(0.35, parseFloat((oldScale * factor).toFixed(2))));
+      const is4K = (window.innerWidth >= 2000 || window.innerHeight >= 1200);
+      const maxScale = is4K ? 4.0 : 3.0;
+      const newScale = Math.min(maxScale, Math.max(0.35, parseFloat((oldScale * factor).toFixed(2))));
       if (newScale === oldScale) return;
 
       const grid = viewport.querySelector(".cross-board-grid");
@@ -2677,7 +2687,9 @@ class WordChainWeb {
     const grid = viewport.querySelector(".cross-board-grid");
     if (!grid) return;
     const oldScale = viewport._zoomScale || 1.0;
-    const newScale = Math.min(2.2, Math.max(0.35, parseFloat((oldScale + delta).toFixed(2))));
+    const is4K = (window.innerWidth >= 2000 || window.innerHeight >= 1200);
+    const maxScale = is4K ? 4.0 : 3.0;
+    const newScale = Math.min(maxScale, Math.max(0.35, parseFloat((oldScale + delta).toFixed(2))));
     if (newScale === oldScale) return;
 
     const centerX = viewport.scrollLeft + viewport.clientWidth / 2;
@@ -2697,9 +2709,11 @@ class WordChainWeb {
   recenterViewport(viewport, isDemo = false, resetScale = true) {
     if (!viewport) return;
     const grid = viewport.querySelector(".cross-board-grid");
+    const is4K = (window.innerWidth >= 2000 || window.innerHeight >= 1200);
+    const defaultScale = is4K ? 1.5 : 1.0;
     if (resetScale && grid) {
-      viewport._zoomScale = 1.0;
-      grid.style.transform = "scale(1)";
+      viewport._zoomScale = defaultScale;
+      grid.style.transform = `scale(${defaultScale})`;
       grid.style.transformOrigin = "0 0";
       this.updateZoomHUD(viewport);
     }

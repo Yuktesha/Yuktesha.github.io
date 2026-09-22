@@ -14,6 +14,12 @@
   --radius-lg: 14px;
   --radius-md: 8px;
   --font-sans: system-ui, -apple-system, "Microsoft JhengHei", "PingFang TC", sans-serif;
+  --hud-hp-width: 150px;
+  --hud-hp-height: 10px;
+  --hud-timer-width: 90px;
+  --hud-timer-height: 8px;
+  --dock-max-width: 760px;
+  --wisdom-dock-width: 320px;
 }
 
 /* 非侵入式優雅浮動 Toast 系統 (杜絕輸入法中斷) */
@@ -893,10 +899,10 @@ header {
 main {
   flex: 1;
   min-height: 0;
-  max-width: 1440px;
+  max-width: 100%;
   width: 100%;
   margin: 0 auto;
-  padding: 10px 14px;
+  padding: 8px 16px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -1034,6 +1040,24 @@ main {
   flex-shrink: 0;
 }
 
+.hud-hp-box {
+  width: var(--hud-hp-width);
+  height: var(--hud-hp-height);
+  background: #222;
+  border-radius: 5px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.hud-timer-box {
+  width: var(--hud-timer-width);
+  height: var(--hud-timer-height);
+  background: #222;
+  border-radius: 4px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
 .control-group {
   display: flex;
   align-items: center;
@@ -1119,7 +1143,7 @@ select:focus, input:focus {
   position: absolute;
   top: 44px;
   right: 14px;
-  width: 320px;
+  width: var(--wisdom-dock-width, 320px);
   max-width: calc(100% - 28px);
   background: rgba(18, 24, 38, 0.92);
   backdrop-filter: blur(14px);
@@ -1437,7 +1461,7 @@ select:focus, input:focus {
   bottom: 14px;
   left: 50%;
   transform: translateX(-50%);
-  width: min(720px, calc(100% - 28px));
+  width: min(var(--dock-max-width, 760px), calc(100% - 28px));
   z-index: 38;
   display: flex;
   flex-direction: column;
@@ -2769,4 +2793,179 @@ body.fullscreen-zen .control-bar {
     flex: 1 1 0 !important;
   }
 }
+
+/* ==========================================
+   4K 旗艦超寬螢幕全方位自適應最佳化 (4K & Ultra-Wide: min-width: 2000px)
+   徹底解放 4K/QHD 空間，消除兩側黑邊，文字、血條與操作塢大氣呈現
+   ========================================== */
+@media (min-width: 2000px) {
+  :root {
+    --hud-hp-width: 260px;
+    --hud-hp-height: 16px;
+    --hud-timer-width: 160px;
+    --hud-timer-height: 12px;
+    --dock-max-width: 1080px;
+    --wisdom-dock-width: 400px;
+  }
+
+  header {
+    padding: 12px 28px !important;
+  }
+  .brand-icon {
+    font-size: 1.6rem !important;
+  }
+  .brand h1 {
+    font-size: 1.4rem !important;
+  }
+  .brand-slogan {
+    font-size: 0.95rem !important;
+  }
+  .tab-btn {
+    font-size: 1.05rem !important;
+    padding: 8px 18px !important;
+  }
+
+  main {
+    padding: 12px 24px !important;
+  }
+
+  /* HUD 戰鬥狀態列放大 */
+  .hud-bar {
+    padding: 10px 20px !important;
+    min-height: 52px !important;
+  }
+  .hud-player-cell, .hud-ai-cell, .hud-timer-cell {
+    gap: 12px !important;
+  }
+  #lbl-player-score, #lbl-ai-score {
+    font-size: 1.15rem !important;
+  }
+  #lbl-timer {
+    font-size: 1.25rem !important;
+  }
+  .badge-status-romance {
+    font-size: 0.95rem !important;
+    padding: 4px 10px !important;
+  }
+
+  /* 控制面板控制列 */
+  .control-bar {
+    padding: 8px 18px !important;
+    gap: 12px !important;
+  }
+  .control-group {
+    font-size: 1.05rem !important;
+    gap: 8px !important;
+  }
+  select, input, button {
+    font-size: 1.0rem !important;
+    padding: 7px 14px !important;
+  }
+  .btn-opt-toggle {
+    font-size: 1.0rem !important;
+    padding: 7px 14px !important;
+  }
+
+  /* 棋盤標題與工具按鈕 */
+  .board-header {
+    padding: 8px 16px !important;
+  }
+  .board-title {
+    font-size: 1.25rem !important;
+  }
+  .view-btn {
+    font-size: 1.05rem !important;
+    padding: 6px 14px !important;
+  }
+
+  /* 右上角典故小箋 */
+  .wisdom-zoom-dock {
+    width: var(--wisdom-dock-width, 400px) !important;
+  }
+  .wisdom-dock-header {
+    padding: 10px 14px !important;
+  }
+  .wisdom-dock-title {
+    font-size: 1.15rem !important;
+  }
+  .wisdom-content {
+    font-size: 1.05rem !important;
+    line-height: 1.6 !important;
+  }
+
+  /* 底部出招塢 Action Dock */
+  .action-dock-container {
+    width: min(var(--dock-max-width, 1080px), calc(100% - 48px)) !important;
+    bottom: 20px !important;
+    gap: 10px !important;
+  }
+  .input-dock {
+    padding: 8px 14px !important;
+    border-radius: var(--radius-lg) !important;
+  }
+  .input-dock input {
+    font-size: 1.25rem !important;
+    height: 52px !important;
+  }
+  .input-dock button {
+    font-size: 1.15rem !important;
+    height: 52px !important;
+    padding: 0 26px !important;
+  }
+  .live-banter-card {
+    font-size: 1.1rem !important;
+    padding: 10px 18px !important;
+  }
+
+  /* 勝利結算彈窗 */
+  .modal-card.victory-card {
+    max-width: 920px !important;
+    width: min(920px, 94vw) !important;
+    padding: 44px 36px 36px !important;
+  }
+  .victory-seal-stamp {
+    font-size: 1.15rem !important;
+    padding: 6px 14px !important;
+  }
+  .victory-crown {
+    font-size: 3.8rem !important;
+  }
+  .victory-title {
+    font-size: 2.2rem !important;
+  }
+  .victory-subtitle {
+    font-size: 1.25rem !important;
+  }
+  .victory-score-vs-pill {
+    font-size: 1.15rem !important;
+    padding: 6px 20px !important;
+  }
+  .victory-stat-box {
+    padding: 16px 14px !important;
+  }
+  .victory-stat-box .stat-lbl {
+    font-size: 0.95rem !important;
+  }
+  .victory-stat-box .stat-val {
+    font-size: 1.6rem !important;
+  }
+  .victory-badge-pill {
+    font-size: 1.1rem !important;
+    padding: 8px 20px !important;
+  }
+  .victory-career-box {
+    padding: 18px 22px !important;
+  }
+  .career-box-title {
+    font-size: 1.25rem !important;
+  }
+  .career-box-desc {
+    font-size: 1.05rem !important;
+  }
+  .vic-action-btn {
+    font-size: 1.1rem !important;
+    padding: 10px 22px !important;
+  }
+}
+
 
