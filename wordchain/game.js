@@ -672,11 +672,12 @@ class WordChainWeb {
     this.allowHomophone = true;
     this.strictTone = true;
 
-    // 氣血與積分
+    // 氣血與積分 (1000 HP 長局纏鬥體制)
     this.playerScore = 0;
     this.aiScore = 0;
-    this.playerHp = 100;
-    this.aiHp = 100;
+    this.maxHp = 1000;
+    this.playerHp = 1000;
+    this.aiHp = 1000;
     this.playerPhoneticCount = 0; // 聲律「借音通押」妙招累計
     this.playerPhoneticCombo = 0; // 連續借音連擊數
     this.playerExactCount = 0; // 原字直咬累計
@@ -2003,11 +2004,12 @@ class WordChainWeb {
     const pBar = document.getElementById("bar-player-hp");
     const aiBar = document.getElementById("bar-ai-hp");
     const persona = PERSONAS[this.currentPersona] || PERSONAS.ji_xiaolan;
+    const maxHp = this.maxHp || 1000;
 
-    if (pScoreEl) pScoreEl.innerText = `👤 閣下: ${this.playerHp} HP | 積分: ${this.playerScore}`;
-    if (aiScoreEl) aiScoreEl.innerText = `${persona.icon} ${persona.name}: ${this.aiHp} HP | 積分: ${this.aiScore}`;
-    if (pBar) pBar.style.width = `${Math.max(0, this.playerHp)}%`;
-    if (aiBar) aiBar.style.width = `${Math.max(0, this.aiHp)}%`;
+    if (pScoreEl) pScoreEl.innerText = `👤 閣下: ${this.playerHp} / ${maxHp} HP | 積分: ${this.playerScore}`;
+    if (aiScoreEl) aiScoreEl.innerText = `${persona.icon} ${persona.name}: ${this.aiHp} / ${maxHp} HP | 積分: ${this.aiScore}`;
+    if (pBar) pBar.style.width = `${Math.max(0, Math.min(100, (this.playerHp / maxHp) * 100)).toFixed(1)}%`;
+    if (aiBar) aiBar.style.width = `${Math.max(0, Math.min(100, (this.aiHp / maxHp) * 100)).toFixed(1)}%`;
   }
 
   startTimer() {
@@ -2067,10 +2069,10 @@ class WordChainWeb {
   onTimeout() {
     this.stopTimer();
     this.playerScore = Math.max(0, this.playerScore - 30);
-    this.playerHp = Math.max(0, this.playerHp - 15);
+    this.playerHp = Math.max(0, this.playerHp - 50);
     this.updateHUD();
 
-    showToast("答題超時！自損 15 HP，扣除 30 積分！軍師強行接管！", "warning");
+    showToast("答題超時！自損 50 HP，扣除 30 積分！軍師強行接管！", "warning");
 
     if (this.playerHp <= 0) {
       showToast("💀 氣血耗盡，閣下落敗！", "error");
@@ -2105,9 +2107,10 @@ class WordChainWeb {
     this.battleUsedWords = new Set([this.battleCurrentWord]);
     this.roundCount = 1;
 
-    // 重置氣血與積分
-    this.playerHp = 100;
-    this.aiHp = 100;
+    // 重置氣血與積分 (1000 HP 長局纏鬥)
+    this.maxHp = 1000;
+    this.playerHp = 1000;
+    this.aiHp = 1000;
     this.playerScore = 0;
     this.aiScore = 0;
     this.playerPhoneticCount = 0;
@@ -3468,26 +3471,22 @@ class WordChainWeb {
     else if (elapsed <= 8.0) pts += 15;
     else if (elapsed > 20.0) pts -= 10;
 
-    // 出度雷達判定
+    // 出度雷達判定 (階梯增傷，杜絕偽絕殺直接瞬死)
     const playerTail = getTailChar(word);
     const tailData = this.lexicon && this.lexicon[playerTail];
     const tailScore = (tailData && tailData.w) ? tailData.w.length : 0;
 
     if (tailScore === 0) {
       pts += 100;
-      dmg = 100;
-      this.aiHp = 0;
+      dmg += 80;
     } else if (tailScore <= 3) {
       pts += 40;
       dmg += 30;
-      this.aiHp = Math.max(0, this.aiHp - dmg);
     } else if (tailScore <= 8) {
       pts += 15;
-      dmg += 5;
-      this.aiHp = Math.max(0, this.aiHp - dmg);
-    } else {
-      this.aiHp = Math.max(0, this.aiHp - dmg);
+      dmg += 10;
     }
+    this.aiHp = Math.max(0, this.aiHp - dmg);
 
     this.playerScore += pts;
     this.updateHUD();
@@ -3537,7 +3536,7 @@ class WordChainWeb {
     this.appendFlowTableRow(this.roundCount, "👤 閣下", word, matchDesc, elapsed, pts);
 
     // 評點與典故更新
-    this.updateScorerCard(this.roundCount, "👤 閣下", word, matchDesc, `${elapsed.toFixed(1)}s (${speedTag})`, lenDesc, radarTag, `生路 ${tailScore} 步`, pts, (this.aiHp <= 0 ? 100 : dmg));
+    this.updateScorerCard(this.roundCount, "👤 閣下", word, matchDesc, `${elapsed.toFixed(1)}s (${speedTag})`, lenDesc, radarTag, `生路 ${tailScore} 步`, pts, dmg);
     this.updateTargetCard(word);
     this.updateStoryCard(word);
 
@@ -3626,29 +3625,26 @@ class WordChainWeb {
 
     // AI 評分與傷害
     let aiPts = 100;
-    let aiDmg = 0;
+    let aiDmg = 20; // 基礎出招傷害
     if (aiHead === lastTail) aiPts += 50;
     else aiPts += 25;
 
-    if (chosenWord.length >= 5) { aiPts += 35; aiDmg += 5; }
+    if (chosenWord.length >= 6) { aiPts += 45; aiDmg += 15; }
+    else if (chosenWord.length >= 5) { aiPts += 35; aiDmg += 10; }
     else if (chosenWord.length === 4) { aiPts += 20; }
 
     const aiTailScore = chosenEntry[2] || 0;
     if (aiTailScore === 0) {
       aiPts += 100;
-      aiDmg = 100;
-      this.playerHp = 0;
+      aiDmg += 80;
     } else if (aiTailScore <= 3) {
       aiPts += 40;
       aiDmg += 30;
-      this.playerHp = Math.max(0, this.playerHp - aiDmg);
     } else if (aiTailScore <= 8) {
       aiPts += 15;
-      aiDmg += 5;
-      this.playerHp = Math.max(0, this.playerHp - aiDmg);
-    } else {
-      this.playerHp = Math.max(0, this.playerHp - aiDmg);
+      aiDmg += 10;
     }
+    this.playerHp = Math.max(0, this.playerHp - aiDmg);
 
     this.aiScore += aiPts;
     this.updateHUD();
@@ -3670,7 +3666,7 @@ class WordChainWeb {
     this.appendFlowTableRow(this.roundCount, `${persona.icon} ${persona.name}`, chosenWord, matchDesc, 1.2, aiPts);
 
     // 評點與典故更新
-    this.updateScorerCard(this.roundCount, persona.name, chosenWord, matchDesc, "1.2s (敏捷)", `${chosenWord.length}字`, radarTag, strategy, aiPts, (this.playerHp <= 0 ? 100 : aiDmg));
+    this.updateScorerCard(this.roundCount, persona.name, chosenWord, matchDesc, "1.2s (敏捷)", `${chosenWord.length}字`, radarTag, strategy, aiPts, aiDmg);
     this.updateTargetCard(chosenWord);
     this.updateStoryCard(chosenWord);
     this.updateLiveBanter(persona.icon, `${persona.name}打出【${chosenWord}】(+${aiPts}分 · ${matchDesc}) ——「${banter}」`);
