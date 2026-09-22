@@ -339,6 +339,122 @@ function checkPhoneticMatch(targetChar, headChar, allowHomo = true, strictTone =
 }
 
 // ==========================================
+// 2.5 臺灣諧音雙關梗庫與真諧音檢測 (True Pun Detection)
+// 依據傳統修辭與使用者明確定義：「『諧音』應該是正常詞彙的同音不同字產生不同意義才稱得上諧音魂。」
+// 嚴格區分一般的「🎵借音通押 (同音不同字接龍)」與「🤣真正的諧音雙關梗 (Pun)」
+// ==========================================
+const TAIWAN_PUN_MAP = {
+  // 知名食物/品牌/招牌/生活成語諧音雙關梗
+  "無蟹可及": "無懈可擊",
+  "深得茗心": "深得民心",
+  "鹽陣以待": "嚴陣以待",
+  "諧教": "邪教",
+  "薪痛": "心痛",
+  "童心協力": "同心協力",
+  "難兄男弟": "難兄難弟",
+  "一童享受": "一同享受",
+  "朝三暮適": "朝三暮四",
+  "鴨梨山大": "壓力山大",
+  "泰想念你": "太想念你",
+  "香煎恨晚": "相見恨晚",
+  "別苣一格": "別具一格",
+  "大橘已定": "大局已定",
+  "萬柿具備": "萬事具備",
+  "好事花生": "好事發生",
+  "洗出望外": "喜出望外",
+  "辛照不宣": "心照不宣",
+  "投桃報理": "投桃報李",
+  "食全食美": "十全十美",
+  "百衣百順": "百依百順",
+  "一茗驚人": "一鳴驚人",
+  "衣網打盡": "一網打盡",
+  "衣見鍾情": "一見鍾情",
+  "衣衣不捨": "依依不捨",
+  "大展烘圖": "大展宏圖",
+  "金芋良言": "金玉良言",
+  "甜言蜜芋": "甜言蜜語",
+  "點食成金": "點石成金",
+  "步步為贏": "步步為營",
+  "飲以為傲": "引以為傲",
+  "悲水車薪": "杯水車薪",
+  "潔盡全力": "竭盡全力",
+  "晶益求精": "精益求精",
+  "如獲炙寶": "如獲至寶",
+  "寶石終日": "飽食終日",
+  "烤出狂言": "口出狂言",
+  "名列前貓": "名列前茅",
+  "喵不可言": "妙不可言",
+  "舞與倫比": "無與倫比",
+  "健微知著": "見微知著",
+  "柏步穿楊": "百步穿楊",
+  "喵手回春": "妙手回春",
+  "辛曠神怡": "心曠神怡",
+  "添衣無縫": "天衣無縫",
+  "雞不可失": "機不可失",
+  "前鋪後繼": "前仆後繼",
+  "投棋所好": "投其所好",
+  "步步糕陞": "步步高陞",
+  "胸有成豬": "胸有成竹",
+  "笙笙不息": "生生不息",
+  "一夜知秋": "一葉知秋",
+  "隨芋而安": "隨遇而安",
+  "香淨如賓": "相敬如賓",
+  "油求必應": "有求必應",
+  "開卷有義": "開卷有益",
+  "忘梅止渴": "望梅止渴",
+  "掌上名豬": "掌上明珠",
+  "獸比南山": "壽比南山",
+  "富貴吉香": "富貴吉祥",
+  "如日鍾天": "如日中天",
+  "仙發制人": "先發制人",
+  "順李成章": "順理成章",
+  "李所當然": "理所當然",
+  "金疲力竭": "精疲力竭",
+  "一鷹俱全": "一應俱全",
+  "雞會難得": "機會難得",
+  "茶言觀色": "察言觀色",
+  "有茗有姓": "有名有姓",
+  "相敬如冰": "相敬如賓",
+  "大器碗成": "大器晚成",
+  // 字戀專屬諧音趣味詞
+  "字戀狂": "自戀狂",
+  "字作自受": "自作自受",
+  "字鳴得意": "自鳴得意",
+  "字高自大": "自高自大",
+  "字私自利": "自私自利",
+  "字顧不暇": "自顧不暇",
+  "字圓其說": "自圓其說",
+  "字給自足": "自給自足",
+  "字成一家": "自成一家",
+  "字吹自擂": "自吹自擂",
+  "字怨自艾": "自怨自艾",
+  "字慚形穢": "自慚形穢",
+  "字欺欺人": "自欺欺人",
+  "字投羅網": "自投羅網",
+  "字生自滅": "自生自滅",
+  "字由自在": "自由自在",
+  "字命不凡": "自命不凡",
+  "字暴自棄": "自暴自棄",
+  "字始至終": "自始至終",
+  "字相矛盾": "自相矛盾",
+  "字得其樂": "自得其樂",
+  "字作主張": "自作主張",
+  "字作多情": "自作多情",
+  "字立更生": "自力更生",
+  "字字珠璣": "自字珠璣",
+  "字裡行間": "自裡行間"
+};
+
+function checkTruePun(word, lexicon = null) {
+  if (!word || typeof word !== "string") return null;
+  // 1. 已收錄經典諧音雙關庫
+  if (TAIWAN_PUN_MAP[word]) {
+    return { isPun: true, original: TAIWAN_PUN_MAP[word] };
+  }
+  return null;
+}
+
+// ==========================================
 // 3. 文人 AI 人設與機鋒矩陣
 // ==========================================
 const PERSONAS = {
@@ -561,8 +677,16 @@ class WordChainWeb {
     this.aiScore = 0;
     this.playerHp = 100;
     this.aiHp = 100;
-    this.playerHomophoneCount = 0; // 台灣在地「深入骨髓諧音魂」妙招累計
-    this.playerHomophoneCombo = 0; // 連續諧音連擊數
+    this.playerPhoneticCount = 0; // 聲律「借音通押」妙招累計
+    this.playerPhoneticCombo = 0; // 連續借音連擊數
+    this.playerTruePunCount = 0; // 真正臺灣在地「深入骨髓諧音魂」雙關梗累計
+    this.playerPunWords = []; // 本局打出之諧音雙關梗記錄
+    this.playerHomophoneCount = 0; // 相容別名
+    this.playerHomophoneCombo = 0; // 相容別名
+    this.lastHomoBadge = "";
+    this.lastBadgeType = "";
+    this.lastBestWord = "";
+    this.lastBestLen = 0;
 
     // 計時器
     this.timeLimit = 30;
@@ -1020,10 +1144,17 @@ class WordChainWeb {
       btnVicShare.addEventListener("click", async () => {
         const rank = document.getElementById("vic-rank-pill")?.innerText || "完美字戀狂";
         const career = this.lastCareer || this.divineCareer();
-        const homoSoulStr = this.lastHomoBadge ? `🤣 諧音特賞：${this.lastHomoBadge}\n` : '';
+        let specialStr = "";
+        if (this.lastHomoBadge) {
+          if (this.lastBadgeType === "pun") {
+            specialStr = `🤣 諧音特賞：${this.lastHomoBadge}\n`;
+          } else {
+            specialStr = `🎵 聲韻特賞：${this.lastHomoBadge}\n`;
+          }
+        }
         const text = `📜【字戀 (WordChain) 勝戰捷報】\n` +
           `我以「${rank.replace('🏅 榮譽頭銜：', '').trim()}」之姿橫掃文壇，讓大文豪甘拜下風！\n` +
-          (homoSoulStr ? `${homoSoulStr}` : '') +
+          specialStr +
           `• 累積戰分：${this.playerScore} 分\n` +
           `• 對弈回合：${this.roundCount} 輪\n` +
           `• 終局題目：【${this.battleCurrentWord}】\n` +
@@ -1286,7 +1417,12 @@ class WordChainWeb {
     const lEl = document.getElementById("vic-longest");
     if (lEl) {
       lEl.title = longestWord;
-      lEl.innerHTML = `<span style="white-space:nowrap;">${bestWord}</span><span style="font-size:0.75em; opacity:0.85; margin-left:3px; white-space:nowrap;">(${maxLen}字)</span>`;
+      if (maxLen >= 6) {
+        lEl.style.fontSize = "0.88rem";
+      } else {
+        lEl.style.fontSize = "";
+      }
+      lEl.innerHTML = `<span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:95px; display:inline-block; vertical-align:bottom;">${bestWord}</span><span style="font-size:0.75em; opacity:0.85; margin-left:3px; white-space:nowrap;">(${maxLen}字)</span>`;
     }
 
     const sEl = document.getElementById("vic-speed");
@@ -1298,34 +1434,51 @@ class WordChainWeb {
     const pEl = document.getElementById("vic-rank-pill");
     if (pEl) pEl.innerText = `🏅 榮譽頭銜：${rankTitle}`;
 
-    // 🇹🇼 臺灣深入骨髓諧音魂結算檢測
+    // 結算特賞檢測：精準區分「真正諧音梗 (Pun)」與「聲律借音通押 (Phonetic Rhyme)」
     const homoPill = document.getElementById("vic-homo-pill");
-    const homoCount = this.playerHomophoneCount || 0;
+    const punCount = this.playerTruePunCount || 0;
+    const phoneticCount = this.playerPhoneticCount || 0;
     const totalPlayerMoves = playerWords.length || 1;
-    const homoRate = ((homoCount / totalPlayerMoves) * 100).toFixed(0);
+    const phoneticRate = ((phoneticCount / totalPlayerMoves) * 100).toFixed(0);
 
-    let homoBadgeText = "";
-    if (homoCount >= 5 || (homoCount >= 2 && homoCount / totalPlayerMoves >= 0.4)) {
-      homoBadgeText = `🇹🇼 臺灣諧音梗宗師 · 深入骨髓諧音魂！(諧音出招 ${homoCount} 次 · 佔比 ${homoRate}%)`;
-    } else if (homoCount >= 2) {
-      homoBadgeText = `🤣 絕妙諧音達人 · 骨髓自帶笑點！(諧音破局 ${homoCount} 次)`;
-    } else if (homoCount === 1) {
-      homoBadgeText = `✨ 諧音初顯神通 · 臺灣道地幽默！(諧音破局 1 次)`;
+    let badgeText = "";
+    let badgeType = "";
+
+    if (punCount > 0) {
+      badgeType = "pun";
+      if (punCount >= 3) {
+        badgeText = `🇹🇼 臺灣諧音梗宗師 · 深入骨髓諧音魂！(諧音雙關 ${punCount} 次 · 妙趣橫生！)`;
+      } else {
+        badgeText = `🤣 臺灣諧音梗達人 · 雙關妙語連珠！(諧音雙關 ${punCount} 次)`;
+      }
+    } else if (phoneticCount > 0) {
+      badgeType = "rhyme";
+      if (phoneticCount >= 5 || (phoneticCount >= 2 && phoneticCount / totalPlayerMoves >= 0.4)) {
+        badgeText = `🎵 聲律宗師 · 借音無礙！(借音出招 ${phoneticCount} 次 · 佔比 ${phoneticRate}%)`;
+      } else if (phoneticCount >= 2) {
+        badgeText = `🎶 聲韻大家 · 翻宮轉調！(借音出招 ${phoneticCount} 次)`;
+      } else {
+        badgeText = `✨ 宮商相和 · 借音入局！(借音出招 1 次)`;
+      }
     }
 
     if (homoPill) {
-      if (homoBadgeText) {
-        homoPill.innerText = homoBadgeText;
+      if (badgeText) {
+        homoPill.innerText = badgeText;
+        homoPill.className = (badgeType === "pun") ? "victory-homo-pill" : "victory-rhyme-pill";
         homoPill.style.display = "inline-flex";
       } else {
         homoPill.style.display = "none";
       }
     }
 
+    this.lastBestWord = bestWord;
+    this.lastBestLen = maxLen;
     this.lastLongestWord = longestWord;
     this.lastSpeedStr = speedStr;
     this.lastRankTitle = rankTitle;
-    this.lastHomoBadge = homoBadgeText;
+    this.lastHomoBadge = badgeText;
+    this.lastBadgeType = badgeType;
 
     modal.style.display = "flex";
     this.updateRomanceStatus("victory");
@@ -1475,9 +1628,36 @@ class WordChainWeb {
       ctx.fillStyle = "#94a3b8";
       ctx.fillText(col.lbl, cx, boxY + 45);
 
-      ctx.font = "bold 24px 'Noto Sans TC', sans-serif";
-      ctx.fillStyle = "#00cec9";
-      ctx.fillText(col.val, cx, boxY + 95);
+      if (idx === 1) {
+        const bw = this.lastBestWord || (this.battleCurrentWord || "四字成語");
+        const blen = this.lastBestLen || bw.length;
+        let wordDisplay = bw;
+        let wordFontSize = 22;
+        if (blen > 10) {
+          wordFontSize = 12;
+          if (wordDisplay.length > 12) wordDisplay = wordDisplay.slice(0, 11) + '…';
+        } else if (blen >= 8) wordFontSize = 13;
+        else if (blen >= 6) wordFontSize = 15;
+        else if (blen >= 5) wordFontSize = 17;
+
+        if (blen >= 5) {
+          ctx.font = `bold ${wordFontSize}px 'Noto Sans TC', sans-serif`;
+          ctx.fillStyle = "#00cec9";
+          ctx.fillText(wordDisplay, cx, boxY + 78);
+
+          ctx.font = "bold 13px 'Noto Sans TC', sans-serif";
+          ctx.fillStyle = "#67e8f9";
+          ctx.fillText(`(${blen}字)`, cx, boxY + 105);
+        } else {
+          ctx.font = "bold 18px 'Noto Sans TC', sans-serif";
+          ctx.fillStyle = "#00cec9";
+          ctx.fillText(`${wordDisplay} (${blen}字)`, cx, boxY + 95);
+        }
+      } else {
+        ctx.font = "bold 24px 'Noto Sans TC', sans-serif";
+        ctx.fillStyle = "#00cec9";
+        ctx.fillText(col.val, cx, boxY + 95);
+      }
 
       if (idx < 3) {
         ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
@@ -1506,7 +1686,7 @@ class WordChainWeb {
     ctx.fillStyle = "#f1c40f";
     ctx.fillText(`🏅 榮譽頭銜：${rankTitle}`, width / 2, rankY + rankH / 2);
 
-    // 7.05 臺灣深入骨髓諧音魂特賞膠囊 (若有諧音戰績)
+    // 7.05 特賞膠囊 (諧音雙關梗 / 聲律通押)
     let homoShift = 0;
     if (this.lastHomoBadge) {
       homoShift = 42;
@@ -1515,15 +1695,20 @@ class WordChainWeb {
       const homoH = 34;
       const homoX = (width - homoW) / 2;
 
-      ctx.fillStyle = "rgba(46, 213, 115, 0.16)";
-      ctx.strokeStyle = "rgba(46, 213, 115, 0.55)";
+      const isPun = (this.lastBadgeType === "pun");
+      const pillColor = isPun ? "#2ed573" : "#00cec9";
+      const pillBg = isPun ? "rgba(46, 213, 115, 0.16)" : "rgba(0, 206, 201, 0.16)";
+      const pillBorder = isPun ? "rgba(46, 213, 115, 0.55)" : "rgba(0, 206, 201, 0.55)";
+
+      ctx.fillStyle = pillBg;
+      ctx.strokeStyle = pillBorder;
       ctx.lineWidth = 1.2;
       drawRoundRect(homoX, homoY, homoW, homoH, 17);
       ctx.fill();
       ctx.stroke();
 
       ctx.font = "bold 15px 'Noto Sans TC', sans-serif";
-      ctx.fillStyle = "#2ed573";
+      ctx.fillStyle = pillColor;
       ctx.fillText(this.lastHomoBadge, width / 2, homoY + homoH / 2);
     }
 
@@ -1605,7 +1790,16 @@ class WordChainWeb {
     const rankTitle = this.lastRankTitle || "👑 傳奇 · 完美字戀狂";
     const carTitle = this.lastCareer ? this.lastCareer.title : "【跨界大斜槓奇才】";
     const carDesc = this.lastCareer ? this.lastCareer.desc : "您該不會是各界深藏不露的隱世掃地僧吧？";
-    const longestWord = this.lastLongestWord || `${this.battleCurrentWord} (4字)`;
+    const bw = this.lastBestWord || (this.battleCurrentWord || "四字成語");
+    const blen = this.lastBestLen || bw.length;
+    let wordDisplay = bw;
+    let wordFontSize = 22;
+    if (blen > 10) {
+      wordFontSize = 12;
+      if (wordDisplay.length > 12) wordDisplay = wordDisplay.slice(0, 11) + '…';
+    } else if (blen >= 8) wordFontSize = 13;
+    else if (blen >= 6) wordFontSize = 15;
+    else if (blen >= 5) wordFontSize = 17;
     const speedStr = this.lastSpeedStr || "1.0s";
     const dateStr = new Date().toLocaleDateString('zh-TW');
 
@@ -1670,7 +1864,12 @@ class WordChainWeb {
     <line x1="170" y1="25" x2="170" y2="125" stroke="#ffffff" stroke-opacity="0.08"/>
 
     <text x="255" y="45" font-family="'Noto Sans TC', sans-serif" font-size="16" fill="#94a3b8" text-anchor="middle">最長詞格</text>
-    <text x="255" y="95" font-family="'Noto Sans TC', sans-serif" font-weight="bold" font-size="22" fill="#00cec9" text-anchor="middle">${longestWord}</text>
+    ${blen >= 5 ? `
+      <text x="255" y="78" font-family="'Noto Sans TC', sans-serif" font-weight="bold" font-size="${wordFontSize}" fill="#00cec9" text-anchor="middle">${wordDisplay}</text>
+      <text x="255" y="105" font-family="'Noto Sans TC', sans-serif" font-weight="500" font-size="13" fill="#67e8f9" text-anchor="middle">(${blen}字)</text>
+    ` : `
+      <text x="255" y="95" font-family="'Noto Sans TC', sans-serif" font-weight="bold" font-size="18" fill="#00cec9" text-anchor="middle">${wordDisplay} (${blen}字)</text>
+    `}
     <line x1="340" y1="25" x2="340" y2="125" stroke="#ffffff" stroke-opacity="0.08"/>
 
     <text x="425" y="45" font-family="'Noto Sans TC', sans-serif" font-size="16" fill="#94a3b8" text-anchor="middle">極速出招</text>
@@ -1688,10 +1887,10 @@ class WordChainWeb {
   </g>
 
   ${this.lastHomoBadge ? `
-  <!-- 🇹🇼 臺灣深入骨髓諧音魂特賞膠囊 -->
+  <!-- 特賞膠囊 (諧音雙關梗 / 聲律通押) -->
   <g transform="translate(${(width - 540) / 2}, 525)">
-    <rect width="540" height="34" rx="17" fill="#2ed573" fill-opacity="0.16" stroke="#2ed573" stroke-opacity="0.55" stroke-width="1.2"/>
-    <text x="270" y="22" font-family="'Noto Sans TC', sans-serif" font-weight="bold" font-size="14" fill="#2ed573" text-anchor="middle">${this.lastHomoBadge}</text>
+    <rect width="540" height="34" rx="17" fill="${this.lastBadgeType === 'pun' ? '#2ed573' : '#00cec9'}" fill-opacity="0.16" stroke="${this.lastBadgeType === 'pun' ? '#2ed573' : '#00cec9'}" stroke-opacity="0.55" stroke-width="1.2"/>
+    <text x="270" y="22" font-family="'Noto Sans TC', sans-serif" font-weight="bold" font-size="14" fill="${this.lastBadgeType === 'pun' ? '#2ed573' : '#00cec9'}" text-anchor="middle">${this.lastHomoBadge}</text>
   </g>` : ''}
 
   <!-- 🔮 詞海八字 · 職業神算卡 -->
@@ -1904,8 +2103,16 @@ class WordChainWeb {
     this.aiHp = 100;
     this.playerScore = 0;
     this.aiScore = 0;
+    this.playerPhoneticCount = 0;
+    this.playerPhoneticCombo = 0;
+    this.playerTruePunCount = 0;
+    this.playerPunWords = [];
     this.playerHomophoneCount = 0;
     this.playerHomophoneCombo = 0;
+    this.lastHomoBadge = "";
+    this.lastBadgeType = "";
+    this.lastBestWord = "";
+    this.lastBestLen = 0;
     this.updateHUD();
 
     // 清空棋盤與表格
@@ -2879,7 +3086,7 @@ class WordChainWeb {
 
     let badgeClass = "badge-exact";
     if (modeTag.includes("諧音")) badgeClass = "badge-homo-soul";
-    else if (modeTag.includes("同音")) badgeClass = "badge-homo";
+    else if (modeTag.includes("同音") || modeTag.includes("借音")) badgeClass = "badge-homo";
     else if (modeTag.includes("超時") || modeTag.includes("急救")) badgeClass = "badge-danger";
 
     tr.innerHTML = `
@@ -3170,20 +3377,35 @@ class WordChainWeb {
     // 計算積分與氣血傷害
     let pts = 100;
     let dmg = 0;
-    let isHomoMove = !check.isExact && check.match;
-    let homoBonusPts = 0;
+    const punInfo = checkTruePun(word, this.lexicon);
+    const isTruePun = !!punInfo;
+    const isHomoMove = !check.isExact && check.match;
+    let bonusPts = 0;
 
-    if (isHomoMove) {
-      // 🇹🇼 臺灣深入骨髓諧音魂 · 絕妙諧音特殊獎勵機制！
-      this.playerHomophoneCount++;
-      this.playerHomophoneCombo++;
-      // 基礎諧音獎勵 + 連擊累加獎勵
-      homoBonusPts = 60 + (this.playerHomophoneCombo * 20);
-      pts += homoBonusPts;
-      dmg += 10; // 諧音梗震撼力額外破防 AI
-      showToast(`🤣 絕妙諧音！深入骨髓諧音魂觸發 (連擊 x${this.playerHomophoneCombo})！獎勵 +${homoBonusPts} 分！`, "success", 3000);
+    if (isTruePun) {
+      // 🤣 真正的臺灣諧音雙關梗（正常詞彙同音換字產生不同意義）
+      this.playerTruePunCount++;
+      this.playerPunWords.push({ word, original: punInfo.original });
+      this.playerPhoneticCombo = 0;
+      this.playerHomophoneCombo = 0;
+      bonusPts = 150;
+      pts += bonusPts;
+      dmg += 20; // 諧音雙關震撼破防 AI
+      showToast(`🤣 真正的臺灣諧音梗！化用【${punInfo.original}】深入骨髓諧音魂大爆發！獎勵 +${bonusPts} 分！`, "success", 3500);
+    } else if (isHomoMove) {
+      // 🎵 聲律相和 · 借音通押（正規同音不同字接龍）
+      this.playerPhoneticCount++;
+      this.playerPhoneticCombo++;
+      this.playerHomophoneCount = this.playerPhoneticCount;
+      this.playerHomophoneCombo = this.playerPhoneticCombo;
+      // 基礎借音獎勵 + 連擊累加獎勵
+      bonusPts = 60 + (this.playerPhoneticCombo * 20);
+      pts += bonusPts;
+      dmg += 10;
+      showToast(`🎵 借音通押！聲律相和 (借音連擊 x${this.playerPhoneticCombo})！獎勵 +${bonusPts} 分！`, "success", 3000);
     } else {
-      // 嚴謹同字銜接，重置諧音連擊
+      // 👑 嚴謹同字直咬，重置連擊
+      this.playerPhoneticCombo = 0;
       this.playerHomophoneCombo = 0;
       pts += 50;
     }
@@ -3243,19 +3465,24 @@ class WordChainWeb {
     this.battleCurrentWord = word;
     this.roundCount++;
 
-    const matchDesc = isHomoMove
-      ? (this.playerHomophoneCombo > 1
-          ? `🤣 絕妙諧音連擊 x${this.playerHomophoneCombo} (${check.matchingZhuyin || check.desc})`
-          : `🤣 絕妙諧音破局 (${check.matchingZhuyin || check.desc})`)
-      : check.desc;
+    let matchDesc = check.desc;
+    if (isTruePun) {
+      matchDesc = `🤣 諧音雙關 (化用：${punInfo.original})`;
+    } else if (isHomoMove) {
+      matchDesc = (this.playerPhoneticCombo > 1)
+        ? `🎵 借音連擊 x${this.playerPhoneticCombo} (${check.matchingZhuyin || check.desc})`
+        : `🎵 借音通押 (${check.matchingZhuyin || check.desc})`;
+    }
     const speedTag = elapsed < 3.0 ? "極速" : elapsed <= 8.0 ? "敏捷" : "沉穩";
     const radarTag = tailScore === 0 ? "💀絕殺" : tailScore <= 3 ? "⚠️險局" : tailScore <= 20 ? "⚔️激戰" : "🟢汪洋";
 
     // 2D 棋盤落子與心戰氣泡
     const isPoetic = word.length >= 5;
     let playerBanter = "";
-    if (isHomoMove) {
-      playerBanter = `深入骨髓諧音魂！借音破局打出【${word}】(連擊 x${this.playerHomophoneCombo}，+${homoBonusPts}分)！`;
+    if (isTruePun) {
+      playerBanter = `深入骨髓諧音魂！以諧音雙關【${word}】破局 (化用【${punInfo.original}】，+${bonusPts}分)！`;
+    } else if (isHomoMove) {
+      playerBanter = `聲律相通！借音打出【${word}】(借音連擊 x${this.playerPhoneticCombo}，+${bonusPts}分)！`;
     } else if (isPoetic) {
       playerBanter = `滿腹經綸，長句出招【${word}】！(耗時 ${elapsed.toFixed(1)}s)`;
     } else {
@@ -3272,8 +3499,10 @@ class WordChainWeb {
     this.updateStoryCard(word);
 
     const persona = PERSONAS[this.currentPersona] || PERSONAS.ji_xiaolan;
-    if (isHomoMove) {
-      this.updateLiveBanter("👤", `閣下打出【${word}】(+${pts}分 · ${matchDesc}) —— 深得臺灣諧音真傳！${persona.name} 亦為之絕倒！`);
+    if (isTruePun) {
+      this.updateLiveBanter("👤", `閣下打出諧音雙關【${word}】(+${pts}分 · 化用【${punInfo.original}】) —— 深入骨髓諧音魂！深得臺灣諧音真傳！${persona.name} 亦為之絕倒！`);
+    } else if (isHomoMove) {
+      this.updateLiveBanter("👤", `閣下打出【${word}】(+${pts}分 · ${matchDesc}) —— 聲韻相諧，借音展卷！${persona.name} 亦為之頷首！`);
     } else {
       this.updateLiveBanter("👤", `閣下打出【${word}】(+${pts}分 · ${matchDesc}) —— ${persona.name} 請接招！`);
     }
@@ -3726,7 +3955,7 @@ class WordChainWeb {
     const speakerColor = isP1 ? "var(--ai-blue)" : speaker.includes("李白") ? "#fdcb6e" : "var(--accent-gold)";
 
     let badgeClass = "badge-exact";
-    if (modeTag.includes("同音")) badgeClass = "badge-homo";
+    if (modeTag.includes("同音") || modeTag.includes("借音")) badgeClass = "badge-homo";
 
     tr.innerHTML = `
       <td style="text-align:center; font-size:0.85rem;">${round}</td>
