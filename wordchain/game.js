@@ -679,6 +679,7 @@ class WordChainWeb {
     this.aiHp = 100;
     this.playerPhoneticCount = 0; // 聲律「借音通押」妙招累計
     this.playerPhoneticCombo = 0; // 連續借音連擊數
+    this.playerExactCombo = 0; // 原字直咬連擊數
     this.playerTruePunCount = 0; // 真正臺灣在地「深入骨髓諧音魂」雙關梗累計
     this.playerPunWords = []; // 本局打出之諧音雙關梗記錄
     this.playerHomophoneCount = 0; // 相容別名
@@ -2105,6 +2106,7 @@ class WordChainWeb {
     this.aiScore = 0;
     this.playerPhoneticCount = 0;
     this.playerPhoneticCombo = 0;
+    this.playerExactCombo = 0;
     this.playerTruePunCount = 0;
     this.playerPunWords = [];
     this.playerHomophoneCount = 0;
@@ -3384,30 +3386,41 @@ class WordChainWeb {
 
     if (isTruePun) {
       // 🤣 真正的臺灣諧音雙關梗（正常詞彙同音換字產生不同意義）
+      // 破格諧音文化雙關特賞：全場最高加分！
       this.playerTruePunCount++;
       this.playerPunWords.push({ word, original: punInfo.original });
       this.playerPhoneticCombo = 0;
       this.playerHomophoneCombo = 0;
+      this.playerExactCombo = 0;
       bonusPts = 150;
       pts += bonusPts;
-      dmg += 20; // 諧音雙關震撼破防 AI
-      showToast(`🤣 真正的臺灣諧音梗！化用【${punInfo.original}】深入骨髓諧音魂大爆發！獎勵 +${bonusPts} 分！`, "success", 3500);
+      dmg += 25; // 諧音雙關震撼破防 AI
+      showToast(`🤣 臺灣諧音雙關！化用【${punInfo.original}】深入骨髓諧音魂大爆發！特賞 +${bonusPts} 分！`, "success", 3500);
+    } else if (check.isExact) {
+      // 👑 原字接龍（同字直咬）
+      // 正統咬合，字面完全吻合、難度高，分數高於普通同音字接龍！
+      this.playerExactCombo++;
+      this.playerPhoneticCombo = 0;
+      this.playerHomophoneCombo = 0;
+      bonusPts = 80 + Math.min((this.playerExactCombo - 1) * 15, 60);
+      pts += bonusPts;
+      dmg += 15;
+      if (this.playerExactCombo > 1) {
+        showToast(`👑 原字直咬！正統連擊 x${this.playerExactCombo}！獎勵 +${bonusPts} 分！`, "success", 2500);
+      }
     } else if (isHomoMove) {
-      // 🎵 聲律相和 · 借音通押（正規同音不同字接龍）
+      // 🎵 普通同音字接龍（借音通押）
+      // 候選字多、難度較低，常規分數低於原字接龍
       this.playerPhoneticCount++;
       this.playerPhoneticCombo++;
       this.playerHomophoneCount = this.playerPhoneticCount;
       this.playerHomophoneCombo = this.playerPhoneticCombo;
-      // 基礎借音獎勵 + 連擊累加獎勵
-      bonusPts = 60 + (this.playerPhoneticCombo * 20);
+      this.playerExactCombo = 0;
+      // 借音獎勵 + 適度連擊累加（上限 50，總獎勵始終低於原字直咬）
+      bonusPts = 30 + Math.min((this.playerPhoneticCombo - 1) * 5, 20);
       pts += bonusPts;
-      dmg += 10;
-      showToast(`🎵 借音通押！聲律相和 (借音連擊 x${this.playerPhoneticCombo})！獎勵 +${bonusPts} 分！`, "success", 3000);
-    } else {
-      // 👑 嚴謹同字直咬，重置連擊
-      this.playerPhoneticCombo = 0;
-      this.playerHomophoneCombo = 0;
-      pts += 50;
+      dmg += 8;
+      showToast(`🎵 借音通押！聲律相和 (借音連擊 x${this.playerPhoneticCombo})！獎勵 +${bonusPts} 分！`, "success", 2500);
     }
 
     // 鼓勵古典詩詞長句、七言絕句、五言律句與完整名篇
@@ -3468,6 +3481,10 @@ class WordChainWeb {
     let matchDesc = check.desc;
     if (isTruePun) {
       matchDesc = `🤣 諧音雙關 (化用：${punInfo.original})`;
+    } else if (check.isExact) {
+      matchDesc = (this.playerExactCombo > 1)
+        ? `👑 原字連擊 x${this.playerExactCombo}`
+        : `👑 原字直咬`;
     } else if (isHomoMove) {
       matchDesc = (this.playerPhoneticCombo > 1)
         ? `🎵 借音連擊 x${this.playerPhoneticCombo} (${check.matchingZhuyin || check.desc})`
@@ -3481,6 +3498,8 @@ class WordChainWeb {
     let playerBanter = "";
     if (isTruePun) {
       playerBanter = `深入骨髓諧音魂！以諧音雙關【${word}】破局 (化用【${punInfo.original}】，+${bonusPts}分)！`;
+    } else if (check.isExact && this.playerExactCombo > 1) {
+      playerBanter = `原字直咬！連擊 x${this.playerExactCombo} 打出【${word}】(+${bonusPts}分)！`;
     } else if (isHomoMove) {
       playerBanter = `聲律相通！借音打出【${word}】(借音連擊 x${this.playerPhoneticCombo}，+${bonusPts}分)！`;
     } else if (isPoetic) {
