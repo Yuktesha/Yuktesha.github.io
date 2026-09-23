@@ -14,6 +14,7 @@ const files = [
   'wordchain/js/ai.js',
   'wordchain/js/victory.js',
   'wordchain/js/learned.js',
+  'wordchain/js/zen_ambient.js',
   'wordchain/game.js'
 ];
 
@@ -149,8 +150,16 @@ assert(styleCss.includes('body.fullscreen-zen #tab-learned'), "style.css must is
 assert(styleCss.includes('.hud-label-compact'), "style.css must have .hud-label-compact rules");
 assert(!styleCss.includes('.brand div div {'), "style.css must not hide brand div div");
 assert(styleCss.includes('zen-cursor-hidden') && styleCss.includes('zen-cursor-fading'), "style.css must have zen-cursor-hidden and zen-cursor-fading rules");
+assert(styleCss.includes('.zen-ambient-canvas'), "style.css must have .zen-ambient-canvas rules");
+assert(indexHtml.includes('zen_ambient.js'), "index.html must include zen_ambient.js");
+assert(indexHtml.includes('zen-ambient-canvas'), "index.html must include zen-ambient-canvas");
 
-console.log("✓ Small Terminal UI & Fullscreen Zen rules verified in HTML & CSS!");
+const ZenAmbient = require('../wordchain/js/zen_ambient.js');
+assert(typeof ZenAmbient.start === 'function', "ZenAmbient must have start function");
+assert(typeof ZenAmbient.stop === 'function', "ZenAmbient must have stop function");
+assert(typeof ZenAmbient.isActive === 'function', "ZenAmbient must have isActive function");
+
+console.log("✓ Zen Ambient Background Engine & Canvas rules verified!");
 
 console.log("\n=== ALL ARCHITECTURE & RESPONSIVE TESTS PASSED! ===");
 

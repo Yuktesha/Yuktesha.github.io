@@ -2786,6 +2786,28 @@ body.fullscreen-zen .cross-board-viewport {
   height: 100vh !important;
   max-height: 100vh !important;
   flex: 1 1 100% !important;
+  background-image: none !important; /* 全螢幕禪境模式讓位給動態漣漪格線與微光方格 */
+}
+
+/* 全螢幕動態禪境畫布 (Zen Ambient Atmosphere Canvas) */
+.zen-ambient-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 1;
+  display: none;
+}
+
+body.fullscreen-zen .zen-ambient-canvas {
+  display: block !important;
+}
+
+.cross-board-grid {
+  position: relative;
+  z-index: 2;
 }
 
 /* 觀戰屏保專用半透明浮動退出鈕 (滑鼠移入或觸控時浮現) */

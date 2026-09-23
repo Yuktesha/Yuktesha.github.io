@@ -404,16 +404,19 @@ class WordChainWeb {
         document.documentElement.requestFullscreen().catch(() => {
           // 行動端或不支援原生全螢幕時，使用 CSS 類比滿版禪境模式
           document.body.classList.add("fullscreen-zen");
+          if (window.WordChain && window.WordChain.ZenAmbient) window.WordChain.ZenAmbient.start();
         });
         if (!this.isDemoRunning) {
           this.startDemo();
         }
         resetZenIdleTimer();
+        if (window.WordChain && window.WordChain.ZenAmbient) window.WordChain.ZenAmbient.start();
         showToast("🖥️ 已進入全螢幕觀戰模式（雙雄字戀屏保中）", "info", 2500);
       } else {
         document.exitFullscreen().catch(() => {
           document.body.classList.remove("fullscreen-zen");
           clearZenIdleTimers();
+          if (window.WordChain && window.WordChain.ZenAmbient) window.WordChain.ZenAmbient.stop();
         });
       }
     };
@@ -467,6 +470,7 @@ class WordChainWeb {
         } else {
           document.body.classList.remove("fullscreen-zen");
           clearZenIdleTimers();
+          if (window.WordChain && window.WordChain.ZenAmbient) window.WordChain.ZenAmbient.stop();
           setTimeout(() => {
             const vp = document.getElementById("cross-board-viewport");
             if (vp) this.recenterViewport(vp, this.gameMode === "demo", false);
@@ -480,8 +484,10 @@ class WordChainWeb {
       document.body.classList.toggle("fullscreen-zen", isFS);
       if (isFS) {
         resetZenIdleTimer();
+        if (window.WordChain && window.WordChain.ZenAmbient) window.WordChain.ZenAmbient.start();
       } else {
         clearZenIdleTimers();
+        if (window.WordChain && window.WordChain.ZenAmbient) window.WordChain.ZenAmbient.stop();
       }
       if (btnDemoFullscreen) {
         const fullSpan = btnDemoFullscreen.querySelector(".fs-text-full");
@@ -529,6 +535,7 @@ class WordChainWeb {
 
     // 橫轉直 / 直轉橫與視窗縮放自動置中
     window.addEventListener("resize", () => {
+      if (window.WordChain && window.WordChain.ZenAmbient) window.WordChain.ZenAmbient.resize();
       setTimeout(() => {
         const vp = document.getElementById("cross-board-viewport");
         if (vp) this.recenterViewport(vp, this.gameMode === "demo", false);
