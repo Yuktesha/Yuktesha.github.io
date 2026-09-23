@@ -158,6 +158,14 @@
   cursor: grab;
   user-select: none;
   -webkit-user-select: none;
+  scrollbar-width: none !important; /* Firefox 隱藏滾動條 */
+  -ms-overflow-style: none !important; /* IE/Edge 隱藏滾動條 */
+}
+
+.cross-board-viewport::-webkit-scrollbar {
+  display: none !important; /* Chrome/Edge/Safari 隱藏原生滾動條 */
+  width: 0 !important;
+  height: 0 !important;
 }
 
 .cross-board-viewport.is-panning {
@@ -2664,11 +2672,29 @@ th {
    全螢幕屏保禪境模式 (Fullscreen Zen Screensaver Mode)
    完全乾淨純粹：只保留縱橫交錯棋盤與動態字陣（完美符合 Image 3）
    ========================================== */
+html:has(body.fullscreen-zen),
 body.fullscreen-zen {
   overflow: hidden !important;
   margin: 0 !important;
   padding: 0 !important;
   background: var(--bg-main, #0b0f19) !important;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+/* 徹底消除極端縮放 (如 500%) 下出現的右側與底部原生粗糙滾動條 */
+html:has(body.fullscreen-zen)::-webkit-scrollbar,
+body.fullscreen-zen::-webkit-scrollbar,
+body.fullscreen-zen *::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+body.fullscreen-zen,
+body.fullscreen-zen * {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
 }
 
 /* 隱藏全體頁首導航、工具列、儀表、對白與控制埠 */
