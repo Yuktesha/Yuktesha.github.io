@@ -36,12 +36,14 @@ body {
   background-size: 24px 24px;
 }
 
-/* 頂部導覽列 */
+/* 頂部導覽列 — 句子層：允許品牌詞塊與操控詞塊整體折行 */
 header {
-  padding: 16px 32px;
+  padding: 12px 24px;
   display: flex;
+  flex-wrap: wrap;              /* rud(): 句子允許詞塊整體換行 */
   justify-content: space-between;
   align-items: center;
+  gap: 10px;
   border-bottom: 1px solid var(--border-subtle);
   background: rgba(247, 245, 240, 0.9);
   backdrop-filter: blur(8px);
@@ -50,18 +52,23 @@ header {
   z-index: 50;
 }
 
+/* 品牌詞塊 — 詞層：品牌標題為一個詞，副標可折行但不截字 */
 .brand {
   display: flex;
+  flex-wrap: wrap;              /* rud(): 副標在極窄時可折到下行 */
   align-items: baseline;
-  gap: 12px;
+  gap: 8px;
+  flex-shrink: 0;               /* rud(): 整個品牌區塊不縮小 */
 }
 
+/* 字層：品牌名絕不折字 */
 .brand-title {
   font-family: var(--font-serif);
   font-size: 26px;
   font-weight: 700;
   letter-spacing: 2px;
   color: var(--ink-primary);
+  white-space: nowrap;          /* rud(): 字層，絕不折字 */
 }
 
 .brand-title span.textile-en {
@@ -82,21 +89,25 @@ header {
   letter-spacing: 1px;
 }
 
-/* 模式開關與計分 */
+/* 操控行 — 句子層：允許模式詞塊與翻頁詞塊整體換行 */
 .header-actions {
   display: flex;
+  flex-wrap: wrap;              /* rud(): 句子層允許詞塊整體換行 */
   align-items: center;
-  gap: 20px;
+  gap: 10px;
 }
 
+/* 模式切換詞塊 — 詞層：三個模式鈕合為一詞，不可分割 */
 .mode-selector {
   display: flex;
+  flex-shrink: 0;               /* rud(): 整詞不縮放不折散 */
   background: #EAE5DC;
   padding: 3px;
   border-radius: 8px;
   font-size: 13px;
 }
 
+/* 字層：模式鈕文字絕不折字 */
 .mode-btn {
   border: none;
   background: transparent;
@@ -105,6 +116,7 @@ header {
   cursor: pointer;
   color: var(--ink-secondary);
   font-weight: 500;
+  white-space: nowrap;          /* rud(): 字層，絕不折字 */
   transition: all 0.2s ease;
 }
 
@@ -126,16 +138,13 @@ main.canvas-container {
   gap: 24px;
 }
 
-/* 題目頭部資訊卡 */
+/* 題目資訊卡 — 段落層 */
 .challenge-card {
   background: #FFFFFF;
   border-radius: 14px;
   padding: 22px 28px;
   border: 1px solid var(--border-subtle);
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.03);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   position: relative;
   overflow: hidden;
 }
@@ -150,20 +159,25 @@ main.canvas-container {
   background: var(--accent-cinnabar);
 }
 
+/* 句子層：標題 + 注音 + 分類 badge，允許 badge 整體折行 */
 .challenge-meta h2 {
   font-family: var(--font-serif);
   font-size: 22px;
   display: flex;
+  flex-wrap: wrap;              /* rud(): badge 在窄螢幕時整體折到下行 */
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
+/* 字層：badge 絕不折字 */
 .badge {
   font-size: 12px;
-  padding: 3px 8px;
+  padding: 3px 10px;
   border-radius: 4px;
   font-weight: normal;
   font-family: var(--font-sans);
+  white-space: nowrap;          /* rud(): 字層，絕不折字 */
+  flex-shrink: 0;               /* rud(): 作為詞層單位不縮放 */
 }
 
 .badge-phonetic {
@@ -180,14 +194,19 @@ main.canvas-container {
   font-size: 14px;
   color: var(--ink-secondary);
   margin-top: 8px;
+  word-break: break-word;       /* rud(): 提示文字允許語意斷行 */
+  line-height: 1.7;
 }
 
+/* 翻頁詞塊 — 詞層：上一題 + 頁碼 + 下一題合為一詞，不可分割 */
 .pagination {
   display: flex;
+  flex-shrink: 0;               /* rud(): 整個翻頁詞塊不縮放 */
   align-items: center;
   gap: 8px;
 }
 
+/* 字層：翻頁鈕文字絕不折字 */
 .btn-nav {
   background: #FAF8F5;
   border: 1px solid var(--border-subtle);
@@ -196,6 +215,7 @@ main.canvas-container {
   cursor: pointer;
   font-size: 13px;
   color: var(--ink-secondary);
+  white-space: nowrap;          /* rud(): 字層，絕不折字 */
   transition: all 0.2s;
 }
 
@@ -359,24 +379,28 @@ main.canvas-container {
   vertical-align: baseline;
 }
 
-/* 操作按鈕區 */
+/* 操作工具列 — 句子層：允許按鈕詞塊整體換行 */
 .action-toolbar {
   display: flex;
+  flex-wrap: wrap;              /* rud(): 句子層允許按鈕詞塊整體換行 */
   justify-content: flex-end;
-  gap: 12px;
+  gap: 10px;
 }
 
+/* 字層：所有動作按鈕絕不折字 */
 .btn-action {
-  padding: 11px 24px;
+  padding: 11px 22px;
   border-radius: 8px;
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
+  white-space: nowrap;          /* rud(): 字層，絕不折字 */
   transition: all 0.2s;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
   border: none;
+  flex-shrink: 0;               /* rud(): 按鈕不縮放 */
 }
 
 .btn-eval {
@@ -458,17 +482,22 @@ main.canvas-container {
   display: block;
 }
 
+/* 鑑賞卡頭部 — 句子層：分數+印章 詞塊與評鑑說明可換行 */
 .critique-header {
   display: flex;
+  flex-wrap: wrap;              /* rud(): 句子層允許詞塊整體換行 */
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
   border-bottom: 1px dashed var(--border-subtle);
   padding-bottom: 14px;
   margin-bottom: 16px;
 }
 
+/* 詞層：分數+印章為不可分割詞塊 */
 .score-badge-group {
   display: flex;
+  flex-shrink: 0;               /* rud(): 整詞不縮放 */
   align-items: center;
   gap: 14px;
 }
@@ -547,44 +576,51 @@ main.canvas-container {
   }
 }
 
-/* ==============================================================================
-   如喜輸入法 (RuhI) 前導預告與特色卡片樣式
-   ============================================================================== */
+/* ruhi 橫幅 — 句子層：說明詞塊與連結詞塊可整體換行 */
 .ruhi-announcement-bar {
   background: linear-gradient(90deg, #1C1D21 0%, #2D3139 100%);
   color: #ECEFF4;
-  padding: 10px 32px;
+  padding: 10px 24px;
   display: flex;
+  flex-wrap: wrap;              /* rud(): 句子層允許詞塊整體換行 */
   justify-content: space-between;
   align-items: center;
+  gap: 8px;
   font-size: 13px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+/* 詞層：說明文字群組 */
 .ruhi-bar-content {
   display: flex;
+  flex-wrap: wrap;              /* rud(): badge 和說明文字可各自折行 */
   align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
+  gap: 10px;
 }
 
+/* 字層：ruhi badge 絕不折字 */
 .ruhi-badge {
   background: var(--accent-cinnabar);
   color: #FFFFFF;
-  padding: 2px 10px;
+  padding: 3px 10px;
   border-radius: 20px;
   font-weight: 600;
   font-size: 12px;
   letter-spacing: 0.5px;
+  white-space: nowrap;          /* rud(): 字層，絕不折字 */
+  flex-shrink: 0;
 }
 
 .ruhi-text {
   color: #D8DEE9;
   letter-spacing: 0.5px;
+  word-break: break-word;       /* rud(): 說明文字允許語意斷行 */
 }
 
+/* 詞層：連結群組不可分割 */
 .ruhi-bar-links {
   display: flex;
+  flex-shrink: 0;               /* rud(): 整個連結詞塊不縮放 */
   gap: 16px;
   white-space: nowrap;
 }
@@ -628,13 +664,15 @@ main.canvas-container {
   color: var(--ink-secondary);
 }
 
+/* 特色標籤 — 句子層：允許標籤詞塊整體換行 */
 .features-tags {
   margin-top: 16px;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: wrap;              /* rud(): 句子層，標籤自然流式換行 */
   gap: 8px;
 }
 
+/* 字層：特色標籤絕不折字 */
 .ft-tag {
   background: #F4F1EA;
   border: 1px solid #E2DDD5;
@@ -643,6 +681,8 @@ main.canvas-container {
   border-radius: 6px;
   font-size: 12px;
   font-weight: 500;
+  white-space: nowrap;          /* rud(): 字層，絕不折字 */
+  flex-shrink: 0;
 }
 
 .textile-footer {
