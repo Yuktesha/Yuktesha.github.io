@@ -389,6 +389,17 @@ class WordChainWeb {
     const btnZenExit = document.getElementById("btn-zen-exit");
 
     const enterZenFullscreen = () => {
+      // 確保切換至棋盤對戰/演示主舞台，徹底隔離詞海手冊
+      document.querySelectorAll(".tab-pane").forEach(p => {
+        if (p.id === "tab-battle") {
+          p.classList.add("active");
+          p.style.display = "block";
+        } else {
+          p.classList.remove("active");
+          p.style.display = "none";
+        }
+      });
+
       if (!document.fullscreenElement) {
         document.documentElement.requestFullscreen().catch(() => {
           // 行動端或不支援原生全螢幕時，使用 CSS 類比滿版禪境模式
@@ -541,8 +552,18 @@ class WordChainWeb {
       const target = b.getAttribute("data-target");
       if ((mode === "battle" && target === "tab-battle") || (mode === "demo" && target === "tab-demo")) {
         b.classList.add("active");
-      } else if (target !== "tab-learned") {
+      } else {
         b.classList.remove("active");
+      }
+    });
+
+    document.querySelectorAll(".tab-pane").forEach(p => {
+      if (p.id === "tab-battle") {
+        p.classList.add("active");
+        p.style.display = "block";
+      } else {
+        p.classList.remove("active");
+        p.style.display = "none";
       }
     });
 

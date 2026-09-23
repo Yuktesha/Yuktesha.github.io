@@ -145,6 +145,7 @@ const styleCss = fs.readFileSync('wordchain/style.css', 'utf8');
 assert(indexHtml.includes('btn-zen-exit'), "index.html must have btn-zen-exit button");
 assert(indexHtml.includes('hud-label-full') && indexHtml.includes('hud-label-compact'), "index.html must have responsive hud-label spans");
 assert(styleCss.includes('body.fullscreen-zen header') && styleCss.includes('body.fullscreen-zen .control-bar'), "style.css must hide chrome in fullscreen-zen");
+assert(styleCss.includes('body.fullscreen-zen #tab-learned'), "style.css must isolate and hide #tab-learned in fullscreen-zen");
 assert(styleCss.includes('.hud-label-compact'), "style.css must have .hud-label-compact rules");
 assert(!styleCss.includes('.brand div div {'), "style.css must not hide brand div div");
 

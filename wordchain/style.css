@@ -2706,13 +2706,23 @@ body.fullscreen-zen main {
   background: transparent !important;
 }
 
-body.fullscreen-zen .tab-pane {
+/* 嚴格隔離非對戰分頁（詞海手冊與舊相容層） */
+body.fullscreen-zen #tab-learned,
+body.fullscreen-zen #tab-demo,
+body.fullscreen-zen .tab-pane:not(#tab-battle) {
+  display: none !important;
+}
+
+body.fullscreen-zen #tab-battle.tab-pane {
   padding: 0 !important;
   margin: 0 !important;
-  width: 100% !important;
-  height: 100% !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: 100vw !important;
+  max-height: 100vh !important;
   display: flex !important;
   flex-direction: column !important;
+  overflow: hidden !important;
 }
 
 body.fullscreen-zen .battle-grid,
