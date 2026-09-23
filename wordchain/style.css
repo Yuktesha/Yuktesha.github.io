@@ -2803,19 +2803,37 @@ body.fullscreen-zen .cross-board-viewport {
   font-size: 0.78rem;
   cursor: pointer;
   backdrop-filter: blur(8px);
-  opacity: 0.2;
-  transition: opacity 0.3s ease, background 0.2s ease;
+  opacity: 0.3;
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s ease, transform 0.2s ease;
 }
 
 .zen-exit-btn:hover, .zen-exit-btn:active {
-  opacity: 1;
+  opacity: 1 !important;
   background: rgba(15, 23, 42, 0.9);
   color: #fff;
   border-color: var(--accent-cyan);
+  transform: scale(1.04);
 }
 
 body.fullscreen-zen .zen-exit-btn {
   display: block !important;
+}
+
+/* 全螢幕觀戰滑鼠閒置自動淡出與游標隱形 (Auto-hide Cursor on Idle) */
+body.fullscreen-zen.zen-cursor-fading .zen-exit-btn {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transition: opacity 0.8s ease-out !important;
+}
+
+body.fullscreen-zen.zen-cursor-hidden,
+body.fullscreen-zen.zen-cursor-hidden * {
+  cursor: none !important;
+}
+
+body.fullscreen-zen.zen-cursor-hidden .zen-exit-btn {
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
 
 /* ==========================================

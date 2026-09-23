@@ -408,13 +408,53 @@ class WordChainWeb {
         if (!this.isDemoRunning) {
           this.startDemo();
         }
+        resetZenIdleTimer();
         showToast("🖥️ 已進入全螢幕觀戰模式（雙雄字戀屏保中）", "info", 2500);
       } else {
         document.exitFullscreen().catch(() => {
           document.body.classList.remove("fullscreen-zen");
+          clearZenIdleTimers();
         });
       }
     };
+
+    // 全螢幕觀戰滑鼠閒置自動淡出與游標隱形計時器 (Idle Cursor Fade-out & Auto-hide)
+    let zenIdleTimer = null;
+    let zenFadeTimer = null;
+
+    const clearZenIdleTimers = () => {
+      if (zenFadeTimer) { clearTimeout(zenFadeTimer); zenFadeTimer = null; }
+      if (zenIdleTimer) { clearTimeout(zenIdleTimer); zenIdleTimer = null; }
+      document.body.classList.remove("zen-cursor-hidden", "zen-cursor-fading");
+    };
+
+    const resetZenIdleTimer = () => {
+      if (!document.body.classList.contains("fullscreen-zen")) return;
+
+      if (zenFadeTimer) { clearTimeout(zenFadeTimer); zenFadeTimer = null; }
+      if (zenIdleTimer) { clearTimeout(zenIdleTimer); zenIdleTimer = null; }
+
+      document.body.classList.remove("zen-cursor-hidden", "zen-cursor-fading");
+
+      // 2.0 秒閒置：按鈕平滑淡出
+      zenFadeTimer = setTimeout(() => {
+        if (document.body.classList.contains("fullscreen-zen")) {
+          document.body.classList.add("zen-cursor-fading");
+        }
+      }, 2000);
+
+      // 2.6 秒閒置：滑鼠游標完全隱形
+      zenIdleTimer = setTimeout(() => {
+        if (document.body.classList.contains("fullscreen-zen")) {
+          document.body.classList.add("zen-cursor-hidden");
+        }
+      }, 2600);
+    };
+
+    window.addEventListener("mousemove", resetZenIdleTimer, { passive: true });
+    window.addEventListener("mousedown", resetZenIdleTimer, { passive: true });
+    window.addEventListener("wheel", resetZenIdleTimer, { passive: true });
+    window.addEventListener("touchstart", resetZenIdleTimer, { passive: true });
 
     if (btnDemoFullscreen) {
       btnDemoFullscreen.addEventListener("click", () => enterZenFullscreen());
@@ -426,6 +466,7 @@ class WordChainWeb {
           document.exitFullscreen().catch(() => {});
         } else {
           document.body.classList.remove("fullscreen-zen");
+          clearZenIdleTimers();
           setTimeout(() => {
             const vp = document.getElementById("cross-board-viewport");
             if (vp) this.recenterViewport(vp, this.gameMode === "demo", false);
@@ -437,6 +478,11 @@ class WordChainWeb {
     document.addEventListener("fullscreenchange", () => {
       const isFS = !!document.fullscreenElement;
       document.body.classList.toggle("fullscreen-zen", isFS);
+      if (isFS) {
+        resetZenIdleTimer();
+      } else {
+        clearZenIdleTimers();
+      }
       if (btnDemoFullscreen) {
         const fullSpan = btnDemoFullscreen.querySelector(".fs-text-full");
         const shortSpan = btnDemoFullscreen.querySelector(".fs-text-short");

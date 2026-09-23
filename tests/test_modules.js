@@ -148,6 +148,7 @@ assert(styleCss.includes('body.fullscreen-zen header') && styleCss.includes('bod
 assert(styleCss.includes('body.fullscreen-zen #tab-learned'), "style.css must isolate and hide #tab-learned in fullscreen-zen");
 assert(styleCss.includes('.hud-label-compact'), "style.css must have .hud-label-compact rules");
 assert(!styleCss.includes('.brand div div {'), "style.css must not hide brand div div");
+assert(styleCss.includes('zen-cursor-hidden') && styleCss.includes('zen-cursor-fading'), "style.css must have zen-cursor-hidden and zen-cursor-fading rules");
 
 console.log("✓ Small Terminal UI & Fullscreen Zen rules verified in HTML & CSS!");
 
