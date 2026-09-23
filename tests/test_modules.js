@@ -158,8 +158,16 @@ const ZenAmbient = require('../wordchain/js/zen_ambient.js');
 assert(typeof ZenAmbient.start === 'function', "ZenAmbient must have start function");
 assert(typeof ZenAmbient.stop === 'function', "ZenAmbient must have stop function");
 assert(typeof ZenAmbient.isActive === 'function', "ZenAmbient must have isActive function");
+assert(typeof ZenAmbient.setTargetFps === 'function', "ZenAmbient must have setTargetFps function");
+assert(typeof ZenAmbient.getTargetFps === 'function', "ZenAmbient must have getTargetFps function");
+assert(ZenAmbient.getTargetFps() === 60, "Default targetFps must be 60 FPS for frame capping");
+ZenAmbient.setTargetFps(30);
+assert(ZenAmbient.getTargetFps() === 30, "Target FPS must be updatable to 30");
+assert(ZenAmbient.instance.frameInterval === 1000 / 30, "Frame interval must match 30 FPS");
+ZenAmbient.setTargetFps(60);
+assert(ZenAmbient.getTargetFps() === 60, "Target FPS reset to 60");
 
-console.log("✓ Zen Ambient Background Engine & Canvas rules verified!");
+console.log("✓ Zen Ambient Background Engine, Frame Capping & Canvas rules verified!");
 
 console.log("\n=== ALL ARCHITECTURE & RESPONSIVE TESTS PASSED! ===");
 

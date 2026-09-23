@@ -41,7 +41,21 @@
       this.maxCells = 16;
       this.time = 0;
       this.lastTimestamp = 0;
+      this.lastRenderTime = 0;
+      // 幀率限制：預設封頂 60 FPS，防止在 120Hz/144Hz/240Hz 等高刷電競螢幕上 GPU 空轉狂飆
+      this.targetFps = 60;
+      this.frameInterval = 1000 / this.targetFps;
       this.boundResize = this.resize.bind(this);
+      this.boundVisibility = this.handleVisibilityChange.bind(this);
+    }
+
+    setTargetFps(fps) {
+      this.targetFps = Math.max(0, Number(fps) || 0);
+      this.frameInterval = this.targetFps > 0 ? (1000 / this.targetFps) : 0;
+    }
+
+    getTargetFps() {
+      return this.targetFps;
     }
 
     init(viewportId = "cross-board-viewport", canvasId = "zen-ambient-canvas") {
@@ -57,14 +71,40 @@
 
       this.ctx = this.canvas.getContext("2d", { alpha: true });
       window.addEventListener("resize", this.boundResize, { passive: true });
+      if (typeof document !== 'undefined') {
+        document.addEventListener("visibilitychange", this.boundVisibility, { passive: true });
+      }
       this.resize();
+    }
+
+    handleVisibilityChange() {
+      if (!this.running) return;
+      if (typeof document !== 'undefined' && document.hidden) {
+        // 分頁切換到後台或最小化時立即凍結動畫，GPU/CPU 佔用歸零
+        if (this.animId) {
+          cancelAnimationFrame(this.animId);
+          this.animId = null;
+        }
+      } else {
+        // 切回前台平滑復甦，重新校正時間基準防止物體或格線跳躍
+        const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+        this.lastTimestamp = now;
+        this.lastRenderTime = now;
+        if (!this.animId) {
+          this.animId = requestAnimationFrame((ts) => this.loop(ts));
+        }
+      }
     }
 
     resize() {
       if (!this.canvas || !this.viewport) return;
-      const dpr = Math.min(2, window.devicePixelRatio || 1);
-      const w = this.viewport.clientWidth || window.innerWidth;
-      const h = this.viewport.clientHeight || window.innerHeight;
+      const w = this.viewport.clientWidth || (typeof window !== 'undefined' ? window.innerWidth : 1920);
+      const h = this.viewport.clientHeight || (typeof window !== 'undefined' ? window.innerHeight : 1080);
+
+      // 4K 與超高解析度最佳化：對極低彩度背景特效限制 DPR 於 1.25x~1.5x，大幅降低 Fill Rate 開銷
+      const rawDpr = (typeof window !== 'undefined' && window.devicePixelRatio) ? window.devicePixelRatio : 1;
+      const maxDpr = (w >= 2560 || h >= 1440) ? 1.25 : 1.5;
+      const dpr = Math.min(maxDpr, rawDpr);
 
       if (this.canvas.width !== Math.floor(w * dpr) || this.canvas.height !== Math.floor(h * dpr)) {
         this.canvas.width = Math.floor(w * dpr);
@@ -82,10 +122,12 @@
       if (this.running) return;
       if (!this.canvas) this.init();
       this.running = true;
-      this.lastTimestamp = performance.now();
+      const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+      this.lastTimestamp = now;
+      this.lastRenderTime = now;
       this.resize();
       this.seedInitialCells();
-      this.loop(this.lastTimestamp);
+      this.loop(now);
     }
 
     stop() {
@@ -146,8 +188,24 @@
 
     loop(timestamp) {
       if (!this.running) return;
+      if (typeof document !== 'undefined' && document.hidden) return;
 
-      const delta = Math.min(0.1, (timestamp - this.lastTimestamp) / 1000);
+      // 幀率限制節流 (Frame Capping & Pacing)：
+      // 確保渲染頻率不超越 targetFps（預設 60fps），消除 120Hz/144Hz/240Hz 螢幕上的 GPU 浪費
+      if (this.targetFps > 0) {
+        const elapsed = timestamp - this.lastRenderTime;
+        if (elapsed < this.frameInterval) {
+          this.animId = requestAnimationFrame((ts) => this.loop(ts));
+          return;
+        }
+        // 扣除時間餘數，消除幀時間抖動 (jitter-free frame pacing)
+        this.lastRenderTime = timestamp - (elapsed % this.frameInterval);
+      } else {
+        this.lastRenderTime = timestamp;
+      }
+
+      // Delta 步長時間鉗制（最大 0.05 秒），防止休眠切回或卡頓時巨幅跳躍
+      const delta = Math.min(0.05, Math.max(0.001, (timestamp - this.lastTimestamp) / 1000));
       this.lastTimestamp = timestamp;
       this.time += delta;
 
@@ -306,6 +364,8 @@
     start: () => instance.start(),
     stop: () => instance.stop(),
     isActive: () => instance.isActive(),
-    resize: () => instance.resize()
+    resize: () => instance.resize(),
+    setTargetFps: (fps) => instance.setTargetFps(fps),
+    getTargetFps: () => instance.getTargetFps()
   };
 });
