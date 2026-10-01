@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>txTable — 純文字框線表格智慧轉換與微調工作台</title>
+  <style>
+    :root {
+      --bg: #13141a;
+      --card-bg: #1c1d26;
+      --card-alt: #242533;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --accent-focus: rgba(59, 130, 246, 0.25);
+      --success: #10b981;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --border: #334155;
+      --table-border: #475569;
+      --th-bg: #27293a;
+      --td-hover: #242738;
+      --font-mono: "Consolas", "Cascadia Code", "Menlo", "Courier New", monospace;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang TC", "Microsoft JhengHei", sans-serif;
+    }
+
+    [data-theme="light"] {
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --card-alt: #f1f5f9;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --accent-focus: rgba(37, 99, 235, 0.2);
+      --success: #059669;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --table-border: #cbd5e1;
+      --th-bg: #f1f5f9;
+      --td-hover: #f8fafc;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      min-height: 100vh;
+      transition: background-color 0.2s, color 0.2s;
+    }
+
+    /* ── rud() 原則：段落 (Section Container) ── */
+    .section-container {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      width: 100%;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    /* ── rud() 原則：句子 (Functional Row - 允許詞塊整體折行) ── */
+    .row-sentence {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    /* ── rud() 原則：詞 (Atomic Group - 內部字元不折散) ── */
+    .word-group {
+      display: flex;
+      flex-shrink: 0;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* ── rud() 原則：字 (Atomic Element - 絕不折字) ── */
+    .char-element {
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    /* 頂部導覽列 */
+    header {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 20px;
+    }
+
+    .brand-title {
+      font-size: 1.35rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--accent);
+    }
+
+    .badge {
+      font-size: 0.72rem;
+      background: var(--card-alt);
+      color: var(--text-muted);
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      font-weight: 500;
+    }
+
+    .desc {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+    }
+
+    /* 按鈕樣式 */
+    button {
+      white-space: nowrap;
+      background: var(--accent);
+      color: #ffffff;
+      border: 1px solid transparent;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease-in-out;
+      user-select: none;
+    }
+
+    button:hover {
+      background: var(--accent-hover);
+    }
+
+    button.secondary {
+      background: var(--card-alt);
+      color: var(--text);
+      border-color: var(--border);
+    }
+
+    button.secondary:hover {
+      background: var(--border);
+    }
+
+    button.outline-danger {
+      background: transparent;
+      color: #ef4444;
+      border-color: rgba(239, 68, 68, 0.4);
+    }
+
+    button.outline-danger:hover {
+      background: rgba(239, 68, 68, 0.1);
+      border-color: #ef4444;
+    }
+
+    /* 主雙欄版面 */
+    .editor-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    @media (max-width: 960px) {
+      .editor-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .card-title {
+      font-size: 0.98rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* 文字輸入區 */
+    textarea {
+      width: 100%;
+      height: 460px;
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 14px;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      line-height: 1.45;
+      resize: vertical;
+      white-space: pre;
+      tab-size: 4;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent-focus);
+    }
+
+    /* 預覽容器與表格 */
+    .preview-box {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg);
+      padding: 14px;
+      min-height: 460px;
+      max-height: 600px;
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .table-container {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    table.rendered-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+      color: var(--text);
+      caption-side: top;
+    }
+
+    table.rendered-table th,
+    table.rendered-table td {
+      border: 1px solid var(--table-border);
+      padding: 8px 12px;
+      text-align: left;
+      vertical-align: top;
+      position: relative;
+    }
+
+    table.rendered-table th {
+      background: var(--th-bg);
+      font-weight: 600;
+    }
+
+    table.rendered-table td:hover {
+      background: var(--td-hover);
+    }
+
+    table.rendered-table td[contenteditable="true"]:focus,
+    table.rendered-table th[contenteditable="true"]:focus {
+      outline: 2px solid var(--accent);
+      background: var(--card-alt);
+    }
+
+    /* 儲存格內清單排版 (相容 LibreOffice 原生 List) */
+    table.rendered-table ol,
+    table.rendered-table ul {
+      margin: 0;
+      padding-left: 1.4rem;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    table.rendered-table li {
+      margin: 0;
+      line-height: 1.4;
+      word-break: break-word;
+    }
+
+    /* 狀態標籤與微調提示 */
+    .info-bar {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .notification {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--accent);
+      color: #fff;
+      padding: 10px 18px;
+      border-radius: 6px;
+      font-size: 0.88rem;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.2s ease-out;
+      pointer-events: none;
+      z-index: 1000;
+    }
+    .notification.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="section-container">
+    <!-- Header 頂部 -->
+    <header class="row-sentence">
+      <div class="word-group">
+        <span class="brand-title char-element">txTable</span>
+        <span class="badge char-element">v1.0</span>
+        <span class="desc char-element">純文字框線表格智慧轉換與微調工作台</span>
+      </div>
+      <div class="word-group">
+        <button class="secondary" onclick="toggleTheme()" title="切換深色/淺色主題">
+          <span id="themeIcon">🌓</span> <span class="char-element">切換主題</span>
+        </button>
+        <button class="secondary" onclick="loadSample()" title="載入如喜語法矩陣範例">
+          <span>📋</span> <span class="char-element">載入範例</span>
+        </button>
+        <button onclick="parseInput()" title="根據左側文字重新解析">
+          <span>⚡</span> <span class="char-element">智慧解析</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- 主工作區 -->
+    <div class="editor-grid">
+      <!-- 左欄：文字表格輸入 -->
+      <div class="card">
+        <div class="row-sentence">
+          <span class="card-title char-element">1. 貼上純文字表格 (Text Input)</span>
+          <div class="word-group">
+            <button class="secondary" style="padding: 4px 8px; font-size: 0.78rem;" onclick="clearInput()">清空</button>
+          </div>
+        </div>
+        <textarea id="rawInput" placeholder="請在此貼上 PE2、ASCII 或終端框線表格（包含 ┌─┬─┐、| 等符號）..." spellcheck="false"></textarea>
+        <div class="info-bar">
+          <span>支援格式：Unicode 框線（┌─├┼┤）、Markdown 管線表格、ASCII 網格</span>
+          <span id="charCountTip">0 行</span>
+        </div>
+      </div>
+
+      <!-- 右欄：視覺化校對預覽與功能匯出 -->
+      <div class="card">
+        <div class="row-sentence">
+          <span class="card-title char-element">2. 視覺化校對與微調預覽</span>
+          <!-- 匯出按鈕群組 (符合 rud 詞塊) -->
+          <div class="row-sentence" style="gap: 6px;">
+            <div class="word-group">
+              <button class="secondary" onclick="exportHTML()" title="複製 HTML table 程式碼">
+                <span>📄</span><span class="char-element">HTML</span>
+              </button>
+              <button class="secondary" onclick="exportMarkdown()" title="複製 Markdown 表格語法">
+                <span>📝</span><span class="char-element">Markdown</span>
+              </button>
+              <button class="secondary" onclick="exportTSV()" title="複製 Excel 專用表格格式 (TSV)">
+                <span>📊</span><span class="char-element">TSV/試算表</span>
+              </button>
+            </div>
+            <div class="word-group">
+              <button class="secondary" onclick="exportODT()" title="下載相容 LibreOffice / Word 之 ODF 表格檔案">
+                <span>📑</span><span class="char-element">ODT</span>
+              </button>
+              <button onclick="exportPNG()" title="繪製並下載高清 PNG 圖檔">
+                <span>🖼️</span><span class="char-element">另存 PNG</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 輔助操作工具列 -->
+        <div class="row-sentence" style="background: var(--card-alt); padding: 6px 10px; border-radius: 6px; font-size: 0.8rem;">
+          <div class="word-group">
+            <span class="char-element" style="color: var(--text-muted);">微調控制：</span>
+            <button class="secondary" style="padding: 3px 8px; font-size: 0.75rem;" onclick="addRow()">+ 新增列</button>
+            <button class="secondary" style="padding: 3px 8px; font-size: 0.75rem;" onclick="addColumn()">+ 新增欄</button>
+            <button class="secondary outline-danger" style="padding: 3px 8px; font-size: 0.75rem;" onclick="deleteLastRow()">- 刪除末列</button>
+            <button class="secondary outline-danger" style="padding: 3px 8px; font-size: 0.75rem;" onclick="deleteLastColumn()">- 刪除末欄</button>
+          </div>
+          <div class="word-group">
+            <button id="btnListify" class="secondary" style="padding: 3px 8px; font-size: 0.75rem;" onclick="toggleListify()" title="自動偵測 1. 2. 或 - • 等條列符號，轉換為原生有序/無序清單（相容 LibreOffice 原生 List）">
+              <span>🔢</span> <span class="char-element">智慧清單：已開啟</span>
+            </button>
+            <span class="char-element" style="color: var(--text-muted); font-size: 0.75rem;">💡 儲存格點擊即可直接修改文字</span>
+          </div>
+        </div>
+
+        <!-- 表格視覺呈現容器 -->
+        <div class="preview-box">
+          <div class="table-container" id="previewArea">
+            <div style="color: var(--text-muted); padding: 40px; text-align: center;">
+              請在左側輸入文字表格，或點選上方「載入範例」以體驗。
+            </div>
+          </div>
+        </div>
+
+        <div class="info-bar">
+          <span id="tableMetaTip">尚未產生表格</span>
+          <span>匯出圖檔支援 Retina 2x 高解析度繪製</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <canvas id="exportCanvas" style="display:none;"></canvas>
+  <div id="toast" class="notification">已複製到剪貼簿</div>
+
+  <script>
+    // ── 1. 東亞寬度與字元計算 (East Asian Width & Emoji Aware) ──
+    function charWidth(c) {
+      if (['🟢', '🟡', '🔴', '⚪', '⚫', '⭐'].includes(c)) return 2;
+      const code = c.codePointAt(0);
+      // 中日韓漢字與全形字元範圍
+      if ((code >= 0x4e00 && code <= 0x9fa5) || 
+          (code >= 0xff01 && code <= 0xffee) || 
+          (code >= 0x3000 && code <= 0x303f) ||
+          (code >= 0x20000 && code <= 0x2a6df)) {
+        return 2;
+      }
+      return 1;
+    }
+
+    function strDisplayWidth(s) {
+      let w = 0;
+      for (const ch of s) w += charWidth(ch);
+      return w;
+    }
+
+    // ── 2. 機警表格解析演算法 (Smart Pipe / Border Clustering) ──
+    function parseTableText(text) {
+      const rawLines = text.split('\n');
+      const lines = rawLines.map(l => l.trimEnd()).filter(l => l.trim().length > 0);
+      if (lines.length === 0) return [];
+
+      const sepChars = new Set(['┌','─','┬','┐','├','┼','┤','└','┴','┘','═','╤','╧','╪','-','+','=']);
+      const isSepLine = (line) => [...line.trim()].every(c => sepChars.has(c));
+
+      // 檢查是否為標準 Markdown 表格 (首行為 | a | b |，次行為 |---|---|)
+      const isMarkdown = lines.length >= 2 && 
+        lines[0].includes('|') && 
+        /^\|?\s*[-:]+\s*\|/.test(lines[1]);
+
+      if (isMarkdown) {
+        return parseMarkdownTable(lines);
+      }
+
+      // 一般 ASCII / PE2 框線表格解析
+      const blocks = [];
+      let currentBlock = [];
+
+      for (let line of lines) {
+        if (isSepLine(line)) {
+          if (currentBlock.length > 0) {
+            blocks.push(currentBlock);
+            currentBlock = [];
+          }
+          continue;
+        }
+
+        if (line.includes('│') || line.includes('|')) {
+          let trimmed = line.trim();
+          if (trimmed.startsWith('│') || trimmed.startsWith('|')) trimmed = trimmed.substring(1);
+          if (trimmed.endsWith('│') || trimmed.endsWith('|')) trimmed = trimmed.slice(0, -1);
+          
+          const rawCells = trimmed.split(/[│|]/).map(c => c.trim());
+          currentBlock.push(rawCells);
+        }
+      }
+      if (currentBlock.length > 0) blocks.push(currentBlock);
+
+      // 合併同一 Block 內未被橫線隔開的多行文字 (如縮排說明或同個邏輯群組)
+      const finalRows = [];
+      for (const block of blocks) {
+        if (block.length === 1) {
+          finalRows.push(block[0]);
+        } else {
+          const maxCols = Math.max(...block.map(r => r.length));
+          const merged = Array(maxCols).fill('');
+          
+          for (const row of block) {
+            for (let c = 0; c < maxCols; c++) {
+              const text = row[c] || '';
+              if (text) {
+                merged[c] = merged[c] ? (merged[c] + '<br>' + text) : text;
+              }
+            }
+          }
+          finalRows.push(merged);
+        }
+      }
+      return finalRows;
+    }
+
+    function parseMarkdownTable(lines) {
+      const rows = [];
+      lines.forEach((line, idx) => {
+        if (idx === 1 && /^\|?\s*[-:]+\s*\|/.test(line)) return; // 略過 MD 分隔行
+        let trimmed = line.trim();
+        if (trimmed.startsWith('|')) trimmed = trimmed.substring(1);
+        if (trimmed.endsWith('|')) trimmed = trimmed.slice(0, -1);
+        rows.push(trimmed.split('|').map(c => c.trim()));
+      });
+      return rows;
+    }
+
+    // ── 3. 智慧條列文字轉清單 (Smart Listify) ──
+    let enableListify = true;
+
+    function toggleListify() {
+      enableListify = !enableListify;
+      const btn = document.getElementById('btnListify');
+      if (enableListify) {
+        btn.innerHTML = '<span>🔢</span> <span class="char-element">智慧清單：已開啟</span>';
+        btn.style.color = 'var(--text)';
+      } else {
+        btn.innerHTML = '<span>🔤</span> <span class="char-element">智慧清單：已關閉</span>';
+        btn.style.color = 'var(--text-muted)';
+      }
+      parseInput();
+    }
+
+    function processCellToList(text) {
+      if (!enableListify || !text) return text;
+
+      // 切分多行（以 <br> 或 \n）
+      const lines = text.split(/<br\s*\/?>|\n/).map(l => l.trim()).filter(l => l.length > 0);
+      if (lines.length === 0) return text;
+
+      // 模式 1：有序清單（數字 + 點/頓號/右括號），例如 "1. 體標記構式", "10. 程度補語", "1、xxx"
+      const olRegex = /^(\d+)[\.、\)]\s*(.*)$/;
+      const olMatches = lines.map(line => line.match(olRegex));
+      const olCount = olMatches.filter(m => m !== null).length;
+
+      if (olCount >= 1 && (olCount === lines.length || olCount >= 2)) {
+        // 抓取第一筆有序項目的數字作為 start 起始序號
+        const firstMatch = olMatches.find(m => m !== null);
+        const startNum = parseInt(firstMatch[1], 10);
+        let itemsHtml = '';
+        lines.forEach(line => {
+          const m = line.match(olRegex);
+          if (m) {
+            itemsHtml += `<li>${m[2]}</li>`;
+          } else {
+            itemsHtml += `<li>${line}</li>`;
+          }
+        });
+        return `<ol start="${startNum}">${itemsHtml}</ol>`;
+      }
+
+      // 模式 2：無序清單（-、*、•、‧、·、—）
+      const ulRegex = /^[-*•‧·—]\s*(.*)$/;
+      const ulMatches = lines.map(line => line.match(ulRegex));
+      const ulCount = ulMatches.filter(m => m !== null).length;
+
+      if (ulCount >= 1 && (ulCount === lines.length || ulCount >= 2)) {
+        let itemsHtml = '';
+        lines.forEach(line => {
+          const m = line.match(ulRegex);
+          if (m) {
+            itemsHtml += `<li>${m[1]}</li>`;
+          } else {
+            itemsHtml += `<li>${line}</li>`;
+          }
+        });
+        return `<ul>${itemsHtml}</ul>`;
+      }
+
+      return text;
+    }
+
+    // ── 4. 視覺化渲染 (DOM Rendering) ──
+    function renderTable(rows) {
+      const container = document.getElementById('previewArea');
+      if (!rows || rows.length === 0) {
+        container.innerHTML = '<div style="color:#ef4444;padding:30px;text-align:center;">無法辨識有效表格結構，請確認包含框線符號（如 ┌─┬─┐ 或 | ）。</div>';
+        document.getElementById('tableMetaTip').innerText = '解析失敗';
+        return;
+      }
+
+      let maxCols = Math.max(...rows.map(r => r.length));
+      let html = '<table class="rendered-table" id="targetTable">';
+
+      rows.forEach((row, rIdx) => {
+        html += '<tr>';
+        const nonEmpties = row.filter(c => c.trim().length > 0);
+
+        // 自動辨識大標題 (只有第一欄有字、且其餘欄位空白)
+        if (rIdx === 0 && nonEmpties.length === 1 && maxCols > 1) {
+          html += `<th colspan="${maxCols}" contenteditable="true" style="text-align:center;font-size:1.05rem;">${nonEmpties[0]}</th>`;
+        } else {
+          const tag = (rIdx <= 1) ? 'th' : 'td';
+          for (let c = 0; c < maxCols; c++) {
+            let val = row[c] !== undefined ? row[c] : '';
+            // 套用智慧清單分析
+            if (tag === 'td') {
+              val = processCellToList(val);
+            }
+            html += `<${tag} contenteditable="true">${val}</${tag}>`;
+          }
+        }
+        html += '</tr>';
+      });
+
+      html += '</table>';
+      container.innerHTML = html;
+      document.getElementById('tableMetaTip').innerText = `已產生：${rows.length} 列 × ${maxCols} 欄`;
+    }
+
+    function parseInput() {
+      const raw = document.getElementById('rawInput').value;
+      const rows = parseTableText(raw);
+      renderTable(rows);
+    }
+
+    // ── 5. 表格手動微調控制 ──
+    function addRow() {
+      const tbl = document.getElementById('targetTable');
+      if (!tbl) return;
+      const cols = getTableColumnCount(tbl);
+      const tr = document.createElement('tr');
+      for (let i = 0; i < cols; i++) {
+        const td = document.createElement('td');
+        td.setAttribute('contenteditable', 'true');
+        td.innerHTML = '';
+        tr.appendChild(td);
+      }
+      tbl.appendChild(tr);
+      updateMeta();
+    }
+
+    function addColumn() {
+      const tbl = document.getElementById('targetTable');
+      if (!tbl) return;
+      const trs = tbl.querySelectorAll('tr');
+      trs.forEach((tr, idx) => {
+        const firstTh = tr.querySelector('th[colspan]');
+        if (firstTh && idx === 0) {
+          const cs = parseInt(firstTh.getAttribute('colspan') || '1') + 1;
+          firstTh.setAttribute('colspan', cs);
+          return;
+        }
+        const cell = document.createElement(idx <= 1 ? 'th' : 'td');
+        cell.setAttribute('contenteditable', 'true');
+        cell.innerHTML = '';
+        tr.appendChild(cell);
+      });
+      updateMeta();
+    }
+
+    function deleteLastRow() {
+      const tbl = document.getElementById('targetTable');
+      if (!tbl) return;
+      const trs = tbl.querySelectorAll('tr');
+      if (trs.length > 1) {
+        trs[trs.length - 1].remove();
+        updateMeta();
+      }
+    }
+
+    function deleteLastColumn() {
+      const tbl = document.getElementById('targetTable');
+      if (!tbl) return;
+      const trs = tbl.querySelectorAll('tr');
+      trs.forEach((tr, idx) => {
+        const firstTh = tr.querySelector('th[colspan]');
+        if (firstTh && idx === 0) {
+          const cs = parseInt(firstTh.getAttribute('colspan') || '1');
+          if (cs > 1) firstTh.setAttribute('colspan', cs - 1);
+          return;
+        }
+        if (tr.children.length > 1) {
+          tr.removeChild(tr.lastElementChild);
+        }
+      });
+      updateMeta();
+    }
+
+    function getTableColumnCount(tbl) {
+      const trs = tbl.querySelectorAll('tr');
+      let maxCols = 1;
+      trs.forEach(tr => {
+        let count = 0;
+        Array.from(tr.children).forEach(cell => {
+          count += parseInt(cell.getAttribute('colspan') || '1');
+        });
+        if (count > maxCols) maxCols = count;
+      });
+      return maxCols;
+    }
+
+    function updateMeta() {
+      const tbl = document.getElementById('targetTable');
+      if (!tbl) return;
+      const rows = tbl.querySelectorAll('tr').length;
+      const cols = getTableColumnCount(tbl);
+      document.getElementById('tableMetaTip').innerText = `已更新：${rows} 列 × ${cols} 欄`;
+    }
+
+    function clearInput() {
+      document.getElementById('rawInput').value = '';
+      document.getElementById('rawInput').focus();
+      document.getElementById('charCountTip').innerText = '0 行';
+    }
+
+    // ── 6. 多格式匯出 (HTML, Markdown, TSV, ODT, PNG) ──
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.innerText = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2200);
+    }
+
+    // 提取儲存格的結構化文字（支援清單轉序號純文字）
+    function getCellTextRepresentation(cell) {
+      if (cell.querySelector('ol')) {
+        const ol = cell.querySelector('ol');
+        let start = parseInt(ol.getAttribute('start') || '1', 10);
+        return Array.from(ol.querySelectorAll('li'))
+          .map((li, idx) => `${start + idx}. ${li.innerText.trim()}`)
+          .join('\n');
+      } else if (cell.querySelector('ul')) {
+        const ul = cell.querySelector('ul');
+        return Array.from(ul.querySelectorAll('li'))
+          .map(li => `• ${li.innerText.trim()}`)
+          .join('\n');
+      }
+      return cell.innerText.trim();
+    }
+
+    function exportHTML() {
+      const tbl = document.getElementById('targetTable');
+      if (!tbl) return alert('請先產生表格！');
+      const clone = tbl.cloneNode(true);
+      clone.removeAttribute('id');
+      clone.classList.remove('rendered-table');
+      clone.setAttribute('style', 'border-collapse:collapse;width:100%;font-family:sans-serif;');
+      clone.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
+      clone.querySelectorAll('th, td').forEach(el => {
+        el.setAttribute('style', 'border:1px solid #cbd5e1;padding:8px 12px;text-align:left;vertical-align:top;');
+      });
+      clone.querySelectorAll('th').forEach(el => {
+        el.style.backgroundColor = '#f1f5f9';
+        el.style.fontWeight = '600';
+      });
+      // 為 ol / ul 注入相容樣式
+      clone.querySelectorAll('ol, ul').forEach(el => {
+        el.setAttribute('style', 'margin:0;padding-left:1.4rem;line-height:1.45;');
+      });
+      clone.querySelectorAll('li').forEach(el => {
+        el.setAttribute('style', 'margin-bottom:3px;');
+      });
+
+      navigator.clipboard.writeText(clone.outerHTML).then(() => showToast('✅ 已複製 HTML 表格至剪貼簿（含清單結構）！'));
+    }
+
+    function exportMarkdown() {
+      const tbl = document.getElementById('targetTable');
+      if (!tbl) return alert('請先產生表格！');
+      let md = '';
+      const trs = Array.from(tbl.querySelectorAll('tr'));
+      trs.forEach((tr, rIdx) => {
+        const cells = Array.from(tr.children).map(c => {
+          const txt = getCellTextRepresentation(c);
+          return txt.replace(/\n/g, '<br>');
+        });
+        md += '| ' + cells.join(' | ') + ' |\n';
+        if (rIdx === 0 || (rIdx === 1 && tr.querySelector('th'))) {
+          md += '| ' + cells.map(() => '---').join(' | ') + ' |\n';
+        }
+      });
+      navigator.clipboard.writeText(md).then(() => showToast('✅ 已複製 Markdown 語法至剪貼簿！'));
+    }
+
+    function exportTSV() {
+      const tbl = document.getElementById('targetTable');
+      if (!tbl) return alert('請先產生表格！');
+      let tsv = '';
+      const trs = Array.from(tbl.querySelectorAll('tr'));
+      trs.forEach(tr => {
+        const cells = Array.from(tr.children).map(c => `"${getCellTextRepresentation(c).replace(/"/g, '""')}"`);
+        tsv += cells.join('\t') + '\n';
+      });
+      navigator.clipboard.writeText(tsv).then(() => showToast('✅ 已複製 TSV 格式（可直接貼入 Excel / Google Sheets）！'));
+    }
+
+    function exportODT() {
+      const tbl = document.getElementById('targetTable');
+      if (!tbl) return alert('請先產生表格！');
+      
+      // 匯出相容 LibreOffice Writer / Word 的標準文件
+      // 包含標準 <ol start="x"><li>...</li></ol>，LibreOffice 導入時能直接映射為原生 Numbering 清單！
+      const clone = tbl.cloneNode(true);
+      clone.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
+
+      const htmlContent = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>txTable Matrix Export</title>
+<style>
+  body { font-family: "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", sans-serif; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { border: 1px solid #444444; padding: 6px 10px; vertical-align: top; }
+  th { background-color: #eeeeee; font-weight: bold; }
+  ol, ul { margin: 0; padding-left: 22pt; }
+  li { margin-bottom: 2pt; line-height: 140%; }
+</style>
+</head>
+<body>
+${clone.outerHTML}
+</body>
+</html>`;
+      const blob = new Blob([htmlContent], { type: 'application/vnd.oasis.opendocument.text;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'txTable_matrix.doc'; // 以 .doc (HTML相容) 格式，LibreOffice 點擊即以原生清單開啟
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('📑 已下載 ODT/Word 相容檔案（含原生清單結構）！');
+    }
+
+    function exportPNG() {
+      const tbl = document.getElementById('targetTable');
+      if (!tbl) return alert('請先產生表格！');
+
+      const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+      const trs = Array.from(tbl.querySelectorAll('tr'));
+      
+      // 抓取儲存格文字與跨欄屬性（支援清單序號提取）
+      const tableData = trs.map(tr => Array.from(tr.children).map(td => ({
+        text: getCellTextRepresentation(td),
+        isHeader: td.tagName.toLowerCase() === 'th',
+        colspan: parseInt(td.getAttribute('colspan') || '1')
+      })));
+
+      const canvas = document.getElementById('exportCanvas');
+      const ctx = canvas.getContext('2d');
+
+      // 智慧量測與欄寬計算
+      const padding = 36;
+      const numCols = getTableColumnCount(tbl);
+      // 動態估計每欄基準寬度
+      let colWidths = Array(numCols).fill(160);
+      if (numCols === 3) {
+        colWidths = [190, 380, 170];
+      }
+
+      const totalTableWidth = colWidths.reduce((a, b) => a + b, 0);
+      const totalWidth = totalTableWidth + padding * 2;
+      const rowMinHeight = 38;
+
+      let calculatedRows = [];
+      let currentY = padding;
+
+      tableData.forEach(row => {
+        let maxLines = 1;
+        row.forEach(cell => {
+          const lines = cell.text.split('\n').length;
+          if (lines > maxLines) maxLines = lines;
+        });
+        const rH = Math.max(rowMinHeight, maxLines * 24 + 18);
+        calculatedRows.push({ row, height: rH, y: currentY });
+        currentY += rH;
+      });
+
+      const totalHeight = currentY + padding;
+
+      // 設置 Retina 2x 高畫質繪製
+      const scale = 2;
+      canvas.width = totalWidth * scale;
+      canvas.height = totalHeight * scale;
+      ctx.scale(scale, scale);
+
+      // 主題配色
+      const bgFill = isLight ? '#ffffff' : '#13141a';
+      const cardFill = isLight ? '#f8fafc' : '#1c1d26';
+      const thFill = isLight ? '#e2e8f0' : '#27293a';
+      const tdFill = isLight ? '#ffffff' : '#181922';
+      const borderColor = isLight ? '#cbd5e1' : '#334155';
+      const textColor = isLight ? '#0f172a' : '#f1f5f9';
+      const headerTextColor = isLight ? '#1e293b' : '#ffffff';
+
+      // 繪製背景底卡
+      ctx.fillStyle = bgFill;
+      ctx.fillRect(0, 0, totalWidth, totalHeight);
+
+      // 繪製表格各列
+      calculatedRows.forEach(({ row, height, y }) => {
+        let currentX = padding;
+        let colIdx = 0;
+
+        row.forEach(cell => {
+          let cellW = 0;
+          for (let i = 0; i < cell.colspan; i++) {
+            cellW += colWidths[colIdx + i] || 160;
+          }
+
+          // 填充格色
+          ctx.fillStyle = cell.isHeader ? thFill : tdFill;
+          ctx.fillRect(currentX, y, cellW, height);
+
+          // 畫框線
+          ctx.strokeStyle = borderColor;
+          ctx.lineWidth = 1;
+          ctx.strokeRect(currentX, y, cellW, height);
+
+          // 繪製文字內容
+          ctx.fillStyle = cell.isHeader ? headerTextColor : textColor;
+          ctx.font = cell.isHeader 
+            ? '600 15px -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Microsoft JhengHei", sans-serif'
+            : '14px -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Microsoft JhengHei", sans-serif';
+          ctx.textBaseline = 'top';
+
+          const lines = cell.text.split('\n');
+          lines.forEach((line, lIdx) => {
+            if (cell.colspan > 1) {
+              // 置中標題
+              ctx.textAlign = 'center';
+              ctx.fillText(line, currentX + cellW / 2, y + (height - lines.length * 20) / 2 + lIdx * 22);
+            } else {
+              ctx.textAlign = 'left';
+              ctx.fillText(line, currentX + 12, y + 10 + lIdx * 22);
+            }
+          });
+
+          currentX += cellW;
+          colIdx += cell.colspan;
+        });
+      });
+
+      // 下載圖檔
+      const a = document.createElement('a');
+      a.href = canvas.toDataURL('image/png');
+      a.download = 'txTable_matrix.png';
+      a.click();
+      showToast('🖼️ 已成功儲存高畫質 PNG 圖檔！');
+    }
+
+    // ── 6. 主題切換與範例資料 ──
+    function toggleTheme() {
+      const current = document.documentElement.getAttribute('data-theme') || 'dark';
+      const target = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', target);
+      document.getElementById('themeIcon').innerText = target === 'light' ? '☀️' : '🌓';
+    }
+
+    function loadSample() {
+      const sample = `┌─────────────────────────────────────────────────────────────┐
+│             如喜語法構式體系檢驗矩陣 (Audit Matrix)         │
+├───────────────┬───────────────────────────────┬─────────────┤
+│ 構式大類      │ 具體語法構式家族               │ 如喜當前狀態 │
+├───────────────┼───────────────────────────────┼─────────────┤
+│ 一、體貌與助詞 │ 1. 體標記構式 (V + 了/著/過/完)│ 🟢 已完成   │
+│               │ 2. 語氣助詞 (S + 嗎/吧/呢/啊)  │ 🟢 已完成   │
+│               │ 3. 繫詞轉折焦點構式 (的 + 是)  │ 🟢 已完成   │
+│               │ 4. 結構助詞區隔 (的/地/得)     │ 🟡 部分實現 │
+├───────────────┼───────────────────────────────┼─────────────┤
+│ 二、名量與代詞 │ 5. 數量名／量名搭配 (數+量+名) │ 🟢 已完成   │
+│               │ 6. 時間量詞構式 (個+鐘頭/小時) │ 🟢 已完成   │
+│               │ 7. 及物動詞人稱代詞賓語 (V+代)│ 🟢 已完成   │
+│               │ 8. 方位後置詞構式 (名/實 + 裡/外)│ 🟢 已完成 │
+├───────────────┼───────────────────────────────┼─────────────┤
+│ 三、動詞與補語 │ 9. 趨向補語構式 (V + 來/去/回) │ 🟡 部分實現 │
+│               │ 10. 程度補語 (V + 到)         │ 🟡 部分實現 │
+│               │ 11. 可能補語構式 (V + 得/不 + 補語)│ 🔴 完全未碰 │
+│               │ 12. 連動構式 (V1 + NP + V2)   │ 🔴 完全未碰 │
+│               │ 13. 雙賓語構式 (給/送 + 人 + 物)│ 🔴 完全未碰 │
+├───────────────┼───────────────────────────────┼─────────────┤
+│ 四、句型與副詞 │ 14. 關聯副詞構式 (越 A 越 B)  │ 🟢 已完成   │
+│               │ 15. 把字句／被字句 (處置與被動)│ 🟡 部分實現 │
+├───────────────┼───────────────────────────────┼─────────────┤
+│ 五、對稱與嵌偶 │ 16. 強調嵌偶構式 ([X中之X]等)  │ 🔴 完全未碰 │
+│ （高階四字成語│ 17. 對稱凝固構式 ([不X不X]等)  │ 🔴 完全未碰 │
+│   與凝固構式）│ 18. 動作往復構式 ([X來X去]等)  │ 🔴 完全未碰 │
+└───────────────┴───────────────────────────────┴─────────────┘`;
+      document.getElementById('rawInput').value = sample;
+      document.getElementById('charCountTip').innerText = `${sample.split('\n').length} 行`;
+      parseInput();
+    }
+
+    document.getElementById('rawInput').addEventListener('input', function() {
+      const lines = this.value.split('\n').length;
+      document.getElementById('charCountTip').innerText = `${lines} 行`;
+    });
+
+    // 網頁載入時自動初始化
+    window.addEventListener('DOMContentLoaded', () => {
+      document.documentElement.setAttribute('data-theme', 'dark');
+      loadSample();
+    });
+  </script>
+</body>
+</html>
