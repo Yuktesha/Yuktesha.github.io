@@ -1,0 +1,1985 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LINE 聊天記錄還原檢視器 (LINE Chat Viewer)</title>
+  <meta name="description" content="將醜醜的 LINE 純文字對話匯出檔，一秒還原為原汁原味、美觀又好讀的 LINE 對話介面！支援離線單檔封裝匯出、搜尋、視角切換與成員過濾。">
+  <style>
+    :root {
+      --bg-color: #8cabd9;
+      --bubble-other: #ffffff;
+      --bubble-other-text: #191919;
+      --bubble-me: #85e25d;
+      --bubble-me-text: #111111;
+      --header-bg: rgba(255, 255, 255, 0.94);
+      --header-text: #1f2937;
+      --toolbar-bg: #f8fafc;
+      --border-color: #cbd5e1;
+      --time-color: rgba(255, 255, 255, 0.9);
+      --time-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+      --system-bg: rgba(0, 0, 0, 0.35);
+      --system-text: #ffffff;
+      --system-border: 1px solid rgba(255, 255, 255, 0.12);
+      --highlight-bg: #fef08a;
+      --highlight-text: #854d0e;
+      --card-bg: rgba(255, 255, 255, 0.92);
+      --card-border: #cbd5e1;
+      --card-text: #334155;
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+      --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.12);
+      --chat-width: 720px;
+      --font-size-base: 14.5px;
+      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+    }
+
+    [data-theme="line-classic"] {
+      --bg-color: #8cabd9;
+      --bubble-me: #85e25d;
+      --bubble-me-text: #111111;
+      --system-bg: rgba(0, 0, 0, 0.35);
+      --system-text: #ffffff;
+      --system-border: 1px solid rgba(255, 255, 255, 0.15);
+      --time-color: rgba(255, 255, 255, 0.9);
+      --time-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    }
+
+    [data-theme="light-mint"] {
+      --bg-color: #edf5f1;
+      --bubble-me: #6ee7b7;
+      --bubble-me-text: #064e3b;
+      --header-bg: rgba(255, 255, 255, 0.96);
+      --system-bg: rgba(0, 0, 0, 0.15);
+      --system-text: #1e293b;
+      --system-border: 1px solid rgba(0, 0, 0, 0.08);
+      --time-color: #64748b;
+      --time-shadow: none;
+      --card-bg: #ffffff;
+    }
+
+    [data-theme="dark"] {
+      --bg-color: #1a1b1e;
+      --bubble-other: #2c2e33;
+      --bubble-other-text: #e4e6eb;
+      --bubble-me: #005c4b;
+      --bubble-me-text: #ffffff;
+      --header-bg: rgba(36, 37, 41, 0.96);
+      --header-text: #f1f3f5;
+      --toolbar-bg: #25262b;
+      --border-color: #373a40;
+      --time-color: rgba(255, 255, 255, 0.65);
+      --time-shadow: none;
+      --system-bg: rgba(0, 0, 0, 0.65);
+      --system-text: #ffffff;
+      --system-border: 1px solid rgba(255, 255, 255, 0.18);
+      --highlight-bg: #d97706;
+      --highlight-text: #ffffff;
+      --card-bg: #25262b;
+      --card-border: #373a40;
+      --card-text: #ced4da;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-family);
+      background-color: var(--bg-color);
+      color: var(--header-text);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+      transition: background-color 0.25s ease;
+    }
+
+    /* ── rud() 排版語意拓撲 ── */
+    .row-sentence {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .word-group {
+      display: flex;
+      flex-shrink: 0;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .char-element {
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    /* ── 頂部導覽列 ── */
+    header {
+      background-color: var(--header-bg);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-color);
+      box-shadow: var(--shadow-sm);
+      z-index: 50;
+      padding: 8px 16px;
+      flex-shrink: 0;
+    }
+
+    .nav-bar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    .title-area {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-badge {
+      background: #06c755;
+      color: white;
+      font-weight: 800;
+      font-size: 13px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      letter-spacing: 0.5px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+    }
+
+    .title-area h1 {
+      font-size: 17px;
+      font-weight: 700;
+      line-height: 1.2;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+    }
+
+    .sub-info {
+      font-size: 12px;
+      color: #64748b;
+      margin-top: 2px;
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    [data-theme="dark"] .sub-info {
+      color: #94a3b8;
+    }
+
+    .controls-area {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* ── 控制元件 ── */
+    .ctrl-input, .ctrl-select {
+      background: var(--toolbar-bg);
+      border: 1px solid var(--border-color);
+      color: inherit;
+      padding: 5px 9px;
+      border-radius: 7px;
+      font-size: 13px;
+      outline: none;
+      transition: all 0.2s;
+    }
+
+    .ctrl-input:focus, .ctrl-select:focus {
+      border-color: #06c755;
+      box-shadow: 0 0 0 2px rgba(6, 199, 85, 0.25);
+    }
+
+    .btn {
+      background: var(--toolbar-bg);
+      border: 1px solid var(--border-color);
+      color: inherit;
+      padding: 5px 11px;
+      border-radius: 7px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+      transition: all 0.15s ease-in-out;
+      user-select: none;
+      text-decoration: none;
+    }
+
+    .btn:hover {
+      background: #e2e8f0;
+    }
+
+    [data-theme="dark"] .btn:hover {
+      background: #333a42;
+    }
+
+    .btn-sm {
+      padding: 3px 8px;
+      font-size: 12px;
+      border-radius: 6px;
+    }
+
+    .btn-primary {
+      background: #06c755;
+      color: white;
+      border-color: #05b34c;
+      font-weight: 600;
+    }
+
+    .btn-primary:hover {
+      background: #05af4b;
+    }
+
+    .btn-success {
+      background: #0284c7;
+      color: white;
+      border-color: #0369a1;
+      font-weight: 600;
+    }
+
+    .btn-success:hover {
+      background: #0369a1;
+    }
+
+    .search-box {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .search-box input {
+      width: 150px;
+      padding-right: 22px;
+    }
+
+    .search-nav {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .search-counter {
+      font-size: 12px;
+      color: #64748b;
+      margin: 0 3px;
+      white-space: nowrap;
+    }
+
+    [data-theme="dark"] .search-counter {
+      color: #94a3b8;
+    }
+
+    /* ── 下拉選單彈出盒 ── */
+    .dropdown-relative {
+      position: relative;
+      display: inline-block;
+    }
+
+    .dropdown-menu {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      margin-top: 6px;
+      background: var(--header-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      box-shadow: var(--shadow-md);
+      display: none;
+      flex-direction: column;
+      min-width: 220px;
+      padding: 6px;
+      z-index: 100;
+      backdrop-filter: blur(12px);
+    }
+
+    .dropdown-menu.show {
+      display: flex;
+    }
+
+    .dropdown-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 6px;
+      color: inherit;
+      font-size: 13px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background-color 0.15s;
+    }
+
+    .dropdown-item:hover {
+      background: rgba(6, 199, 85, 0.12);
+      color: #06c755;
+    }
+
+    .dropdown-divider {
+      height: 1px;
+      background: var(--border-color);
+      margin: 4px 0;
+    }
+
+    /* ── 歡迎與引導介面 ── */
+    #welcome-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+      min-height: calc(100vh - 70px);
+      max-width: 760px;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    .welcome-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      padding: 40px 32px;
+      box-shadow: var(--shadow-md);
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .hero-icon {
+      width: 64px;
+      height: 64px;
+      background: #06c755;
+      color: white;
+      border-radius: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8px 20px rgba(6, 199, 85, 0.3);
+    }
+
+    .welcome-card h2 {
+      font-size: 24px;
+      font-weight: 800;
+      line-height: 1.3;
+    }
+
+    .welcome-card p {
+      font-size: 14.5px;
+      color: #64748b;
+      line-height: 1.6;
+      max-width: 580px;
+    }
+
+    [data-theme="dark"] .welcome-card p {
+      color: #94a3b8;
+    }
+
+    .dropzone-box {
+      border: 2px dashed #06c755;
+      background: rgba(6, 199, 85, 0.04);
+      border-radius: 16px;
+      padding: 32px 20px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .dropzone-box:hover {
+      background: rgba(6, 199, 85, 0.1);
+      transform: translateY(-2px);
+    }
+
+    .privacy-notice {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12.5px;
+      color: #10b981;
+      font-weight: 600;
+    }
+
+    .guide-box {
+      margin-top: 10px;
+      background: rgba(0, 0, 0, 0.03);
+      border-radius: 12px;
+      padding: 14px 18px;
+      font-size: 13px;
+      text-align: left;
+      line-height: 1.6;
+      width: 100%;
+    }
+
+    [data-theme="dark"] .guide-box {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    /* ── 主對話檢視區 ── */
+    main {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 16px 12px;
+      position: relative;
+      scroll-behavior: smooth;
+    }
+
+    .chat-scroll-container {
+      max-width: var(--chat-width);
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      transition: max-width 0.2s ease;
+    }
+
+    /* ── 拖曳提示疊層 ── */
+    #dropzone-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(6, 199, 85, 0.92);
+      color: white;
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 999;
+      font-size: 22px;
+      font-weight: 700;
+      gap: 16px;
+      backdrop-filter: blur(8px);
+    }
+
+    /* ── 單日聚焦閱讀橫幅 (Focus Navigation Bar) ── */
+    .day-focus-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 8px 14px;
+      margin-bottom: 12px;
+      box-shadow: var(--shadow-sm);
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      backdrop-filter: blur(10px);
+    }
+
+    .day-focus-info {
+      font-size: 13.5px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .day-focus-badge {
+      background: rgba(6, 199, 85, 0.15);
+      color: #06c755;
+      padding: 2px 7px;
+      border-radius: 6px;
+      font-size: 11.5px;
+    }
+
+    /* ── 日期膠囊 ── */
+    .date-divider {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 16px 0 10px 0;
+      position: sticky;
+      top: 6px;
+      z-index: 20;
+    }
+
+    .date-pill {
+      background: var(--system-bg);
+      color: var(--system-text);
+      border: var(--system-border);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 14px;
+      border-radius: 16px;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+      letter-spacing: 0.5px;
+      user-select: none;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .date-pill:hover {
+      transform: scale(1.05);
+      background-color: #06c755;
+      color: white;
+    }
+
+    @keyframes datePulse {
+      0% { transform: scale(1); background-color: #06c755; color: #ffffff; box-shadow: 0 0 0 0 rgba(6, 199, 85, 0.9); }
+      35% { transform: scale(1.15); background-color: #06c755; color: #ffffff; box-shadow: 0 0 0 10px rgba(6, 199, 85, 0); }
+      100% { transform: scale(1); }
+    }
+
+    .date-pill.pulse-highlight {
+      animation: datePulse 1.2s ease-in-out;
+    }
+
+    /* ── 系統通知 ── */
+    .system-row {
+      display: flex;
+      justify-content: center;
+      margin: 5px 0;
+    }
+
+    .system-pill {
+      background: var(--system-bg);
+      color: var(--system-text);
+      border: var(--system-border);
+      font-size: 12px;
+      padding: 3px 12px;
+      border-radius: 12px;
+      backdrop-filter: blur(6px);
+      text-align: center;
+      max-width: 82%;
+      line-height: 1.45;
+      user-select: none;
+    }
+
+    /* ── 訊息列 ── */
+    .message-row {
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+      margin: 1.5px 0;
+      position: relative;
+    }
+
+    .message-row.other {
+      align-self: flex-start;
+      max-width: 82%;
+    }
+
+    .message-row.me {
+      align-self: flex-end;
+      flex-direction: row-reverse;
+      max-width: 82%;
+    }
+
+    .avatar-col {
+      width: 40px;
+      flex-shrink: 0;
+      display: flex;
+      justify-content: center;
+    }
+
+    .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 14px;
+      color: #ffffff;
+      box-shadow: var(--shadow-sm);
+      user-select: none;
+      cursor: pointer;
+      text-transform: uppercase;
+      transition: transform 0.15s;
+    }
+
+    .avatar:hover {
+      transform: scale(1.06);
+    }
+
+    .avatar-empty {
+      width: 40px;
+      height: 1px;
+      visibility: hidden;
+    }
+
+    .bubble-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .sender-name {
+      font-size: 12px;
+      color: var(--system-text);
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+      margin-bottom: 2px;
+      margin-left: 2px;
+      cursor: pointer;
+      font-weight: 600;
+      user-select: none;
+      display: inline-block;
+    }
+
+    .sender-name:hover {
+      text-decoration: underline;
+    }
+
+    [data-theme="light-mint"] .sender-name {
+      color: #475569;
+      text-shadow: none;
+    }
+
+    .bubble-and-time {
+      display: flex;
+      align-items: flex-end;
+      gap: 6px;
+    }
+
+    .message-row.me .bubble-and-time {
+      flex-direction: row-reverse;
+    }
+
+    .bubble {
+      position: relative;
+      padding: 8px 13px;
+      border-radius: 17px;
+      font-size: var(--font-size-base);
+      line-height: 1.52;
+      word-break: break-word;
+      white-space: pre-wrap;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .message-row.other .bubble {
+      background-color: var(--bubble-other);
+      color: var(--bubble-other-text);
+      border-top-left-radius: 4px;
+    }
+
+    .message-row.me .bubble {
+      background-color: var(--bubble-me);
+      color: var(--bubble-me-text);
+      border-top-right-radius: 4px;
+    }
+
+    .message-row.other.middle .bubble,
+    .message-row.other.last .bubble {
+      border-top-left-radius: 17px;
+    }
+
+    .message-row.me.middle .bubble,
+    .message-row.me.last .bubble {
+      border-top-right-radius: 17px;
+    }
+
+    .time-stamp {
+      font-size: 11px;
+      color: var(--time-color);
+      white-space: nowrap;
+      user-select: none;
+      margin-bottom: 2px;
+      font-weight: 500;
+      text-shadow: var(--time-shadow);
+    }
+
+    .bubble a {
+      color: #0284c7;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      word-break: break-all;
+    }
+
+    .message-row.me .bubble a {
+      color: #0369a1;
+      font-weight: 600;
+    }
+
+    .media-card {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 13px;
+      border-radius: 12px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      color: var(--card-text);
+      font-weight: 600;
+      font-size: 13.5px;
+      user-select: none;
+    }
+
+    .media-card svg {
+      width: 20px;
+      height: 20px;
+      flex-shrink: 0;
+      fill: #06c755;
+    }
+
+    mark.search-hit {
+      background-color: var(--highlight-bg);
+      color: var(--highlight-text);
+      padding: 1px 2px;
+      border-radius: 3px;
+      font-weight: bold;
+    }
+
+    mark.search-hit.current {
+      outline: 2px solid #ef4444;
+      background-color: #fde047;
+    }
+
+    .floating-tools {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 60;
+    }
+
+    .float-btn {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: var(--header-bg);
+      color: var(--header-text);
+      border: 1px solid var(--border-color);
+      box-shadow: var(--shadow-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .float-btn:hover {
+      transform: scale(1.1);
+      background: #06c755;
+      color: white;
+      border-color: #06c755;
+    }
+
+    #file-input {
+      display: none;
+    }
+
+    .stats-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 11.5px;
+      background: rgba(0, 0, 0, 0.06);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    [data-theme="dark"] .stats-badge {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    @media print {
+      header, .floating-tools, #dropzone-overlay, #welcome-screen, .day-focus-bar {
+        display: none !important;
+      }
+      body, main {
+        height: auto !important;
+        overflow: visible !important;
+        background: white !important;
+      }
+      .chat-scroll-container {
+        max-width: 100% !important;
+      }
+      .bubble {
+        border: 1px solid #ccc !important;
+        box-shadow: none !important;
+      }
+      .time-stamp, .sender-name {
+        color: #333 !important;
+        text-shadow: none !important;
+      }
+    }
+  </style>
+</head>
+<body data-theme="line-classic">
+
+  <!-- 拖曳提示疊層 -->
+  <div id="dropzone-overlay">
+    <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+      <polyline points="17 8 12 3 7 8"></polyline>
+      <line x1="12" y1="3" x2="12" y2="15"></line>
+    </svg>
+    <div>放開滑鼠即可載入 LINE 聊天記錄文字檔</div>
+  </div>
+
+  <!-- 頂部導覽控制列 -->
+  <header id="main-header">
+    <div class="nav-bar">
+      <!-- 標題與統計 -->
+      <div class="title-area">
+        <a href="#" class="logo-badge" onclick="showWelcomeScreen(); return false;" title="回首頁更換檔案">LINE</a>
+        <div>
+          <h1 id="chat-title" onclick="showWelcomeScreen();" title="點擊更換檔案">LINE 聊天記錄檢視器</h1>
+          <div class="sub-info" id="chat-stats">請先載入 LINE 聊天文字檔</div>
+        </div>
+      </div>
+
+      <!-- 工具控制群組 (符合 rud() 規範) -->
+      <div class="controls-area row-sentence" id="toolbar-controls" style="display:none;">
+        <!-- 搜尋列 -->
+        <div class="word-group">
+          <div class="search-box">
+            <input type="text" id="search-input" class="ctrl-input" placeholder="搜尋關鍵字...">
+          </div>
+          <div class="search-nav">
+            <span id="search-counter" class="search-counter"></span>
+            <button id="search-prev-btn" class="btn" title="上一個" style="display:none; padding:4px 7px;">▲</button>
+            <button id="search-next-btn" class="btn" title="下一個" style="display:none; padding:4px 7px;">▼</button>
+          </div>
+        </div>
+
+        <!-- 視角切換器 -->
+        <div class="word-group">
+          <label for="me-select" class="char-element" style="font-size:12px; font-weight:600;">視角：</label>
+          <select id="me-select" class="ctrl-select" title="設定誰顯示於右側綠色氣泡">
+            <!-- 動態生成發言人清單 -->
+          </select>
+        </div>
+
+        <!-- 成員過濾器 -->
+        <div class="word-group">
+          <label for="filter-sender" class="char-element" style="font-size:12px; font-weight:600;">發言人：</label>
+          <select id="filter-sender" class="ctrl-select">
+            <option value="">全部成員</option>
+          </select>
+        </div>
+
+        <!-- 核心重構：日期焦點/摺疊過濾選單 -->
+        <div class="word-group">
+          <label for="date-select" class="char-element" style="font-size:12px; font-weight:600;">日期：</label>
+          <select id="date-select" class="ctrl-select" title="選擇日期將單獨聚焦該日對話，摺疊其他日期">
+            <option value="">全部日期 (展開全部)</option>
+          </select>
+        </div>
+
+        <!-- 版面寬度切換 -->
+        <div class="word-group">
+          <select id="width-select" class="ctrl-select">
+            <option value="720px">標準寬度 (720px)</option>
+            <option value="960px">加寬視窗 (960px)</option>
+            <option value="1200px">寬螢幕 (1200px)</option>
+            <option value="100%">全螢幕滿版</option>
+          </select>
+        </div>
+
+        <!-- 字體大小 -->
+        <div class="word-group">
+          <select id="font-select" class="ctrl-select" title="調整字體大小">
+            <option value="13px">字級：小</option>
+            <option value="14.5px" selected>字級：標準</option>
+            <option value="16.5px">字級：大</option>
+            <option value="18.5px">字級：超大</option>
+          </select>
+        </div>
+
+        <!-- 主題切換 -->
+        <div class="word-group">
+          <select id="theme-select" class="ctrl-select">
+            <option value="line-classic">LINE 經典藍</option>
+            <option value="light-mint">清新薄荷</option>
+            <option value="dark">沉浸深色</option>
+          </select>
+        </div>
+
+        <!-- 另存與匯出選單 -->
+        <div class="word-group dropdown-relative">
+          <button class="btn btn-success" id="export-dropdown-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            另存檔案 ▾
+          </button>
+          <div class="dropdown-menu" id="export-menu">
+            <div class="dropdown-item" onclick="exportStandaloneHtml()">
+              <span>📥</span>
+              <div>
+                <strong>另存為獨立 HTML</strong>
+                <div style="font-size:11px; opacity:0.8;">生成單一離線網頁，隨處點開即看</div>
+              </div>
+            </div>
+            <div class="dropdown-divider"></div>
+            <div class="dropdown-item" onclick="exportFilteredTxt()">
+              <span>📝</span>
+              <div>
+                <strong>匯出整理純文字 (.txt)</strong>
+                <div style="font-size:11px; opacity:0.8;">保存篩選後乾淨對話紀錄</div>
+              </div>
+            </div>
+            <div class="dropdown-item" onclick="exportJsonData()">
+              <span>📊</span>
+              <div>
+                <strong>匯出 JSON 資料 (.json)</strong>
+                <div style="font-size:11px; opacity:0.8;">結構化數據供進一步分析</div>
+              </div>
+            </div>
+            <div class="dropdown-divider"></div>
+            <div class="dropdown-item" onclick="window.print()">
+              <span>🖨️</span>
+              <div>
+                <strong>列印 / 另存為 PDF</strong>
+                <div style="font-size:11px; opacity:0.8;">瀏覽器原生友好列印樣式</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 更換檔案按鈕 -->
+        <div class="word-group">
+          <button class="btn btn-primary" onclick="document.getElementById('file-input').click()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+            </svg>
+            更換檔案
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- 隱藏原生檔案選取器 -->
+  <input type="file" id="file-input" accept=".txt">
+
+  <!-- 歡迎與拖曳引導區 (初始畫面) -->
+  <div id="welcome-screen">
+    <div class="welcome-card">
+      <div class="hero-icon">
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+        </svg>
+      </div>
+      <h2>LINE 聊天記錄還原檢視器</h2>
+      <p>LINE 匯出的聊天文字檔閱讀不易嗎？將檔案丟進來，一秒還原為原汁原味、美觀又直覺的 LINE 對話介面！</p>
+
+      <div class="dropzone-box" onclick="document.getElementById('file-input').click()">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#06c755" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="17 8 12 3 7 8"></polyline>
+          <line x1="12" y1="3" x2="12" y2="15"></line>
+        </svg>
+        <div style="font-weight:700; font-size:16px;">拖曳 LINE 文字檔 (.txt) 到此處</div>
+        <div style="font-size:13px; color:#64748b;">或點擊此處瀏覽選取電腦中的檔案</div>
+      </div>
+
+      <div style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center;">
+        <button class="btn btn-primary" style="padding:8px 18px; font-size:14px;" onclick="document.getElementById('file-input').click()">
+          📁 選取文字檔
+        </button>
+        <button class="btn" style="padding:8px 18px; font-size:14px;" onclick="loadSampleChat()">
+          🎲 載入範例對話體驗（大十輸入法對話精華）
+        </button>
+      </div>
+
+      <div class="privacy-notice">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+        </svg>
+        100% 本機瀏覽器端解析，絕不對外傳輸任何對話資料，保護個人隱私
+      </div>
+
+      <div class="guide-box">
+        <strong>💡 如何取得 LINE 聊天記錄文字檔？</strong><br>
+        • <strong>手機版</strong>：進入聊天室 → 右上角選單「≡」→「其他設定」→「傳送聊天記錄」→ 儲存或分享文字檔。<br>
+        • <strong>電腦版</strong>：進入聊天室 → 右上角選單「⋯」→「儲存聊天」→ 另存為文字檔 (.txt)。
+      </div>
+    </div>
+  </div>
+
+  <!-- 主聊天氣泡區 (載入對話後顯示) -->
+  <main id="chat-main" style="display:none;">
+    <div class="chat-scroll-container" id="chat-container">
+      <!-- 氣泡將動態渲染於此 -->
+    </div>
+  </main>
+
+  <!-- 懸浮捷徑按鈕 -->
+  <div class="floating-tools" id="floating-tools" style="display:none;">
+    <button class="float-btn" onclick="scrollToTop()" title="回到最頂端">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="12" y1="19" x2="12" y2="5"></line>
+        <polyline points="5 12 12 5 19 12"></polyline>
+      </svg>
+    </button>
+    <button class="float-btn" onclick="scrollToBottom()" title="前往最新訊息">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="12" y1="5" x2="12" y2="19"></line>
+        <polyline points="19 12 12 19 5 12"></polyline>
+      </svg>
+    </button>
+  </div>
+
+  <!-- 內嵌精煉範例對話文字 -->
+  <script id="embedded-data" type="text/plain">2026.04.30 星期四
+19:31 大十 現在硬體環境相較自然輸入法前身震漢國音智慧型輸入法已經不知道增強多少倍了，分析使用者用詞的智慧功能也應該可以比較不顧忌的拿出來了吧？
+19:35 大十 話說現在很多AI都有自動勘誤的功能，我明明疏忽打錯字詞，AI也能理解。
+如果自然輸入法允許使用者輸入訂閱的AI API key做自動校正，也可能是個方向？
+19:41 大十 在你的設想中
+19:41 大十 我沒有，有沒可能是你輸入多次「你的攝影」之類的？
+19:42 芙莉聯 不確定，但是記憶中基本不怎麼用
+19:43 大十 碰到這種情況，我個人基本上也只能想辦法刪除「你的攝」。
+19:46 大十 看來自然輸入法除了原本的詞彙加權演算法知外，也要朝著自動勘誤的方向前進。
+雖然Typeless讓人很驚艷，但我個人還是比較喜歡自己看著自己打的字正確的一個字一個詞出現。
+19:50 大十 之外。
+不知何時莫名其妙學了個「知外」。這時如果有自動勘誤／校正，應該會知道要修正為「之外」，並且自動檢查學習的「知外」到底用過幾次？是否應該刪除？
+19:52 芙莉聯 最主要的地方是從詞彙表和暫存區中間，根本沒有「我的攝」，甚至連攝都沒有
+19:53 大十 但是你這個截圖顯示學習了「你的攝」喔。
+19:53 芙莉聯 沒錯
+19:53 芙莉聯 所以我才截圖
+19:53 芙莉聯 好幾次了
+19:53 大十 刪不掉嗎？
+19:54 芙莉聯 有的刪的掉，這個應該可以我懶的刪了
+19:54 芙莉聯 這個是同樣的問題，但是確定刪不掉的
+19:56 大十 我們現在在LINE社群，大家知道自然輸入法的加減詞快速鍵搶不過LINE嗎？
+19:58 大十 我在LINE以外的輸入介面成功刪除「置有」……但可以從選單再選進來。
+19:59 芙莉聯 不知道，不過我不是在Line上面碰到這個問題
+Line有自動選字的功能？
+19:59 芙莉聯 快速鍵的話我好像也不怎麼用
+20:00 芙莉聯 英文大小寫切換，以及沒有全局中英切換，還是我目前的痛點
+20:00 大十 不是，LINE會搶ctrl + 1~4 ，所以要在LINE的輸入框中加減詞會失敗。
+20:01 芙莉聯 一個我沒有用的功能
+2026.08.01 星期六
+17:13 大十 這個什麼時候已經超過三十年。
+17:22 大飛 装个 Typeless，一切都解脱了
+17:24 大十 有，我有裝過，非常驚艷。
+但，人是習慣的動物，由於我個人並不是語音思考型的人，我必須看著螢幕上將我腦海裡所想的字跳出來、以文書處理作業的方式進行才能繼續思考下去。
+17:26 大十 Typeless對我來說就只是「驚艷！」，但沒什麼幫助的高尚玩具。
+17:27 大十 我個人真的覺得Typeless很棒，但很可惜並不適合我而已。
+17:29 呱 上次管理員出現 是帳號問題
+上上次 是要填問卷
+上上上次  還是帳號問題
+對於使用問題，上次回答已經是五月的事情
+優化更是四月的事
+17:29 大十 可能因為管理員不是AI吧…… (laugh Moon)
+17:30 呱 對於這個結果 我有兩個推斷
+1.管理員只知道或只能回應帳號問題
+2.他們只在乎你有沒有付錢，付了錢能不能用，使用體驗不在他的負責範圍
+17:31 呱 我上次就說啦 大家在這裡根本care那一點錢
+但是花錢花的沒意義就不是很爽
+17:31 呱 根本不care
+17:34 白龍 重點是這個或是其他的輸入法我不需要付錢
+17:35 白龍 但是自然輸入法要付錢，而且還不少
+17:35 白龍 每一次大版本就是2000多塊
+17:35 大十 就個人取捨了。我願意為了我想要的體驗付錢。
+17:36 白龍 當然，我捨很多
+17:36 白龍 但是我看不到我的取在哪
+17:36 大十 您還會留在這社群，應該也有難以割捨之處吧？
+17:37 白龍 沒有，單純就我就付錢了
+17:37 白龍 貼圖
+17:37 大十 喔，那也是個點。是說如果看開了，也就能斷捨離～
+17:38 呱 現在很糟糕的是
+17:39 呱 我還在訂閱
+但我在用華碩輸入法跟typeless XD
+17:40 大十 看有沒有人可以承接或轉贈看看。
+17:40 呱 我在等一個希望
+但感覺是看不到
+17:40 大十 貼圖
+20:25 大十 其實也不一定要甲AI念文字給乙AI聽，對照真實情境，也可以是乙AI自己看稿辨識，然後轉為注音按鍵操作自然輸入法輸出「一樣的文章」再來比對哪裡不一樣。
+20:38 自然輸入法_本人 謝謝大家今天分享這麼多真實的使用經驗，我都有一則一則看。
+
+大家提到的選字、詞庫、更新速度、AI 能不能協助改善、以及官方回應不夠即時等意見，我都會整理回團隊討論。
+
+其實我們一直都有持續改善產品，也在規劃新的方向，只是這些過程沒有好好讓大家知道，這點確實是我們需要努力的地方。
+
+未來除了回覆問題，也希望能更常分享產品進度、設計思考，甚至一些正在驗證的新想法，讓大家知道你們的回饋真的有被看見，也會影響產品的方向。
+
+再次謝謝大家願意一直使用自然輸入法，也願意花時間提出建議，這些對我們真的很重要。
+20:48 大十 辛苦了，這麼晚還上來回覆。 (emoji)
+21:16 自然輸入法_本人 謝謝，也謝謝大家願意直接提出意見。對產品來說，這些回饋真的很重要。
+22:02 大十 剛剛飄過一個很簡單的技術方法：
+1. 寫一個程式將文章分解為許氏鍵盤按鍵
+2. 再寫另外一個程式模擬人類按鍵盤的行為讀取上述鍵盤檔，在自然輸入法許氏鍵盤模式中開始生出一篇文章。
+3. 利用Levenshtein Distance、Diff-Match-Patch等現有程式分析原始文章檔和2寫出來的文章差異
+4. 再請AI去分析這個差異在大語言模型中能夠統計出來的上下文關係做成報告
+5. 依據報告精準調校自然輸入法詞庫
+22:06 大十 2甚至也不必自己寫，找個支援鍵盤log還原的程式，再依照他的格式寫程式1就可以了。
+例如AutoHotkey (AHK)、PyAutoGUI 或標準 Macro Recorder等。
+22:07 大十 這樣分析個十萬篇文章下來應該就會很厲害吧？
+2026.08.02 星期日
+22:32 大十 補充一下，原始文章必須先經過校正，沒有任何錯別字。最好是AI跑一遍，然後人工審閱一次。
+2026.08.03 星期一
+12:46 白龍 這個我都能理解，但是我覺得貴公司提出的情境，系統並沒有好好審酌前後文的情景就直接納入詞庫的推薦
+
+譬如 
+多慮_連_本次家長會提出
+其實很明顯的是2-1-2的詞彙
+但是系統可以認為是4-1的詞彙就很詭異。
+12:47 白龍 更或者是多氯聯苯 和多氯聯本這種專用的詞彙的錯字
+12:48 白龍 基本上我也都是用ai在整理，其實速度是快的
+12:48 白龍 但是因為自然輸入法的詞庫輸入其實不是那麼直觀，每次都要耗費時間處理
+16:12 大十 也許應該像導航軟體，每隔一段時間就釋出更新圖資一樣，自然輸入法也每隔一段時間就釋出詞庫更新檔，並接受使用者後悔改用舊版這樣。
+16:53 大十 詞庫資料其實也可以類似圖資分區一樣，將專業詞庫分離給需要的使用者下載、選擇性／彈性掛入。
+16:54 大十 畢竟每個人的常用語境不同，A需要的專業詞彙對B而言可能是干擾，反之亦然。
+2026.08.15 星期六
+08:26 大十 https://www.threads.com/@phycause/post/DcBj43JFHZ6
+
+給本社群裡的Typeless愛用者卓參。
+2026.09.18 星期五
+16:22 大十 圖片
+16:23 大十 開自動更新檢查說已經是最新版，但看公告發現日期不對，所以只好自己到官網下載。這總是最新版了吧？
+16:24 大十 圖片
+16:25 大十 裝好最新版，按檢查更新，出現如上小視窗。
+這樣就可以解釋為什麼舊版沒有自動更新了……
+16:27 大十 圖片
+16:28 大十 然後剛剛我安裝完登入，用的是方便的Google登入。打開詞語管理，IQ雲備份還要我再登入一次？那我剛剛是登入心酸嗎？
+而且還是囉唆的email帳密登入？
+16:30 大十 這是在催促我趕快把Linux上的輕本地AI智慧型輸入法RuhI如喜趕快完成的意思嗎？
+16:50 自然輸入法_本人 不好意思，因為目前IQ雲-雲端詞庫 跟 訂閱制的登入平台，兩個系統是不同時期開發，彼此資料也不互通。
+才會有這樣的困擾。
+
+IQ雲也提供給買斷用戶使用。
+16:51 自然輸入法_本人 是的，謝謝您
+16:53 大十 剛好我的使用期限也快到了，雖然不到一個月的時間，但很有可能可以開發完成RuhI輸入法。
+就此珍重再見。
+17:01 自然輸入法_本人 雖然很不捨，但是也期待看到 Ruhl 輸入法完成的一天 。
+也謝謝您這段時間使用自然輸入法，以及一路提供的各種回饋，也在社群中協助其他使用者的操作疑難解答。
+在 AI 飛速發展的現在。自己做輸入法之後，應該也會更有感這裡面有多少大大小小的細節 。
+小編先祝您開發順利，也期待有機會再交流！
+17:07 大十 辛苦您了。
+作為DOS時代震漢中文國音輸入法的短命語意分析師兼產品經理，很懂非程式核心開發人員的無奈。
+17:09 大十 好巧不巧，我今天早上剛藉由Google Antigravity Agent之助，完成網頁遊戲「字戀」：
+https://yuktesha.github.io/wordchain/
+直接拿這個遊戲梳理過的詞庫來當火藥庫。
+2026.09.23 星期三
+20:49 大十 https://yuktesha.github.io/textile/
+極端造句遊戲。
+2026.09.26 星期六
+12:26 大十 分享一下工作進度：
+12:26 大十 圖片
+14:12 大十 ================================================================================
+  RuhI (如喜) 魔鬼訓練營 15 道極限語意測試題評測
+================================================================================
+
+ 第  1 題: 你各位新來的記者們到我們美華報導報到是為了要報導我們美華報導的報到情況嗎
+ 第  2 題: 別人練了十年的功夫竟然不到半天的工夫你就全然得來全不費工夫的得到了
+ 第  3 題: 為了爭取我們應有的權利我們必須全力爭取權力才使得上力
+ 第  4 題: 在集會中最忌諱機會主義者講一些可以在某些集會裡以可笑的忌諱得到什麼機會
+ 第  5 題: 總是充滿精力的他的經歷果然顯示他無所不在的精力表現
+ 第  6 題: 這些人的反應反映了真實的反應
+ 第  7 題: 人體自燃並不自然
+ 第  8 題: 我衷心期望您不要在我們中心只是成為一條忠心的狗
+ 第  9 題: 任何沒有意義的音譯甚至比詞不達意的意譯更難讓人沒有異議
+ 第 10 題: 試試看一個人真的能夠事事如意的面對世事直到逝世嗎
+ 第 11 題: 學人家搶著付單完全超出我的負擔
+ 第 13 題: 在這個首善之都的首都凡人以他為首都獲得美好的成就
+ 第 14 題: 至於首尾相連的圖案設計倒是很簡單
+ 第 15 題: 作為一名資料庫建置專家把資料做成一件資料褲來穿耍一下資料酷杜絕資料哭應該是天經地義的事
+
+14:14 daphne 好厲害的題目哈哈哈
+14:23 大十 第14題升級：
+
+這款旨在治癒人心的圖案設計，究竟是為了拯救社稷的宏偉設計，抑或是為了不至於淪為射祭圖暗設計，倒是道是設計很簡單？
+15:05 大十 第16題：
+這句語文測驗簡單到全隊全對不稀奇，等下依據如喜魔鬼測試的每一句全隊也全對才離奇。
+2026.09.28 星期一
+10:18 大十 第17題：
+謹此為父獻上兒這個最長自串珠鍊。
+2026.09.29 星期二
+10:32 呱 @大十 請教一下如喜未來是開源還是商用？
+10:33 大十 應該是開源，畢竟用到很多開源專案作為基礎。
+10:41 大十 但如果 @自然輸入法_本人 團隊願意接手後續維護、開發並調整發行策略、訂閱價格，我很樂意移轉開發成果。
+11:05 大十 分享一下開發進度。
+11:05 大十 圖片
+11:13 已收回訊息
+11:14 大十 開源對我而言基本上應該不是問題？──已經AI就專案本身初步評估無任何商業侵權問題。問題是開源之後我個人能力十分有限，應該無法提供任何後續服務。
+若自然團隊能夠參照Red Hat模式接手營運，相信才是使用者之福。
+11:23 大十 開源的精神在於原始碼公開可被檢驗，而不是一味的免費自助餐。
+12:50 大十 有請 @自然輸入法_本人 轉達本人意見給經營、開發團隊。若無接手意願，在下於如喜輸入法Windows TSF開發版完成除錯之後就直接於Github釋出。
+13:05 呱 我只是看這個開發進度很感興趣，想說有沒有機會了解更多而已
+13:06 呱 畢竟如果是商用產品 那就不好意思問那麼多
+13:57 已收回訊息
+14:00 大十 由於在下畢竟曾經是自然輸入法前身震漢中文國音智慧型輸入法的語意分析師兼產品經理，雖然此次開發如喜輸入法並無任何反組譯自然輸入法的行為，開發過程除了參照幾個開源TSF輸入法，也自行開發了許多有趣的方法，但仍不可否認從使用者終端介面參照了不少自然輸入法的操作行為。
+綜合以上諸點，我才會想說：如果自然團隊願意接受在下提議接手，對原團隊、各位使用者、在下三方應該都是圓滿結局。
+當然以上只是我個人一廂情願的想法，自然團隊沒有任何義務非要接受不可。
+2026.09.30 星期三
+15:16 大十 這一行完全都是如喜輸入法打出來的，一氣到底，沒有任何選字。
+15:17 大十 差不多可以用了，繼續測試看看還有什麼奇怪的bug。
+15:21 大十 9/18到今天，不到半個月的時間，透過Google Antigravity Agent已經完成Windows TSF版的如喜輸入法。花費不到三千元。
+15:22 大飛 @大十 你這輸入法和自然的差別是什麼
+15:26 大十 圖片
+15:27 大十 可自由串接本地型AI。
+未來開源時會附上幾個有用的工具，讓使用者自行擴增專業詞庫。
+15:28 大飛 能在倉頡模式下輸入英文嗎
+15:29 大飛 macOS的倉頡可以，Windows的一直找不到解決辦法
+15:30 大十 目前還不行，因為我是許氏鍵盤的愛好者，所以先開發許氏鍵盤模式，尚未支援其他輸入法鍵盤。
+15:31 大十 請問是自動辨識英文還是利用caps lock切換呢？
+15:32 大飛 自動的，比方倉頡上限為五碼，你如果打超過五碼或是無法被辨識為倉頡碼，它就自動變英文
+15:32 大飛 所以在連續的輸入中要加上英文完全不需要停頓
+15:33 大十 了解，這個功能如喜輸入法目前還沒完成。理論上應該不會太難才是？
+15:34 大飛 應該很難，因為自然一直沒做
+15:34 大飛 它們只做了注音版本的樣子
+15:35 大飛 也可能使用的量體太小了，不值得做，只能將就了
+15:37 大十 我來請我的AI技術總監評估看看。
+目標讓如喜輸入法成為通用輸入法框架，支援各種輸入法鍵盤。
+15:56 大十 我不確定有沒有辦法做到完全不指定鍵盤模式的情況下，全憑「自動偵測」達成。但也許先指定範疇，難度應該會相對簡單？例如「倉頡+英文」的辨識應該不會太難--只要不是倉頡組合，就全部當成英文。 (laugh Moon)
+16:11 大十 @大飛 
+果然如我預料，當指定「倉頡+英文混打」的成功機率很高，甚至如我設想的偷懶方法「不是倉頡碼就假裝是英文（不校正，不管你有沒有打對）」相對容易。
+16:12 已收回訊息
+16:12 已收回訊息
+16:13 大十 只要對同時是倉頡碼又是英文的組合進行第二輪判定就可以了。
+16:28 大十 圖片
+16:30 大飛 看起來好像可行！
+16:38 大十 剛剛說「假裝是英文（不校正，不管你有沒有打對）相對容易」這段不是玩笑話，技術上的確這樣超省事。
+不過我的野心又往上推了一下：
+真正的歐文使用者們可能也會希望可以使用這個輸入法──一個可以自動校正打字錯誤、自動補上尖音符的輸入法。
+
+16:39 大十 圖片
+16:41 大十 「一個真正的通用輸入法」能否實現呢？敬請拭目以待。
+
+21:38 大十 已另開社群，請自行搜尋關鍵字「如喜」，謝謝。
+21:39 大十 在下就此告辭了。感謝自然輸入法多年來的陪伴。
+</script>
+
+  <script>
+    // 專屬頭像色彩庫
+    const AVATAR_COLORS = [
+      'linear-gradient(135deg, #f97316, #ea580c)',
+      'linear-gradient(135deg, #06b6d4, #0891b2)',
+      'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+      'linear-gradient(135deg, #ec4899, #db2777)',
+      'linear-gradient(135deg, #10b981, #059669)',
+      'linear-gradient(135deg, #3b82f6, #2563eb)',
+      'linear-gradient(135deg, #f59e0b, #d97706)',
+      'linear-gradient(135deg, #6366f1, #4f46e5)',
+      'linear-gradient(135deg, #14b8a6, #0d9488)',
+      'linear-gradient(135deg, #e11d48, #be123c)'
+    ];
+
+    function getAvatarColor(name) {
+      let hash = 0;
+      for (let i = 0; i < name.length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+    }
+
+    function getInitials(name) {
+      if (!name) return '?';
+      const clean = name.replace(/[\u{1F300}-\u{1F9FF}]/gu, '').trim();
+      return clean.length > 0 ? clean.substring(0, 2) : name.substring(0, 1);
+    }
+
+    // 狀態變數
+    let currentRawText = '';
+    let currentChatTitle = 'LINE 聊天記錄';
+    let allEntries = [];
+    let senderCounts = {};
+    let dateList = []; // 存所有不重複日期字串清單
+    let selectedDate = ''; // '' 表示全部日期展開；若有值則只顯示該日 (其他日期全部摺疊)
+    let myPerspective = '大十'; // 預設主角
+    let filterSender = '';
+    let searchTerm = '';
+    let searchMatches = [];
+    let currentMatchIndex = -1;
+
+    // 解析文字檔
+    function parseLineContent(text) {
+      const lines = text.split(/\r?\n/);
+      const dateRegex = /^(\d{4}[\/\.\-]\d{1,2}[\/\.\-]\d{1,2})(?:\s+([^\s]+))?$/;
+      const msgRegex = /^((?:上午|下午)?\s*\d{1,2}:\d{2}(?::\d{2})?(?:\s*(?:AM|PM))?)\s+([^\s]+)\s+(.*)$/;
+      const recallRegex = /^((?:上午|下午)?\s*\d{1,2}:\d{2}(?::\d{2})?(?:\s*(?:AM|PM))?)\s+(?:(.*)已收回訊息|已收回訊息)$/;
+      const joinLeaveRegex = /^((?:上午|下午)?\s*\d{1,2}:\d{2}(?::\d{2})?(?:\s*(?:AM|PM))?)\s+(.+)(加入聊天|離開聊天|已退出群組|邀請.+加入聊天)$/;
+
+      const entries = [];
+      let currentMsg = null;
+      let curDate = '';
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+
+        // 1. 日期行
+        const dateMatch = line.match(dateRegex);
+        if (dateMatch && !line.includes(':')) {
+          curDate = line.trim();
+          entries.push({
+            type: 'date',
+            date: curDate,
+            lineIndex: i + 1
+          });
+          currentMsg = null;
+          continue;
+        }
+
+        // 2. 收回訊息
+        const recallMatch = line.match(recallRegex);
+        if (recallMatch) {
+          const time = recallMatch[1].trim();
+          const user = recallMatch[2] ? recallMatch[2].trim() : '';
+          entries.push({
+            type: 'system',
+            time: time,
+            text: (user ? user + ' ' : '') + '已收回訊息',
+            date: curDate,
+            lineIndex: i + 1
+          });
+          currentMsg = null;
+          continue;
+        }
+
+        // 3. 加入/退出群組
+        const joinMatch = line.match(joinLeaveRegex);
+        if (joinMatch) {
+          const time = joinMatch[1].trim();
+          const user = joinMatch[2].trim();
+          const action = joinMatch[3].trim();
+          entries.push({
+            type: 'system',
+            time: time,
+            text: `${user}${action}`,
+            date: curDate,
+            lineIndex: i + 1
+          });
+          currentMsg = null;
+          continue;
+        }
+
+        // 4. 對話訊息行
+        const msgMatch = line.match(msgRegex);
+        if (msgMatch) {
+          const time = msgMatch[1].trim();
+          const sender = msgMatch[2].trim();
+          const content = msgMatch[3];
+
+          currentMsg = {
+            type: 'message',
+            time: time,
+            sender: sender,
+            text: content,
+            date: curDate,
+            lineIndex: i + 1
+          };
+          entries.push(currentMsg);
+          continue;
+        }
+
+        // 5. 多行換行延續
+        if (currentMsg && currentMsg.type === 'message') {
+          currentMsg.text += '\n' + line;
+        } else {
+          if (line.trim()) {
+            entries.push({
+              type: 'system',
+              time: '',
+              text: line.trim(),
+              date: curDate,
+              lineIndex: i + 1
+            });
+          }
+        }
+      }
+
+      return entries;
+    }
+
+    function escapeHtml(str) {
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function formatMessageText(text) {
+      const trimmed = text.trim();
+      if (trimmed === '圖片' || trimmed === '[圖片]') {
+        return `<div class="media-card">
+          <svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+          <span>[圖片]</span>
+        </div>`;
+      }
+      if (trimmed === '貼圖' || trimmed === '[貼圖]' || trimmed.startsWith('(laugh') || trimmed.startsWith('(love') || trimmed.startsWith('(emoji)')) {
+        return `<div class="media-card">
+          <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+          <span>${escapeHtml(trimmed)}</span>
+        </div>`;
+      }
+      if (trimmed === '影片' || trimmed === '[影片]') {
+        return `<div class="media-card">
+          <svg viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>
+          <span>[影片]</span>
+        </div>`;
+      }
+
+      let escaped = escapeHtml(text);
+
+      const urlPattern = /(https?:\/\/[^\s\u3000\u3001\u3002\uff0c\uff01\uff1f\uff09\u300d\u300f]+)/g;
+      escaped = escaped.replace(urlPattern, url => {
+        return `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`;
+      });
+
+      if (searchTerm) {
+        const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+        escaped = escaped.replace(regex, '<mark class="search-hit">$1</mark>');
+      }
+
+      return escaped;
+    }
+
+    // 核心重構：渲染聊天對話（支援單日聚焦模式與全展開模式）
+    function renderChat() {
+      const container = document.getElementById('chat-container');
+      container.innerHTML = '';
+      searchMatches = [];
+      currentMatchIndex = -1;
+
+      // 1. 若為單日聚焦模式，先在頂部渲染聚焦導航控制列
+      if (selectedDate) {
+        const currentIdx = dateList.indexOf(selectedDate);
+        const dayMsgs = allEntries.filter(e => e.type === 'message' && e.date === selectedDate).length;
+        
+        const focusBar = document.createElement('div');
+        focusBar.className = 'day-focus-bar';
+        focusBar.innerHTML = `
+          <div class="day-focus-info">
+            <span>📅 聚焦閱讀：${escapeHtml(selectedDate)}</span>
+            <span class="day-focus-badge">${dayMsgs} 則對話</span>
+          </div>
+          <div class="word-group">
+            <button class="btn btn-sm" onclick="stepDay(-1)" ${currentIdx <= 0 ? 'disabled' : ''} title="前往前一天">◀ 前一天</button>
+            <button class="btn btn-sm" onclick="stepDay(1)" ${currentIdx >= dateList.length - 1 ? 'disabled' : ''} title="前往後一天">後一天 ▶</button>
+            <button class="btn btn-sm btn-primary" onclick="setFocusDate('')" title="展開所有日期的完整對話">📂 展開全部</button>
+          </div>
+        `;
+        container.appendChild(focusBar);
+      }
+
+      // 2. 篩選目前要顯示的 entries（同時支援發言者過濾與日期過濾）
+      const visibleEntries = allEntries.filter(entry => {
+        // 日期過濾：若選取了特定日期，其他日期的所有項目全部摺疊隱藏！
+        if (selectedDate && entry.date !== selectedDate) {
+          return false;
+        }
+        // 發言人過濾：
+        if (filterSender && entry.type === 'message' && entry.sender !== filterSender) {
+          return false;
+        }
+        return true;
+      });
+
+      let dateTagCounter = 0;
+
+      for (let i = 0; i < visibleEntries.length; i++) {
+        const entry = visibleEntries[i];
+
+        // 1. 日期標籤 (點擊可快速進入單日聚焦模式)
+        if (entry.type === 'date') {
+          const dateDiv = document.createElement('div');
+          dateDiv.className = 'date-divider';
+          dateDiv.id = `date-node-${dateTagCounter++}`;
+          dateDiv.innerHTML = `<span class="date-pill" onclick="setFocusDate('${escapeHtml(entry.date)}')" title="點擊只聚焦閱讀此日對話">${escapeHtml(entry.date)}</span>`;
+          container.appendChild(dateDiv);
+          continue;
+        }
+
+        // 2. 系統事件
+        if (entry.type === 'system') {
+          const sysDiv = document.createElement('div');
+          sysDiv.className = 'system-row';
+          const timeSpan = entry.time ? `<span style="opacity:0.8; margin-right:4px;">${escapeHtml(entry.time)}</span>` : '';
+          sysDiv.innerHTML = `<div class="system-pill">${timeSpan}${escapeHtml(entry.text)}</div>`;
+          container.appendChild(sysDiv);
+          continue;
+        }
+
+        // 3. 對話訊息行
+        if (entry.type === 'message') {
+          const prev = visibleEntries[i - 1];
+          const next = visibleEntries[i + 1];
+
+          const isMe = (myPerspective !== '' && entry.sender === myPerspective);
+          const isSameSenderAsPrev = (prev && prev.type === 'message' && prev.sender === entry.sender);
+          const isSameSenderAsNext = (next && next.type === 'message' && next.sender === entry.sender);
+
+          const isFirstInCluster = !isSameSenderAsPrev;
+          const isLastInCluster = !isSameSenderAsNext || (next && next.time !== entry.time);
+
+          let positionClass = 'single';
+          if (!isFirstInCluster && !isLastInCluster) positionClass = 'middle';
+          else if (!isFirstInCluster && isLastInCluster) positionClass = 'last';
+          else if (isFirstInCluster && !isLastInCluster) positionClass = 'first';
+
+          const row = document.createElement('div');
+          row.className = `message-row ${isMe ? 'me' : 'other'} ${positionClass}`;
+          row.id = `msg-${i}`;
+
+          let avatarHtml = '';
+          if (!isMe) {
+            if (isFirstInCluster) {
+              const bg = getAvatarColor(entry.sender);
+              const initials = getInitials(entry.sender);
+              avatarHtml = `<div class="avatar-col">
+                <div class="avatar" style="background:${bg};" title="${escapeHtml(entry.sender)}" onclick="filterByPerson('${escapeHtml(entry.sender)}')">${escapeHtml(initials)}</div>
+              </div>`;
+            } else {
+              avatarHtml = `<div class="avatar-col"><div class="avatar-empty"></div></div>`;
+            }
+          }
+
+          let nameHtml = '';
+          if (!isMe && isFirstInCluster) {
+            nameHtml = `<div class="sender-name" onclick="filterByPerson('${escapeHtml(entry.sender)}')">${escapeHtml(entry.sender)}</div>`;
+          }
+
+          let timeHtml = '';
+          if (isLastInCluster) {
+            timeHtml = `<div class="time-stamp">${escapeHtml(entry.time)}</div>`;
+          }
+
+          const contentHtml = formatMessageText(entry.text);
+
+          row.innerHTML = `
+            ${avatarHtml}
+            <div class="bubble-wrapper">
+              ${nameHtml}
+              <div class="bubble-and-time">
+                <div class="bubble">${contentHtml}</div>
+                ${timeHtml}
+              </div>
+            </div>
+          `;
+
+          container.appendChild(row);
+        }
+      }
+
+      if (searchTerm) {
+        searchMatches = Array.from(document.querySelectorAll('mark.search-hit'));
+        updateSearchCounter();
+        if (searchMatches.length > 0) {
+          jumpToMatch(0);
+        }
+      } else {
+        updateSearchCounter();
+      }
+    }
+
+    // 核心功能：設定聚焦日期（折疊其他所有日期）
+    function setFocusDate(targetDate) {
+      selectedDate = targetDate;
+      // 同步頂部下拉選單的選項
+      document.getElementById('date-select').value = targetDate;
+      renderChat();
+      // 聚焦單日模式時，捲軸自然歸零置頂，從當天第一句話開始閱讀
+      document.getElementById('chat-main').scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // 前一天 / 後一天快捷導航
+    function stepDay(offset) {
+      if (!selectedDate) return;
+      const currentIdx = dateList.indexOf(selectedDate);
+      const newIdx = currentIdx + offset;
+      if (newIdx >= 0 && newIdx < dateList.length) {
+        setFocusDate(dateList[newIdx]);
+      }
+    }
+
+    function filterByPerson(senderName) {
+      const select = document.getElementById('filter-sender');
+      select.value = senderName;
+      filterSender = senderName;
+      renderChat();
+    }
+
+    function jumpToMatch(index) {
+      if (searchMatches.length === 0) return;
+      if (currentMatchIndex >= 0 && searchMatches[currentMatchIndex]) {
+        searchMatches[currentMatchIndex].classList.remove('current');
+      }
+      currentMatchIndex = (index + searchMatches.length) % searchMatches.length;
+      const target = searchMatches[currentMatchIndex];
+      target.classList.add('current');
+      
+      const chatMain = document.getElementById('chat-main');
+      const targetTop = target.offsetTop - 80;
+      chatMain.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
+
+      updateSearchCounter();
+    }
+
+    function updateSearchCounter() {
+      const counter = document.getElementById('search-counter');
+      const prevBtn = document.getElementById('search-prev-btn');
+      const nextBtn = document.getElementById('search-next-btn');
+
+      if (!searchTerm) {
+        counter.textContent = '';
+        prevBtn.style.display = 'none';
+        nextBtn.style.display = 'none';
+        return;
+      }
+
+      if (searchMatches.length === 0) {
+        counter.textContent = '0 筆';
+        prevBtn.style.display = 'none';
+        nextBtn.style.display = 'none';
+      } else {
+        counter.textContent = `${currentMatchIndex + 1} / ${searchMatches.length}`;
+        prevBtn.style.display = 'inline-flex';
+        nextBtn.style.display = 'inline-flex';
+      }
+    }
+
+    function scrollToTop() {
+      document.getElementById('chat-main').scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function scrollToBottom() {
+      const main = document.getElementById('chat-main');
+      main.scrollTo({ top: main.scrollHeight, behavior: 'smooth' });
+    }
+
+    function showWelcomeScreen() {
+      document.getElementById('welcome-screen').style.display = 'flex';
+      document.getElementById('chat-main').style.display = 'none';
+      document.getElementById('toolbar-controls').style.display = 'none';
+      document.getElementById('floating-tools').style.display = 'none';
+      document.getElementById('chat-title').textContent = 'LINE 聊天記錄檢視器';
+      document.getElementById('chat-stats').textContent = '請先載入 LINE 聊天文字檔';
+      document.title = 'LINE 聊天記錄還原檢視器';
+    }
+
+    function showChatView() {
+      document.getElementById('welcome-screen').style.display = 'none';
+      document.getElementById('chat-main').style.display = 'block';
+      document.getElementById('toolbar-controls').style.display = 'flex';
+      document.getElementById('floating-tools').style.display = 'flex';
+    }
+
+    function populateControls() {
+      senderCounts = {};
+      const dateMsgCounts = {};
+      dateList = [];
+
+      allEntries.forEach(entry => {
+        if (entry.type === 'message') {
+          senderCounts[entry.sender] = (senderCounts[entry.sender] || 0) + 1;
+          if (entry.date) {
+            dateMsgCounts[entry.date] = (dateMsgCounts[entry.date] || 0) + 1;
+            if (!dateList.includes(entry.date)) {
+              dateList.push(entry.date);
+            }
+          }
+        }
+      });
+
+      const sortedSenders = Object.entries(senderCounts).sort((a, b) => b[1] - a[1]);
+
+      // 視角選單 (Me Select)
+      const meSelect = document.getElementById('me-select');
+      meSelect.innerHTML = `<option value="">純閱覽 (全部置左)</option>`;
+      
+      // 優先選取「大十」或發言第一名
+      if (senderCounts['大十']) {
+        myPerspective = '大十';
+      } else if (!myPerspective && sortedSenders.length > 0) {
+        myPerspective = sortedSenders[0][0];
+      }
+
+      sortedSenders.forEach(([sender, count]) => {
+        const opt = document.createElement('option');
+        opt.value = sender;
+        opt.textContent = `${sender} (${count}則)`;
+        if (sender === myPerspective) opt.selected = true;
+        meSelect.appendChild(opt);
+      });
+
+      // 發言過濾選單
+      const filterSelect = document.getElementById('filter-sender');
+      filterSelect.innerHTML = `<option value="">全部成員 (${sortedSenders.length}人)</option>`;
+      sortedSenders.forEach(([sender, count]) => {
+        const opt = document.createElement('option');
+        opt.value = sender;
+        opt.textContent = `${sender} (${count}則)`;
+        filterSelect.appendChild(opt);
+      });
+
+      // 核心重構：日期焦點選單，附帶當日對話筆數
+      const dateSelect = document.getElementById('date-select');
+      dateSelect.innerHTML = `<option value="">全部日期 (展開全部 ${dateList.length} 天)</option>`;
+      dateList.forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d;
+        const count = dateMsgCounts[d] || 0;
+        opt.textContent = `${d} (${count}則)`;
+        if (d === selectedDate) opt.selected = true;
+        dateSelect.appendChild(opt);
+      });
+
+      // 統計資訊
+      const totalMsgs = Object.values(senderCounts).reduce((a, b) => a + b, 0);
+      document.getElementById('chat-stats').innerHTML = `
+        <span class="stats-badge">💬 ${totalMsgs} 則訊息</span>
+        <span class="stats-badge">👥 ${sortedSenders.length} 位成員</span>
+        <span class="stats-badge">📅 ${dateList.length} 天紀錄</span>
+      `;
+    }
+
+    // 核心匯出功能 (另存檔案)
+    function downloadFile(content, fileName, mimeType) {
+      const blob = new Blob([content], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 100);
+    }
+
+    function exportStandaloneHtml() {
+      const docHtml = document.documentElement.outerHTML;
+      const safeData = currentRawText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      let exportHtml = docHtml.replace(
+        /<script id="embedded-data" type="text\/plain">[\s\S]*?<\/script>/,
+        `<script id="embedded-data" type="text/plain">${safeData}<\/script>`
+      );
+      
+      const fileName = `[LINE整理]${currentChatTitle}.html`;
+      downloadFile(exportHtml, fileName, 'text/html;charset=utf-8');
+      closeExportMenu();
+    }
+
+    function exportFilteredTxt() {
+      let txt = `${currentChatTitle} - 整理匯出\n`;
+      txt += `匯出日期：${new Date().toLocaleString()}\n`;
+      if (selectedDate) txt += `聚焦日期：${selectedDate}\n`;
+      if (filterSender) txt += `篩選成員：${filterSender}\n`;
+      txt += `--------------------------------------------------\n\n`;
+
+      const visibleEntries = allEntries.filter(entry => {
+        if (selectedDate && entry.date !== selectedDate) return false;
+        if (filterSender && entry.type === 'message' && entry.sender !== filterSender) return false;
+        return true;
+      });
+
+      visibleEntries.forEach(e => {
+        if (e.type === 'date') {
+          txt += `\n${e.date}\n`;
+        } else if (e.type === 'system') {
+          txt += `${e.time ? e.time + ' ' : ''}${e.text}\n`;
+        } else if (e.type === 'message') {
+          txt += `${e.time} ${e.sender} ${e.text}\n`;
+        }
+      });
+
+      const fileName = `[整理]${currentChatTitle}${selectedDate ? '_' + selectedDate.substring(0, 10) : ''}.txt`;
+      downloadFile(txt, fileName, 'text/plain;charset=utf-8');
+      closeExportMenu();
+    }
+
+    function exportJsonData() {
+      const exportData = {
+        title: currentChatTitle,
+        exportTime: new Date().toISOString(),
+        selectedDate: selectedDate || null,
+        filterSender: filterSender || null,
+        myPerspective: myPerspective || null,
+        stats: {
+          totalEntries: allEntries.length,
+          senders: senderCounts
+        },
+        entries: allEntries.filter(e => {
+          if (selectedDate && e.date !== selectedDate) return false;
+          if (filterSender && e.type === 'message' && e.sender !== filterSender) return false;
+          return true;
+        })
+      };
+
+      const jsonStr = JSON.stringify(exportData, null, 2);
+      const fileName = `[資料]${currentChatTitle}${selectedDate ? '_' + selectedDate.substring(0, 10) : ''}.json`;
+      downloadFile(jsonStr, fileName, 'application/json;charset=utf-8');
+      closeExportMenu();
+    }
+
+    function toggleExportMenu() {
+      const menu = document.getElementById('export-menu');
+      menu.classList.toggle('show');
+    }
+
+    function closeExportMenu() {
+      const menu = document.getElementById('export-menu');
+      if (menu) menu.classList.remove('show');
+    }
+
+    function loadTextData(text, title = 'LINE 聊天記錄') {
+      currentRawText = text;
+      currentChatTitle = title;
+      document.getElementById('chat-title').textContent = title;
+      document.title = `LINE 聊天記錄 - ${title}`;
+
+      allEntries = parseLineContent(text);
+      selectedDate = ''; // 載入新檔時預設展開全部
+      populateControls();
+      showChatView();
+      renderChat();
+      scrollToBottom();
+    }
+
+    function loadSampleChat() {
+      const embedded = document.getElementById('embedded-data').textContent.trim();
+      if (embedded) {
+        loadTextData(embedded, '我們都是自然人 🌝 (大十語意對話精華)');
+      } else {
+        alert('無內建範例對話，請選取本機中的 LINE 文字檔。');
+      }
+    }
+
+    function loadFile(file) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const text = e.target.result;
+        let title = file.name.replace(/\.txt$/i, '').replace(/^\[LINE\]\s*/i, '');
+        loadTextData(text, title || 'LINE 聊天記錄');
+      };
+      reader.readAsText(file, 'utf-8');
+    }
+
+    function bindEvents() {
+      // 另存下拉選單
+      document.getElementById('export-dropdown-btn').addEventListener('click', e => {
+        e.stopPropagation();
+        toggleExportMenu();
+      });
+
+      document.addEventListener('click', () => {
+        closeExportMenu();
+      });
+
+      // 視角切換
+      document.getElementById('me-select').addEventListener('change', e => {
+        myPerspective = e.target.value;
+        renderChat();
+      });
+
+      // 成員過濾
+      document.getElementById('filter-sender').addEventListener('change', e => {
+        filterSender = e.target.value;
+        renderChat();
+      });
+
+      // 核心重構：日期焦點切換（點選某日即刻單獨聚焦該日，摺疊隱藏其他所有日期）
+      document.getElementById('date-select').addEventListener('change', e => {
+        setFocusDate(e.target.value);
+      });
+
+      // 鍵盤左右鍵切換前後天 (在單日聚焦模式下提供電子書般的快捷翻頁)
+      window.addEventListener('keydown', e => {
+        if (selectedDate && (document.activeElement.tagName !== 'INPUT')) {
+          if (e.key === 'ArrowLeft') stepDay(-1);
+          else if (e.key === 'ArrowRight') stepDay(1);
+        }
+      });
+
+      // 版面寬度切換
+      document.getElementById('width-select').addEventListener('change', e => {
+        document.documentElement.style.setProperty('--chat-width', e.target.value);
+      });
+
+      // 字級大小切換
+      document.getElementById('font-select').addEventListener('change', e => {
+        document.documentElement.style.setProperty('--font-size-base', e.target.value);
+      });
+
+      // 主題切換
+      document.getElementById('theme-select').addEventListener('change', e => {
+        document.body.setAttribute('data-theme', e.target.value);
+      });
+
+      // 搜尋輸入
+      let searchTimeout = null;
+      document.getElementById('search-input').addEventListener('input', e => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+          searchTerm = e.target.value.trim();
+          renderChat();
+        }, 220);
+      });
+
+      document.getElementById('search-input').addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+          if (e.shiftKey) jumpToMatch(currentMatchIndex - 1);
+          else jumpToMatch(currentMatchIndex + 1);
+        }
+      });
+
+      document.getElementById('search-prev-btn').addEventListener('click', () => jumpToMatch(currentMatchIndex - 1));
+      document.getElementById('search-next-btn').addEventListener('click', () => jumpToMatch(currentMatchIndex + 1));
+
+      // 檔案選取
+      document.getElementById('file-input').addEventListener('change', e => {
+        const file = e.target.files[0];
+        if (file) loadFile(file);
+      });
+
+      // 拖曳功能
+      const overlay = document.getElementById('dropzone-overlay');
+      window.addEventListener('dragover', e => {
+        e.preventDefault();
+        overlay.style.display = 'flex';
+      });
+
+      window.addEventListener('dragleave', e => {
+        if (e.relatedTarget === null) {
+          overlay.style.display = 'none';
+        }
+      });
+
+      window.addEventListener('drop', e => {
+        e.preventDefault();
+        overlay.style.display = 'none';
+        if (e.dataTransfer.files.length > 0) {
+          loadFile(e.dataTransfer.files[0]);
+        }
+      });
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      bindEvents();
+      const embedded = document.getElementById('embedded-data').textContent.trim();
+      showWelcomeScreen();
+    });
+  </script>
+</body>
+</html>
