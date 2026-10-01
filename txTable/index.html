@@ -176,6 +176,11 @@
       flex: 1;
       align-items: stretch;
       min-height: 0;
+      transition: grid-template-columns 0.25s ease;
+    }
+
+    .editor-grid.full-preview {
+      grid-template-columns: 1fr !important;
     }
 
     @media (max-width: 1024px) {
@@ -339,6 +344,9 @@
         <span class="desc char-element">純文字框線表格智慧轉換與微調工作台</span>
       </div>
       <div class="word-group">
+        <button id="btnShowInputHeader" class="secondary" style="display:none;" onclick="toggleInputPanel()" title="展開文字輸入面板">
+          <span>▶</span> <span class="char-element">展開輸入區</span>
+        </button>
         <button class="secondary" onclick="toggleTheme()" title="切換深色/淺色主題">
           <span id="themeIcon">🌓</span> <span class="char-element">切換主題</span>
         </button>
@@ -352,13 +360,14 @@
     </header>
 
     <!-- 主工作區 -->
-    <div class="editor-grid">
+    <div class="editor-grid" id="editorGrid">
       <!-- 左欄：文字表格輸入 -->
-      <div class="card">
+      <div class="card" id="inputCard">
         <div class="row-sentence">
           <span class="card-title char-element">1. 貼上純文字表格 (Text Input)</span>
           <div class="word-group">
             <button class="secondary" style="padding: 4px 8px; font-size: 0.78rem;" onclick="clearInput()">清空</button>
+            <button class="secondary" style="padding: 4px 8px; font-size: 0.78rem;" onclick="toggleInputPanel()" title="隱藏輸入區，將畫面完全讓給預覽表格">◀ 隱藏輸入區</button>
           </div>
         </div>
         <textarea id="rawInput" placeholder="請在此貼上 PE2、ASCII 或終端框線表格（包含 ┌─┬─┐、| 等符號）..." spellcheck="false"></textarea>
@@ -371,26 +380,46 @@
       <!-- 右欄：視覺化校對預覽與功能匯出 -->
       <div class="card">
         <div class="row-sentence">
-          <span class="card-title char-element">2. 視覺化校對與微調預覽</span>
-          <!-- 匯出按鈕群組 (符合 rud 詞塊) -->
-          <div class="row-sentence" style="gap: 6px;">
+          <div class="word-group">
+            <button id="btnShowInputPreview" class="secondary" style="display:none; padding: 4px 8px; font-size: 0.78rem;" onclick="toggleInputPanel()" title="展開文字輸入面板">
+              <span>▶</span> <span class="char-element">展開輸入區</span>
+            </button>
+            <span class="card-title char-element">2. 視覺化校對與微調預覽</span>
+          </div>
+
+          <!-- 匯出與下載按鈕群組 (符合 rud 詞塊) -->
+          <div class="row-sentence" style="gap: 8px;">
+            <!-- 檔案下載群組 -->
             <div class="word-group">
-              <button class="secondary" onclick="exportHTML()" title="複製 HTML table 程式碼">
-                <span>📄</span><span class="char-element">HTML</span>
+              <span class="char-element" style="color: var(--text-muted); font-size: 0.8rem;">下載：</span>
+              <button class="secondary" onclick="downloadHTML()" title="下載為 .html 檔案">
+                <span>📄</span><span class="char-element">HTML檔</span>
               </button>
-              <button class="secondary" onclick="exportMarkdown()" title="複製 Markdown 表格語法">
-                <span>📝</span><span class="char-element">Markdown</span>
+              <button class="secondary" onclick="downloadMarkdown()" title="下載為 .md 檔案">
+                <span>📝</span><span class="char-element">Markdown檔</span>
               </button>
-              <button class="secondary" onclick="exportTSV()" title="複製 Excel 專用表格格式 (TSV)">
-                <span>📊</span><span class="char-element">TSV/試算表</span>
+              <button class="secondary" onclick="downloadTSV()" title="下載為 .tsv 試算表檔案">
+                <span>📊</span><span class="char-element">TSV檔</span>
               </button>
-            </div>
-            <div class="word-group">
-              <button class="secondary" onclick="exportODT()" title="下載相容 LibreOffice / Word 之 ODF 表格檔案">
-                <span>📑</span><span class="char-element">ODT</span>
+              <button class="secondary" onclick="downloadODT()" title="下載相容 LibreOffice / Word 之 ODF 文件檔案">
+                <span>📑</span><span class="char-element">ODT檔</span>
               </button>
               <button onclick="exportPNG()" title="繪製並下載高清 PNG 圖檔">
                 <span>🖼️</span><span class="char-element">另存 PNG</span>
+              </button>
+            </div>
+
+            <!-- 獨立複製到剪貼簿群組 -->
+            <div class="word-group">
+              <span class="char-element" style="color: var(--text-muted); font-size: 0.8rem;">複製：</span>
+              <button class="secondary" onclick="copyMarkdown()" title="複製 Markdown 表格語法至剪貼簿">
+                <span>📋</span><span class="char-element">Markdown</span>
+              </button>
+              <button class="secondary" onclick="copyHTML()" title="複製 HTML table 程式碼至剪貼簿">
+                <span>📋</span><span class="char-element">HTML</span>
+              </button>
+              <button class="secondary" onclick="copyTSV()" title="複製 TSV 格式（可直接貼進 Excel）">
+                <span>📋</span><span class="char-element">TSV</span>
               </button>
             </div>
           </div>
@@ -853,31 +882,6 @@
       return cell.innerText.trim();
     }
 
-    function exportHTML() {
-      const tbl = document.getElementById('targetTable');
-      if (!tbl) return alert('請先產生表格！');
-      const clone = tbl.cloneNode(true);
-      clone.removeAttribute('id');
-      clone.classList.remove('rendered-table');
-      clone.setAttribute('style', 'border-collapse:collapse;width:100%;font-family:sans-serif;');
-      clone.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
-      clone.querySelectorAll('th, td').forEach(el => {
-        el.setAttribute('style', 'border:1px solid #cbd5e1;padding:8px 12px;text-align:left;vertical-align:top;');
-      });
-      clone.querySelectorAll('th').forEach(el => {
-        el.style.backgroundColor = '#f1f5f9';
-        el.style.fontWeight = '600';
-      });
-      clone.querySelectorAll('ol, ul').forEach(el => {
-        el.setAttribute('style', 'margin:0;padding-left:1.4rem;line-height:1.45;');
-      });
-      clone.querySelectorAll('li').forEach(el => {
-        el.setAttribute('style', 'margin-bottom:3px;');
-      });
-
-      navigator.clipboard.writeText(clone.outerHTML).then(() => showToast('✅ 已複製 HTML 表格至剪貼簿（含清單結構）！'));
-    }
-
     function getCellMarkdownRepresentation(cell) {
       if (cell.querySelector('ol')) {
         const ol = cell.querySelector('ol');
@@ -915,9 +919,70 @@
       return div.innerText.trim().replace(/\n/g, '<br>');
     }
 
-    function exportMarkdown() {
+    // ── 輸入區面板收合/展開 (極大化預覽空間) ──
+    let isInputHidden = false;
+
+    function toggleInputPanel() {
+      isInputHidden = !isInputHidden;
+      const inputCard = document.getElementById('inputCard');
+      const grid = document.getElementById('editorGrid');
+      const showBtnHeader = document.getElementById('btnShowInputHeader');
+      const showBtnPreview = document.getElementById('btnShowInputPreview');
+
+      if (isInputHidden) {
+        inputCard.style.display = 'none';
+        grid.classList.add('full-preview');
+        if (showBtnHeader) showBtnHeader.style.display = 'inline-flex';
+        if (showBtnPreview) showBtnPreview.style.display = 'inline-flex';
+        showToast('◀ 已隱藏輸入區，預覽空間已最大化！');
+      } else {
+        inputCard.style.display = 'flex';
+        grid.classList.remove('full-preview');
+        if (showBtnHeader) showBtnHeader.style.display = 'none';
+        if (showBtnPreview) showBtnPreview.style.display = 'none';
+        showToast('▶ 已展開輸入區');
+      }
+    }
+
+    // ── 通用檔案下載 ──
+    function downloadFile(filename, content, mimeType) {
+      const blob = new Blob([content], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast(`💾 已下載檔案：${filename}`);
+    }
+
+    function generateHTMLString() {
       const tbl = document.getElementById('targetTable');
-      if (!tbl) return alert('請先產生表格！');
+      if (!tbl) return '';
+      const clone = tbl.cloneNode(true);
+      clone.removeAttribute('id');
+      clone.classList.remove('rendered-table');
+      clone.setAttribute('style', 'border-collapse:collapse;width:100%;font-family:sans-serif;');
+      clone.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
+      clone.querySelectorAll('th, td').forEach(el => {
+        el.setAttribute('style', 'border:1px solid #cbd5e1;padding:8px 12px;text-align:left;vertical-align:top;');
+      });
+      clone.querySelectorAll('th').forEach(el => {
+        el.style.backgroundColor = '#f1f5f9';
+        el.style.fontWeight = '600';
+      });
+      clone.querySelectorAll('ol, ul').forEach(el => {
+        el.setAttribute('style', 'margin:0;padding-left:1.4rem;line-height:1.45;');
+      });
+      clone.querySelectorAll('li').forEach(el => {
+        el.setAttribute('style', 'margin-bottom:3px;');
+      });
+      return clone.outerHTML;
+    }
+
+    function generateMarkdownString() {
+      const tbl = document.getElementById('targetTable');
+      if (!tbl) return '';
       let md = '';
       const trs = Array.from(tbl.querySelectorAll('tr'));
       trs.forEach((tr, rIdx) => {
@@ -927,25 +992,43 @@
           md += '| ' + cells.map(() => '---').join(' | ') + ' |\n';
         }
       });
-      navigator.clipboard.writeText(md).then(() => showToast('✅ 已複製 Markdown 語法至剪貼簿！'));
+      return md;
     }
 
-    function exportTSV() {
+    function generateTSVString() {
       const tbl = document.getElementById('targetTable');
-      if (!tbl) return alert('請先產生表格！');
+      if (!tbl) return '';
       let tsv = '';
       const trs = Array.from(tbl.querySelectorAll('tr'));
       trs.forEach(tr => {
         const cells = Array.from(tr.children).map(c => `"${getCellTextRepresentation(c).replace(/"/g, '""')}"`);
         tsv += cells.join('\t') + '\n';
       });
-      navigator.clipboard.writeText(tsv).then(() => showToast('✅ 已複製 TSV 格式（可直接貼入 Excel / Google Sheets）！'));
+      return tsv;
     }
 
-    function exportODT() {
+    // ── 檔案下載函式 ──
+    function downloadHTML() {
+      const html = generateHTMLString();
+      if (!html) return alert('請先產生表格！');
+      downloadFile('txTable_matrix.html', `<!DOCTYPE html><html><head><meta charset="utf-8"><title>txTable Export</title></head><body>${html}</body></html>`, 'text/html;charset=utf-8');
+    }
+
+    function downloadMarkdown() {
+      const md = generateMarkdownString();
+      if (!md) return alert('請先產生表格！');
+      downloadFile('txTable_matrix.md', md, 'text/markdown;charset=utf-8');
+    }
+
+    function downloadTSV() {
+      const tsv = generateTSVString();
+      if (!tsv) return alert('請先產生表格！');
+      downloadFile('txTable_matrix.tsv', tsv, 'text/tab-separated-values;charset=utf-8');
+    }
+
+    function downloadODT() {
       const tbl = document.getElementById('targetTable');
       if (!tbl) return alert('請先產生表格！');
-      
       const clone = tbl.cloneNode(true);
       clone.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
 
@@ -967,14 +1050,26 @@
 ${clone.outerHTML}
 </body>
 </html>`;
-      const blob = new Blob([htmlContent], { type: 'application/vnd.oasis.opendocument.text;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'txTable_matrix.doc';
-      a.click();
-      URL.revokeObjectURL(url);
-      showToast('📑 已下載 ODT/Word 相容檔案（含原生清單結構）！');
+      downloadFile('txTable_matrix.doc', htmlContent, 'application/vnd.oasis.opendocument.text;charset=utf-8');
+    }
+
+    // ── 獨立複製到剪貼簿函式 ──
+    function copyMarkdown() {
+      const md = generateMarkdownString();
+      if (!md) return alert('請先產生表格！');
+      navigator.clipboard.writeText(md).then(() => showToast('📋 已複製 Markdown 語法至剪貼簿！'));
+    }
+
+    function copyHTML() {
+      const html = generateHTMLString();
+      if (!html) return alert('請先產生表格！');
+      navigator.clipboard.writeText(html).then(() => showToast('📋 已複製 HTML 表格至剪貼簿！'));
+    }
+
+    function copyTSV() {
+      const tsv = generateTSVString();
+      if (!tsv) return alert('請先產生表格！');
+      navigator.clipboard.writeText(tsv).then(() => showToast('📋 已複製 TSV 格式（可直接貼入 Excel / Google Sheets）！'));
     }
 
     // ── 7. 高解析 Canvas 繪圖引擎 (自適應欄寬 + 自動文字換行) ──
