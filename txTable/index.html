@@ -409,6 +409,9 @@
             <button id="btnListify" class="secondary" style="padding: 3px 8px; font-size: 0.75rem;" onclick="toggleListify()" title="自動偵測 1. 2. 或 - • 等條列符號，轉換為原生有序/無序清單（相容 LibreOffice 原生 List）">
               <span>🔢</span> <span class="char-element">智慧清單：已開啟</span>
             </button>
+            <button id="btnAutoRowspan" class="secondary" style="padding: 3px 8px; font-size: 0.75rem;" onclick="toggleAutoRowspan()" title="自動將第一欄空白儲存格向上合併至所屬大類（產生跨列效果，相容 ODT/HTML）">
+              <span>🔲</span> <span class="char-element">跨列合併：關閉</span>
+            </button>
             <span class="char-element" style="color: var(--text-muted); font-size: 0.75rem;">💡 儲存格點擊即可直接修改文字</span>
           </div>
         </div>
@@ -579,8 +582,9 @@
       return finalRows;
     }
 
-    // ── 3. 智慧條列文字轉清單 (Smart Listify) ──
+    // ── 3. 智慧條列文字轉清單 與 跨列大類合併 ──
     let enableListify = true;
+    let enableAutoRowspan = false;
 
     function toggleListify() {
       enableListify = !enableListify;
@@ -595,20 +599,31 @@
       parseInput();
     }
 
+    function toggleAutoRowspan() {
+      enableAutoRowspan = !enableAutoRowspan;
+      const btn = document.getElementById('btnAutoRowspan');
+      if (enableAutoRowspan) {
+        btn.innerHTML = '<span>🔲</span> <span class="char-element">跨列合併：已開啟</span>';
+        btn.style.color = 'var(--text)';
+      } else {
+        btn.innerHTML = '<span>🔲</span> <span class="char-element">跨列合併：已關閉</span>';
+        btn.style.color = 'var(--text-muted)';
+      }
+      parseInput();
+    }
+
     function processCellToList(text) {
       if (!enableListify || !text) return text;
 
-      // 切分多行（以 <br> 或 \n）
       const lines = text.split(/<br\s*\/?>|\n/).map(l => l.trim()).filter(l => l.length > 0);
       if (lines.length === 0) return text;
 
-      // 模式 1：有序清單（數字 + 點/頓號/右括號），例如 "1. 體標記構式", "10. 程度補語", "1、xxx"
+      // 模式 1：有序清單（數字 + 點/頓號/右括號）
       const olRegex = /^(\d+)[\.、\)]\s*(.*)$/;
       const olMatches = lines.map(line => line.match(olRegex));
       const olCount = olMatches.filter(m => m !== null).length;
 
       if (olCount >= 1 && (olCount === lines.length || olCount >= 2)) {
-        // 抓取第一筆有序項目的數字作為 start 起始序號
         const firstMatch = olMatches.find(m => m !== null);
         const startNum = parseInt(firstMatch[1], 10);
         let itemsHtml = '';
@@ -623,7 +638,7 @@
         return `<ol start="${startNum}">${itemsHtml}</ol>`;
       }
 
-      // 模式 2：無序清單（-、*、•、‧、·、—）
+      // 模式 2：無序清單
       const ulRegex = /^[-*•‧·—]\s*(.*)$/;
       const ulMatches = lines.map(line => line.match(ulRegex));
       const ulCount = ulMatches.filter(m => m !== null).length;
@@ -644,7 +659,7 @@
       return text;
     }
 
-    // ── 4. 視覺化渲染 (DOM Rendering) ──
+    // ── 4. 視覺化渲染 (DOM Rendering 支援自動跨列) ──
     function renderTable(rows) {
       const container = document.getElementById('previewArea');
       if (!rows || rows.length === 0) {
@@ -656,6 +671,32 @@
       let maxCols = Math.max(...rows.map(r => r.length));
       let html = '<table class="rendered-table" id="targetTable">';
 
+      // 預先計算第一欄大類的 Rowspan
+      const rowspanMap = {}; // key: rowIdx, value: span count
+      const skipFirstCol = new Set(); // 記錄因被跨列合併而略過第一欄的列
+
+      if (enableAutoRowspan && rows.length > 2) {
+        // 從資料列開始（避開大標題與表頭，若 r0 是標題，資料通常從 r2 開始；若 r0 是表頭，資料從 r1 開始）
+        let startDataRow = 1;
+        const nonEmpties0 = rows[0].filter(c => c.trim().length > 0);
+        if (nonEmpties0.length === 1 && maxCols > 1) {
+          startDataRow = 2; // 有大標題
+        }
+
+        let currParentRow = -1;
+        for (let r = startDataRow; r < rows.length; r++) {
+          const firstCell = (rows[r][0] || '').trim();
+          if (firstCell.length > 0) {
+            currParentRow = r;
+            rowspanMap[currParentRow] = 1;
+          } else if (currParentRow !== -1) {
+            // 第一欄空白，累計到前一個有大類的儲存格
+            rowspanMap[currParentRow] += 1;
+            skipFirstCol.add(r);
+          }
+        }
+      }
+
       rows.forEach((row, rIdx) => {
         html += '<tr>';
         const nonEmpties = row.filter(c => c.trim().length > 0);
@@ -666,12 +707,22 @@
         } else {
           const tag = (rIdx <= 1) ? 'th' : 'td';
           for (let c = 0; c < maxCols; c++) {
+            // 如果此列的第一欄被前一列 rowspan 合併，跳過繪製
+            if (c === 0 && skipFirstCol.has(rIdx)) {
+              continue;
+            }
+
             let val = row[c] !== undefined ? row[c] : '';
-            // 套用智慧清單分析
             if (tag === 'td') {
               val = processCellToList(val);
             }
-            html += `<${tag} contenteditable="true">${val}</${tag}>`;
+
+            let spanAttr = '';
+            if (c === 0 && rowspanMap[rIdx] && rowspanMap[rIdx] > 1) {
+              spanAttr = ` rowspan="${rowspanMap[rIdx]}" style="vertical-align:middle;text-align:center;font-weight:600;"`;
+            }
+
+            html += `<${tag}${spanAttr} contenteditable="true">${val}</${tag}>`;
           }
         }
         html += '</tr>';
@@ -786,7 +837,6 @@
       setTimeout(() => t.classList.remove('show'), 2200);
     }
 
-    // 提取儲存格的結構化文字（支援清單轉序號純文字）
     function getCellTextRepresentation(cell) {
       if (cell.querySelector('ol')) {
         const ol = cell.querySelector('ol');
@@ -818,7 +868,6 @@
         el.style.backgroundColor = '#f1f5f9';
         el.style.fontWeight = '600';
       });
-      // 為 ol / ul 注入相容樣式
       clone.querySelectorAll('ol, ul').forEach(el => {
         el.setAttribute('style', 'margin:0;padding-left:1.4rem;line-height:1.45;');
       });
@@ -829,7 +878,6 @@
       navigator.clipboard.writeText(clone.outerHTML).then(() => showToast('✅ 已複製 HTML 表格至剪貼簿（含清單結構）！'));
     }
 
-    // 提取 Markdown 格式字串（保留粗體與清單）
     function getCellMarkdownRepresentation(cell) {
       if (cell.querySelector('ol')) {
         const ol = cell.querySelector('ol');
@@ -898,8 +946,6 @@
       const tbl = document.getElementById('targetTable');
       if (!tbl) return alert('請先產生表格！');
       
-      // 匯出相容 LibreOffice Writer / Word 的標準文件
-      // 包含標準 <ol start="x"><li>...</li></ol>，LibreOffice 導入時能直接映射為原生 Numbering 清單！
       const clone = tbl.cloneNode(true);
       clone.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
 
@@ -925,10 +971,39 @@ ${clone.outerHTML}
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'txTable_matrix.doc'; // 以 .doc (HTML相容) 格式，LibreOffice 點擊即以原生清單開啟
+      a.download = 'txTable_matrix.doc';
       a.click();
       URL.revokeObjectURL(url);
       showToast('📑 已下載 ODT/Word 相容檔案（含原生清單結構）！');
+    }
+
+    // ── 7. 高解析 Canvas 繪圖引擎 (自適應欄寬 + 自動文字換行) ──
+    function wrapText(ctx, text, maxWidth) {
+      if (!text) return [''];
+      const paragraphs = text.split('\n');
+      const lines = [];
+
+      paragraphs.forEach(para => {
+        if (!para) {
+          lines.push('');
+          return;
+        }
+        let currentLine = '';
+        for (let i = 0; i < para.length; i++) {
+          const char = para[i];
+          const testLine = currentLine + char;
+          const testW = ctx.measureText(testLine).width;
+          if (testW > maxWidth && currentLine.length > 0) {
+            lines.push(currentLine);
+            currentLine = char;
+          } else {
+            currentLine = testLine;
+          }
+        }
+        if (currentLine) lines.push(currentLine);
+      });
+
+      return lines.length > 0 ? lines : [''];
     }
 
     function exportPNG() {
@@ -937,53 +1012,95 @@ ${clone.outerHTML}
 
       const isLight = document.documentElement.getAttribute('data-theme') === 'light';
       const trs = Array.from(tbl.querySelectorAll('tr'));
+      const numCols = getTableColumnCount(tbl);
       
-      // 抓取儲存格文字與跨欄屬性（支援清單序號提取）
-      const tableData = trs.map(tr => Array.from(tr.children).map(td => ({
+      // 收集表格資料結構
+      const tableRows = trs.map(tr => Array.from(tr.children).map(td => ({
         text: getCellTextRepresentation(td),
         isHeader: td.tagName.toLowerCase() === 'th',
-        colspan: parseInt(td.getAttribute('colspan') || '1')
+        colspan: parseInt(td.getAttribute('colspan') || '1'),
+        rowspan: parseInt(td.getAttribute('rowspan') || '1')
       })));
 
       const canvas = document.getElementById('exportCanvas');
       const ctx = canvas.getContext('2d');
 
-      // 智慧量測與欄寬計算
-      const padding = 36;
-      const numCols = getTableColumnCount(tbl);
-      // 動態估計每欄基準寬度
-      let colWidths = Array(numCols).fill(160);
-      if (numCols === 3) {
-        colWidths = [190, 380, 170];
-      }
+      // 1. 動態計算每一欄的最適欄寬（絕不固定 160px）
+      const maxCharCounts = Array(numCols).fill(0);
+      tableRows.forEach(row => {
+        let col = 0;
+        row.forEach(cell => {
+          if (cell.colspan === 1 && col < numCols) {
+            cell.text.split('\n').forEach(line => {
+              let w = strDisplayWidth(line);
+              if (w > maxCharCounts[col]) maxCharCounts[col] = w;
+            });
+          }
+          col += cell.colspan;
+        });
+      });
 
+      const colWidths = maxCharCounts.map(chars => {
+        if (chars <= 6) return 110;
+        if (chars <= 14) return 130;  // 狀態燈號欄
+        if (chars <= 24) return 170;  // 大類欄
+        if (chars <= 42) return 320;  // 具體構式欄
+        return Math.min(500, Math.max(380, chars * 8)); // 實作說明欄
+      });
+
+      const padding = 36;
       const totalTableWidth = colWidths.reduce((a, b) => a + b, 0);
       const totalWidth = totalTableWidth + padding * 2;
-      const rowMinHeight = 38;
+      const rowMinHeight = 40;
 
-      let calculatedRows = [];
+      // 2. 預先設定字型以精準測量換行
+      ctx.font = '14px -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Microsoft JhengHei", sans-serif';
+
+      // 3. 逐列逐格進行文字折行測量，計算精確的 row 高度
+      const preparedRows = [];
       let currentY = padding;
 
-      tableData.forEach(row => {
+      tableRows.forEach(row => {
         let maxLines = 1;
+        let col = 0;
+
         row.forEach(cell => {
-          const lines = cell.text.split('\n').length;
-          if (lines > maxLines) maxLines = lines;
+          let cellW = 0;
+          for (let i = 0; i < cell.colspan; i++) {
+            cellW += colWidths[col + i] || 160;
+          }
+
+          // 扣除儲存格左右 padding (各 14px)
+          const availWidth = cellW - 28;
+          ctx.font = cell.isHeader 
+            ? '600 15px -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Microsoft JhengHei", sans-serif'
+            : '14px -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Microsoft JhengHei", sans-serif';
+
+          const wrapped = wrapText(ctx, cell.text, availWidth);
+          cell.wrappedLines = wrapped;
+
+          // 若非跨列，計入該列最大行數
+          if (cell.rowspan === 1 && wrapped.length > maxLines) {
+            maxLines = wrapped.length;
+          }
+
+          col += cell.colspan;
         });
-        const rH = Math.max(rowMinHeight, maxLines * 24 + 18);
-        calculatedRows.push({ row, height: rH, y: currentY });
+
+        const rH = Math.max(rowMinHeight, maxLines * 22 + 18);
+        preparedRows.push({ row, height: rH, y: currentY });
         currentY += rH;
       });
 
       const totalHeight = currentY + padding;
 
-      // 設置 Retina 2x 高畫質繪製
+      // 4. 設置 Retina 2x 高解析度
       const scale = 2;
       canvas.width = totalWidth * scale;
       canvas.height = totalHeight * scale;
       ctx.scale(scale, scale);
 
-      // 主題配色
+      // 主題色彩配置
       const bgFill = isLight ? '#ffffff' : '#13141a';
       const cardFill = isLight ? '#f8fafc' : '#1c1d26';
       const thFill = isLight ? '#e2e8f0' : '#27293a';
@@ -996,56 +1113,75 @@ ${clone.outerHTML}
       ctx.fillStyle = bgFill;
       ctx.fillRect(0, 0, totalWidth, totalHeight);
 
-      // 繪製表格各列
-      calculatedRows.forEach(({ row, height, y }) => {
+      // 5. 繪製儲存格背景與框線
+      preparedRows.forEach(({ row, height, y }, rIdx) => {
         let currentX = padding;
-        let colIdx = 0;
+        let col = 0;
 
         row.forEach(cell => {
           let cellW = 0;
           for (let i = 0; i < cell.colspan; i++) {
-            cellW += colWidths[colIdx + i] || 160;
+            cellW += colWidths[col + i] || 160;
           }
 
-          // 填充格色
-          ctx.fillStyle = cell.isHeader ? thFill : tdFill;
-          ctx.fillRect(currentX, y, cellW, height);
+          // 若有 rowspan，計算跨越的總高度
+          let cellH = height;
+          if (cell.rowspan > 1) {
+            cellH = 0;
+            for (let k = 0; k < cell.rowspan; k++) {
+              if (preparedRows[rIdx + k]) {
+                cellH += preparedRows[rIdx + k].height;
+              }
+            }
+          }
 
-          // 畫框線
+          // 填充儲存格背景
+          ctx.fillStyle = cell.isHeader ? thFill : tdFill;
+          ctx.fillRect(currentX, y, cellW, cellH);
+
+          // 繪製框線
           ctx.strokeStyle = borderColor;
           ctx.lineWidth = 1;
-          ctx.strokeRect(currentX, y, cellW, height);
+          ctx.strokeRect(currentX, y, cellW, cellH);
 
-          // 繪製文字內容
+          // 繪製文字
           ctx.fillStyle = cell.isHeader ? headerTextColor : textColor;
           ctx.font = cell.isHeader 
             ? '600 15px -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Microsoft JhengHei", sans-serif'
             : '14px -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Microsoft JhengHei", sans-serif';
           ctx.textBaseline = 'top';
 
-          const lines = cell.text.split('\n');
+          const lines = cell.wrappedLines || [cell.text];
+          const textBlockHeight = lines.length * 22;
+
+          let startY = y + 10;
+          // 若有 rowspan 或跨欄大標題，文字垂直置中
+          if (cell.rowspan > 1 || cell.colspan > 1) {
+            startY = y + (cellH - textBlockHeight) / 2;
+          }
+
           lines.forEach((line, lIdx) => {
-            if (cell.colspan > 1) {
-              // 置中標題
+            if (cell.colspan > 1 || (cell.rowspan > 1 && col === 0)) {
+              // 置中對齊
               ctx.textAlign = 'center';
-              ctx.fillText(line, currentX + cellW / 2, y + (height - lines.length * 20) / 2 + lIdx * 22);
+              ctx.fillText(line, currentX + cellW / 2, startY + lIdx * 22);
             } else {
               ctx.textAlign = 'left';
-              ctx.fillText(line, currentX + 12, y + 10 + lIdx * 22);
+              ctx.fillText(line, currentX + 14, startY + lIdx * 22);
             }
           });
 
           currentX += cellW;
-          colIdx += cell.colspan;
+          col += cell.colspan;
         });
       });
 
-      // 下載圖檔
+      // 觸發下載高清 PNG
       const a = document.createElement('a');
       a.href = canvas.toDataURL('image/png');
       a.download = 'txTable_matrix.png';
       a.click();
-      showToast('🖼️ 已成功儲存高畫質 PNG 圖檔！');
+      showToast('🖼️ 已成功儲存自適應高畫質 PNG 圖檔！');
     }
 
     // ── 6. 主題切換與範例資料 ──
