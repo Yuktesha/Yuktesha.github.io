@@ -446,25 +446,85 @@
       return w;
     }
 
-    // ── 2. 機警表格解析演算法 (Smart Pipe / Border Clustering) ──
+    // ── 2. 機警表格解析演算法 (Smart Markdown / Pipe / Border Clustering) ──
+    function formatInlineMarkdown(text) {
+      if (!text) return '';
+      // 處理 **粗體** 轉換為 <strong>
+      let formatted = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+      return formatted;
+    }
+
+    function isMarkdownSeparator(line) {
+      const trimmed = line.trim();
+      return trimmed.length > 2 && /^[\s\-:|]+$/.test(trimmed) && trimmed.includes('--');
+    }
+
     function parseTableText(text) {
       const rawLines = text.split('\n');
       const lines = rawLines.map(l => l.trimEnd()).filter(l => l.trim().length > 0);
       if (lines.length === 0) return [];
 
-      const sepChars = new Set(['┌','─','┬','┐','├','┼','┤','└','┴','┘','═','╤','╧','╪','-','+','=']);
-      const isSepLine = (line) => [...line.trim()].every(c => sepChars.has(c));
+      // 檢查是否包含 Markdown 表格分隔線（容許表格上方有標題或說明引言）
+      let mdSepIdx = -1;
+      for (let i = 0; i < lines.length; i++) {
+        if (isMarkdownSeparator(lines[i])) {
+          mdSepIdx = i;
+          break;
+        }
+      }
 
-      // 檢查是否為標準 Markdown 表格 (首行為 | a | b |，次行為 |---|---|)
-      const isMarkdown = lines.length >= 2 && 
-        lines[0].includes('|') && 
-        /^\|?\s*[-:]+\s*\|/.test(lines[1]);
-
-      if (isMarkdown) {
-        return parseMarkdownTable(lines);
+      if (mdSepIdx !== -1) {
+        return parseMarkdownTable(lines, mdSepIdx);
       }
 
       // 一般 ASCII / PE2 框線表格解析
+      return parseBoxDrawingTable(lines);
+    }
+
+    // Markdown 表格解析（精準鎖定表格區段，每一行獨立成列，過濾掉前後文）
+    function parseMarkdownTable(lines, sepIdx) {
+      const rows = [];
+      
+      // 表頭通常在分隔線的上一行
+      let headerIdx = sepIdx - 1;
+      let startIdx = 0;
+
+      if (headerIdx >= 0 && lines[headerIdx].includes('|')) {
+        startIdx = headerIdx;
+      } else {
+        startIdx = sepIdx + 1; // 若無明確表頭，從分隔線次行開始
+      }
+
+      for (let i = startIdx; i < lines.length; i++) {
+        const line = lines[i].trim();
+        // 略過分隔線
+        if (i === sepIdx || isMarkdownSeparator(line)) {
+          continue;
+        }
+
+        // 若該行不包含 | ，代表表格已經結束或遇到空白段落
+        if (!line.includes('|')) {
+          if (rows.length > 0) break; // 已解析完表格，遇到後記文字
+          continue;
+        }
+
+        let trimmed = line;
+        if (trimmed.startsWith('|')) trimmed = trimmed.substring(1);
+        if (trimmed.endsWith('|')) trimmed = trimmed.slice(0, -1);
+
+        // 分割儲存格並處理粗體
+        const cells = trimmed.split('|').map(c => formatInlineMarkdown(c.trim()));
+        rows.push(cells);
+      }
+
+      return rows;
+    }
+
+    // PE2 / 終端框線表格解析
+    function parseBoxDrawingTable(lines) {
+      const sepChars = new Set(['┌','─','┬','┐','├','┼','┤','└','┴','┘','═','╤','╧','╪','-','+','=']);
+      const isSepLine = (line) => [...line.trim()].every(c => sepChars.has(c));
+
       const blocks = [];
       let currentBlock = [];
 
@@ -482,7 +542,7 @@
           if (trimmed.startsWith('│') || trimmed.startsWith('|')) trimmed = trimmed.substring(1);
           if (trimmed.endsWith('│') || trimmed.endsWith('|')) trimmed = trimmed.slice(0, -1);
           
-          const rawCells = trimmed.split(/[│|]/).map(c => c.trim());
+          const rawCells = trimmed.split(/[│|]/).map(c => formatInlineMarkdown(c.trim()));
           currentBlock.push(rawCells);
         }
       }
@@ -509,18 +569,6 @@
         }
       }
       return finalRows;
-    }
-
-    function parseMarkdownTable(lines) {
-      const rows = [];
-      lines.forEach((line, idx) => {
-        if (idx === 1 && /^\|?\s*[-:]+\s*\|/.test(line)) return; // 略過 MD 分隔行
-        let trimmed = line.trim();
-        if (trimmed.startsWith('|')) trimmed = trimmed.substring(1);
-        if (trimmed.endsWith('|')) trimmed = trimmed.slice(0, -1);
-        rows.push(trimmed.split('|').map(c => c.trim()));
-      });
-      return rows;
     }
 
     // ── 3. 智慧條列文字轉清單 (Smart Listify) ──
@@ -773,16 +821,51 @@
       navigator.clipboard.writeText(clone.outerHTML).then(() => showToast('✅ 已複製 HTML 表格至剪貼簿（含清單結構）！'));
     }
 
+    // 提取 Markdown 格式字串（保留粗體與清單）
+    function getCellMarkdownRepresentation(cell) {
+      if (cell.querySelector('ol')) {
+        const ol = cell.querySelector('ol');
+        let start = parseInt(ol.getAttribute('start') || '1', 10);
+        return Array.from(ol.querySelectorAll('li'))
+          .map((li, idx) => {
+            let html = li.innerHTML
+              .replace(/<strong[^>]*>(.*?)<\/strong>/gi, '**$1**')
+              .replace(/<b[^>]*>(.*?)<\/b>/gi, '**$1**');
+            let div = document.createElement('div');
+            div.innerHTML = html;
+            return `${start + idx}. ${div.innerText.trim()}`;
+          })
+          .join('<br>');
+      } else if (cell.querySelector('ul')) {
+        const ul = cell.querySelector('ul');
+        return Array.from(ul.querySelectorAll('li'))
+          .map(li => {
+            let html = li.innerHTML
+              .replace(/<strong[^>]*>(.*?)<\/strong>/gi, '**$1**')
+              .replace(/<b[^>]*>(.*?)<\/b>/gi, '**$1**');
+            let div = document.createElement('div');
+            div.innerHTML = html;
+            return `• ${div.innerText.trim()}`;
+          })
+          .join('<br>');
+      }
+
+      let html = cell.innerHTML
+        .replace(/<strong[^>]*>(.*?)<\/strong>/gi, '**$1**')
+        .replace(/<b[^>]*>(.*?)<\/b>/gi, '**$1**')
+        .replace(/<br\s*\/?>/gi, '<br>');
+      let div = document.createElement('div');
+      div.innerHTML = html;
+      return div.innerText.trim().replace(/\n/g, '<br>');
+    }
+
     function exportMarkdown() {
       const tbl = document.getElementById('targetTable');
       if (!tbl) return alert('請先產生表格！');
       let md = '';
       const trs = Array.from(tbl.querySelectorAll('tr'));
       trs.forEach((tr, rIdx) => {
-        const cells = Array.from(tr.children).map(c => {
-          const txt = getCellTextRepresentation(c);
-          return txt.replace(/\n/g, '<br>');
-        });
+        const cells = Array.from(tr.children).map(c => getCellMarkdownRepresentation(c));
         md += '| ' + cells.join(' | ') + ' |\n';
         if (rIdx === 0 || (rIdx === 1 && tr.querySelector('th'))) {
           md += '| ' + cells.map(() => '---').join(' | ') + ' |\n';
