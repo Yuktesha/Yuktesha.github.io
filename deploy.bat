@@ -1,4 +1,4 @@
-@echo off
+﻿@echo off
 echo.
 echo =========================================
 echo       個人首頁 - 一鍵自動發布至 GitHub
