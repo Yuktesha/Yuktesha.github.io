@@ -27,6 +27,9 @@ MOEDICT_XZ_URL = "https://raw.githubusercontent.com/g0v/moedict-data/main/dict-r
 DICT_CAT_URL = "https://raw.githubusercontent.com/g0v/moedict-data/main/dict-cat.json"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MCB_DATA_DIR = os.path.abspath(os.path.join(BASE_DIR, "../../RuhOS/ruhi/_external/McBopomofo/Source/Data"))
+RUHI_DIR = os.path.abspath(os.path.join(BASE_DIR, "../../ruhi"))
+if not os.path.isdir(RUHI_DIR):
+    RUHI_DIR = "C:/ATGprjs/ruhi"
 
 BLACKLIST_EXACT = {
     '中國最大', '國內統一', '中國人大', '全國人大', '人民代表', '一國兩制',
@@ -149,7 +152,178 @@ def load_mcbopomofo():
     print(f"    McBopomofo 主音標記: {len(het1)} 字，單字庫: {len(base_chars)} 字，多字詞精確音讀: {len(word_bpms)} 詞")
     return het1, het2, het3, base_chars, char_bpm_to_py, word_bpms, char_in_words
 
-def download_and_load_moedict():
+def load_ruhi_lexicons():
+    """載入如喜 (RuhI) 輸入法進化詞庫與辭典治理資產"""
+    print(f"\n>>> 正在載入如喜 (RuhI) 進化詞庫與辭典治理資產: {RUHI_DIR}")
+    empty_result = {
+        'rejected_words': set(),
+        'rejected_readings': set(),
+        'archaic_impostors': set(),
+        'domain_words': [],
+        'philosophy_words': [],
+        'user_words': [],
+        'specific_readings': {}
+    }
+    if not os.path.isdir(RUHI_DIR):
+        print("    ⚠️ 未找到 如喜 (RuhI) 專案目錄，略過如喜語料整合。")
+        return empty_result
+
+    ruhi_data = os.path.join(RUHI_DIR, "data")
+    rejected_words = set()
+    rejected_readings = set()
+    archaic_impostors = set()
+    domain_words = []
+    philosophy_words = []
+    user_words = []
+
+    # 1. 斷片黑名單 (源自如喜核心治理)
+    ruhi_fragments = {
+        "版型與", "批次間", "查至關重", "域比較", "化與", "於梁柱間", "入以", "度與", 
+        "美呈現其", "將這", "的數位", "構與模", "開駛", "簡釋", "衣胞", "遺業", "縊死", 
+        "熠燿", "擬去", "有庳", "汙庳", "庳", "𣇫", "篼", "荊婦", "時後", "字擠", 
+        "慧覺", "姻黨", "內外姻黨", "赭衣", "繡衣", "瘐死", "劈刺", "家祠", "常語", 
+        "彈雨", "旦會", "試晬", "啖蔗", "市語", "傴兜", "鵲語", "确瘠", "在疚", 
+        "不擬", "野狠", "野語", "卻纔"
+    }
+    rejected_words.update(ruhi_fragments)
+
+    # 2. rejected_readings.tsv
+    rej_path = os.path.join(ruhi_data, "rejected_readings.tsv")
+    if os.path.exists(rej_path):
+        with open(rej_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith('#'):
+                    continue
+                parts = line.split('\t')
+                if len(parts) >= 2:
+                    w, bpm = parts[0].strip(), parts[1].strip()
+                    if bpm == '*':
+                        rejected_words.add(w)
+                    else:
+                        rejected_readings.add((w, bpm))
+                        if len(w) == 1:
+                            archaic_impostors.add((w, bpm))
+
+    # 3. common_archaic_impostors.tsv 與 archaic_polyphonics.tsv
+    for imp_name in ['common_archaic_impostors.tsv', 'archaic_polyphonics.tsv']:
+        imp_path = os.path.join(ruhi_data, imp_name)
+        if os.path.exists(imp_path):
+            with open(imp_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith('#'):
+                        continue
+                    parts = line.split('\t')
+                    if len(parts) >= 2:
+                        w, bpm = parts[0].strip(), parts[1].strip()
+                        archaic_impostors.add((w, bpm))
+
+    # 4. 具體多字詞現代權威音讀標準（防古籍/京片子破音干擾）
+    specific_readings = {
+        '丁丁': ['ㄉㄧㄥ', 'ㄉㄧㄥ'],
+        '大家': ['ㄉㄚˋ', 'ㄐㄧㄚ'],
+        '公車': ['ㄍㄨㄥ', 'ㄔㄜ'],
+        '它們': ['ㄊㄚ', '˙ㄇㄣ'],
+        '她們': ['ㄊㄚ', '˙ㄇㄣ'],
+        '他們': ['ㄊㄚ', '˙ㄇㄣ'],
+        '上色': ['ㄕㄤˋ', 'ㄙㄜˋ'],
+        '咳血': ['ㄎㄜˊ', 'ㄒㄧㄝˇ'],
+        '咳痰': ['ㄎㄜˊ', 'ㄊㄢˊ'],
+        '噁心': ['ㄜˇ', 'ㄒㄧㄣ'],
+        '姊姊': ['ㄐㄧㄝˇ', '˙ㄐㄧㄝ'],
+        '姊夫': ['ㄐㄧㄝˇ', 'ㄈㄨ'],
+        '家姊': ['ㄐㄧㄚ', 'ㄐㄧㄝˇ'],
+        '堂姊': ['ㄊㄤˊ', 'ㄐㄧㄝˇ'],
+        '傾家': ['ㄑㄧㄥ', 'ㄐㄧㄚ'],
+        '張說': ['ㄓㄤ', 'ㄕㄨㄛ'],
+        '宋朝': ['ㄙㄨㄥˋ', 'ㄔㄠˊ']
+    }
+
+    # 5. lexicon_domain.tsv (領域專業詞庫)
+    domain_path = os.path.join(ruhi_data, "lexicon_domain.tsv")
+    if os.path.exists(domain_path):
+        with open(domain_path, 'r', encoding='utf-8') as f:
+            for idx, line in enumerate(f):
+                line = line.strip()
+                if not line or line.startswith('#') or (idx == 0 and 'WORD' in line):
+                    continue
+                parts = line.split('\t')
+                if len(parts) >= 2:
+                    w = parts[0].strip()
+                    bpm_str = parts[1].strip()
+                    cat = parts[3].strip() if len(parts) >= 4 else "現代領域專業"
+                    note = parts[4].strip() if len(parts) >= 5 else ""
+                    if 2 <= len(w) <= 12 and re.match(r'^[\u4e00-\u9fff]+$', w) and w not in rejected_words:
+                        bpms = bpm_str.split()
+                        if len(bpms) == len(w):
+                            domain_words.append({
+                                'word': w,
+                                'bpms': bpms,
+                                'category': cat,
+                                'note': note
+                            })
+
+    # 6. packs/pack_philosophy_ananda.tsv (哲學心靈思辨詞庫)
+    philo_path = os.path.join(ruhi_data, "packs", "pack_philosophy_ananda.tsv")
+    if os.path.exists(philo_path):
+        with open(philo_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith('#'):
+                    continue
+                parts = line.split('\t')
+                if len(parts) >= 2:
+                    w = parts[0].strip()
+                    bpm_str = parts[1].strip()
+                    note = parts[4].strip() if len(parts) >= 5 else ""
+                    if 2 <= len(w) <= 12 and re.match(r'^[\u4e00-\u9fff]+$', w) and w not in rejected_words:
+                        if any(w.endswith(suf) for suf in ['哪', '些已', '皆', '做', '之']):
+                            continue
+                        bpms = bpm_str.split()
+                        if len(bpms) == len(w):
+                            philosophy_words.append({
+                                'word': w,
+                                'bpms': bpms,
+                                'category': "東方心靈哲學與思辨",
+                                'note': note
+                            })
+
+    # 7. user_dict.tsv
+    user_dict_path = os.path.join(RUHI_DIR, "user_dict.tsv")
+    if os.path.exists(user_dict_path):
+        with open(user_dict_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith('#'):
+                    continue
+                parts = line.split('\t')
+                if len(parts) >= 2:
+                    w = parts[0].strip()
+                    bpm_str = parts[1].strip()
+                    if 2 <= len(w) <= 12 and re.match(r'^[\u4e00-\u9fff]+$', w) and w not in rejected_words:
+                        bpms = bpm_str.split()
+                        if len(bpms) == len(w):
+                            user_words.append({
+                                'word': w,
+                                'bpms': bpms,
+                                'category': "使用者自建高頻詞",
+                                'note': "RuhI_UserSelection"
+                            })
+
+    print(f"    如喜治理黑名單: {len(rejected_words):,} 詞，非法讀音: {len(rejected_readings):,} 條，偽裝死古音: {len(archaic_impostors):,} 條")
+    print(f"    如喜領域專業詞庫: {len(domain_words):,} 條，哲學心靈思辨詞庫: {len(philosophy_words):,} 條，自建高頻詞: {len(user_words):,} 條")
+    return {
+        'rejected_words': rejected_words,
+        'rejected_readings': rejected_readings,
+        'archaic_impostors': archaic_impostors,
+        'domain_words': domain_words,
+        'philosophy_words': philosophy_words,
+        'user_words': user_words,
+        'specific_readings': specific_readings
+    }
+
+def download_and_load_moedict(ruhi_assets=None):
     cache_xz = os.path.join(BASE_DIR, "dict-revised.json.xz")
     if not os.path.exists(cache_xz):
         print(">>> 正在下載與解壓縮臺灣萌典 (g0v dict-revised.json.xz)...")
@@ -201,13 +375,22 @@ def download_and_load_moedict():
         except Exception as e:
             print(f"    ⚠️ 載入 rejected_words.json 失敗: {e}")
 
+    if ruhi_assets and ruhi_assets.get('rejected_words'):
+        BLACKLIST_EXACT.update(ruhi_assets['rejected_words'])
+        print(f"    如喜 (RuhI) 治理黑名單已併入總黑名單: {len(ruhi_assets['rejected_words']):,} 條")
+
     print(f"    教育部官方成語標籤收錄: {len(cat_chengyu):,} 條")
-    print(f"    黑名單（含大陸用語/Gemma剔除詞）總量: {len(BLACKLIST_EXACT):,} 條")
+    print(f"    黑名單（含大陸用語/Gemma剔除詞/如喜治理詞）總量: {len(BLACKLIST_EXACT):,} 條")
     return data, cat_chengyu
 
-def process_lexicon(data, cat_chengyu, mcb_tuple):
+def process_lexicon(data, cat_chengyu, mcb_tuple, ruhi_assets=None):
     het1, het2, het3, base_chars, char_bpm_to_py, word_bpms, char_in_words = mcb_tuple
     print("\n>>> 正在進行辭條語意清洗、成語評級、McBopomofo 聲韻校正與語境讀音提取...")
+
+    ruhi_assets = ruhi_assets or {}
+    ruhi_archaic = ruhi_assets.get('archaic_impostors', set())
+    ruhi_rej_readings = ruhi_assets.get('rejected_readings', set())
+    ruhi_rej_words = ruhi_assets.get('rejected_words', set())
 
     words_by_head = {}
     all_words = set()
@@ -278,6 +461,9 @@ def process_lexicon(data, cat_chengyu, mcb_tuple):
 
         for bpm, py in candidate_readings:
             if bpm in seen_bpms:
+                continue
+            # 如喜進化治理：若該讀音名列偽裝死古音或非法破音字清單，且非首選主音，則徹底剔除！
+            if (c, bpm) in ruhi_archaic or (c, bpm) in ruhi_rej_readings:
                 continue
             occ = char_in_words[c].get(bpm, 0)
             is_curated_poly = (bpm == het2.get(c) or bpm == het3.get(c))
@@ -446,6 +632,73 @@ def process_lexicon(data, cat_chengyu, mcb_tuple):
         except Exception as e:
             print(f"    ⚠️ 載入 supplementary_lexicon.json 失敗: {e}")
 
+    # 5b. 載入如喜 (RuhI) 進化專業詞庫（領域專業、哲學思辨、使用者高頻詞）
+    if ruhi_assets:
+        ruhi_domain_count = 0
+        for dw in ruhi_assets.get('domain_words', []):
+            w = dw['word']
+            bpms = dw['bpms']
+            cat = dw['category']
+            head = w[0]
+            if len(w) >= 4 and w not in story_cache:
+                pinyin_str = ' '.join(pypinyin.lazy_pinyin(w, style=pypinyin.TONE))
+                story_cache[w] = {
+                    'pinyin': pinyin_str,
+                    'origin': f"現代領域 · {cat}",
+                    'story': f"「{w}」為現代{cat}領域之核心專業名詞與技術實踐概念。",
+                    'usage': f"「{w}」在當代專業實踐中具有重要意義。"
+                }
+            all_words.add(w)
+            word_actual_bpms[w] = bpms
+            if head not in words_by_head:
+                words_by_head[head] = []
+            if w not in words_by_head[head]:
+                words_by_head[head].append(w)
+                ruhi_domain_count += 1
+
+        ruhi_philo_count = 0
+        for pw in ruhi_assets.get('philosophy_words', []):
+            w = pw['word']
+            bpms = pw['bpms']
+            cat = pw['category']
+            head = w[0]
+            if len(w) >= 4 and w not in story_cache:
+                pinyin_str = ' '.join(pypinyin.lazy_pinyin(w, style=pypinyin.TONE))
+                story_cache[w] = {
+                    'pinyin': pinyin_str,
+                    'origin': cat,
+                    'story': f"「{w}」蘊含東方心靈哲學與生命思辨之深意。",
+                    'usage': f"修持者於靜定深思之中體悟「{w}」。"
+                }
+            all_words.add(w)
+            word_actual_bpms[w] = bpms
+            if head not in words_by_head:
+                words_by_head[head] = []
+            if w not in words_by_head[head]:
+                words_by_head[head].append(w)
+                ruhi_philo_count += 1
+
+        ruhi_user_count = 0
+        for uw in ruhi_assets.get('user_words', []):
+            w = uw['word']
+            bpms = uw['bpms']
+            head = w[0]
+            all_words.add(w)
+            word_actual_bpms[w] = bpms
+            if head not in words_by_head:
+                words_by_head[head] = []
+            if w not in words_by_head[head]:
+                words_by_head[head].append(w)
+                ruhi_user_count += 1
+
+        # 應用多字詞現代權威音讀標準（如「大家 ㄉㄚˋ ㄐㄧㄚ」、「公車 ㄍㄨㄥ ㄔㄜ」、「上色 ㄕㄤˋ ㄙㄜˋ」等）
+        ruhi_specific = ruhi_assets.get('specific_readings', {})
+        for sp_w, sp_bpms in ruhi_specific.items():
+            if sp_w in all_words:
+                word_actual_bpms[sp_w] = sp_bpms
+
+        print(f"    如喜領域專業詞已注入: {ruhi_domain_count:,} 條，哲學心靈思辨詞已注入: {ruhi_philo_count:,} 條，自建高頻詞: {ruhi_user_count:,} 條")
+
     # 6. 計算詞彙語境讀音覆蓋表 (word_overrides)
     print("\n>>> 正在萃取詞彙首尾多音字語境校正表 (WORD_OVERRIDES)...")
     for w in all_words:
@@ -582,11 +835,12 @@ def save_outputs(scored_lexicon, story_cache, char_zhuyin, word_overrides):
         print(f"    [OK] LingxiChain/data 詞庫、典故與音讀校正表已同步完成！")
 
 def main():
+    ruhi_assets = load_ruhi_lexicons()
     mcb_tuple = load_mcbopomofo()
-    moe_data, cat_chengyu = download_and_load_moedict()
-    scored_lexicon, story_cache, char_zhuyin, word_overrides = process_lexicon(moe_data, cat_chengyu, mcb_tuple)
+    moe_data, cat_chengyu = download_and_load_moedict(ruhi_assets)
+    scored_lexicon, story_cache, char_zhuyin, word_overrides = process_lexicon(moe_data, cat_chengyu, mcb_tuple, ruhi_assets)
     save_outputs(scored_lexicon, story_cache, char_zhuyin, word_overrides)
-    print("\n🎉 臺灣萌典與 McBopomofo 權威詞庫建構大功告成！")
+    print("\n🎉 臺灣萌典、McBopomofo 與如喜 (RuhI) 進化詞庫建構大功告成！")
 
 if __name__ == "__main__":
     main()

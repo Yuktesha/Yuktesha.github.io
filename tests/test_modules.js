@@ -169,5 +169,31 @@ assert(ZenAmbient.getTargetFps() === 60, "Target FPS reset to 60");
 
 console.log("✓ Zen Ambient Background Engine, Frame Capping & Canvas rules verified!");
 
+console.log("\n=== [7] Testing Ruhi Evolved Lexicon Integration ===");
+// 載入注音表與詞庫數據驗證如喜進化資產
+const zhuyinDataContent = fs.readFileSync(path.join(__dirname, '../wordchain/zhuyin_data.js'), 'utf-8');
+const zhuyinMap = JSON.parse(zhuyinDataContent.replace('window.ZHUYIN_MAP = ', '').replace(/;\s*$/, ''));
+
+// 1. 驗證罕見死古音剔除（如「尾」之「ㄧˇ」、「會」之「ㄏㄨㄟˇ」）
+assert(zhuyinMap['尾'] && zhuyinMap['尾'][2].length === 1 && zhuyinMap['尾'][2][0][0] === 'ㄨㄟˇ', "尾字不得含有死古音「ㄧˇ」");
+assert(zhuyinMap['會'] && !zhuyinMap['會'][2].some(r => r[0] === 'ㄏㄨㄟˇ'), "會字不得含有古破音「ㄏㄨㄟˇ」");
+assert(zhuyinMap['不'] && !zhuyinMap['不'][2].some(r => r[0] === 'ㄈㄡ' || r[0] === 'ㄈㄨ'), "不字不得含有古音「ㄈㄡ」或「ㄈㄨ」");
+assert(zhuyinMap['我'] && zhuyinMap['我'][2].length === 1 && zhuyinMap['我'][2][0][0] === 'ㄨㄛˇ', "我字不得含有古音「ㄜˇ」");
+
+// 2. 驗證現代專業領域詞與心靈哲學詞庫注入
+const lexiconDataContent = fs.readFileSync(path.join(__dirname, '../wordchain/lexicon_data.js'), 'utf-8');
+assert(lexiconDataContent.includes('"軟體架構師"'), "lexicon_data.js 必須收錄如喜現代領域詞「軟體架構師」");
+assert(lexiconDataContent.includes('"雲端原生架構"'), "lexicon_data.js 必須收錄如喜現代領域詞「雲端原生架構」");
+assert(lexiconDataContent.includes('"伺服器叢集"'), "lexicon_data.js 必須收錄如喜現代領域詞「伺服器叢集」");
+assert(lexiconDataContent.includes('"至上意識"'), "lexicon_data.js 必須收錄如喜哲學思辨詞「至上意識」");
+assert(lexiconDataContent.includes('"行動瑜伽"'), "lexicon_data.js 必須收錄如喜哲學思辨詞「行動瑜伽」");
+
+// 3. 驗證專業術語成語典故故事卡生成
+const storyDataContent = fs.readFileSync(path.join(__dirname, '../wordchain/story_data.js'), 'utf-8');
+assert(storyDataContent.includes('"軟體架構師"'), "story_data.js 必須包含「軟體架構師」之典故故事卡");
+assert(storyDataContent.includes('"至上意識"'), "story_data.js 必須包含「至上意識」之典故故事卡");
+
+console.log("✓ Ruhi Evolved Lexicon, Archaic Impostor Purge & Domain Terms verified!");
+
 console.log("\n=== ALL ARCHITECTURE & RESPONSIVE TESTS PASSED! ===");
 
